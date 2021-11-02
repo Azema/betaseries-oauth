@@ -1,0 +1,51 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta http-equiv="X-UA-Compatible" content="ie=edge">
+  <title>Page de connexion à BetaSeries</title>
+</head>
+<body>
+</body>
+<script>
+  'use strict';
+
+  const client_id = '45028a0b0d3c',
+        redirect_url = encodeURIComponent(location.origin + '/connect.html');
+
+  let params = new URLSearchParams(document.location.search.substring(1)),
+      body = new URLSearchParams({
+        client_id: client_id,
+        client_secret: '158d31a0edf07e7f1b11f224e1bc64ef',
+        redirect_uri: redirect_url
+      }),
+      init = {
+        method: 'POST',
+        cache: 'no-cache',
+        body: body
+      },
+      request = new Request('https://api.betaseries.com/oauth/access_token');
+
+  if (params.has('code')) {
+    init.body.append('code', params.get('code'));
+
+    try {
+      fetch(request, init).then(response => {
+        if (!response.ok) {
+          throw new Error(`erreur HTTP! statut: ${response.status}`);
+        }
+        response.json().then(data => {
+          if (!data.hasOwnProperty('access_token')) {
+            throw new Error(`erreur accessToken: ${JSON.stringify(data)}`);
+          }
+          window.parent.postMessage({ message: "access_token", value: data.access_token }, "*");
+        });
+      });
+    } catch(e) {
+      window.parent.postMessage({ message: "error", value: e.message }, "*");
+    }
+  }
+
+</script>
+</html>
