@@ -12,9 +12,8 @@
 </body>
 <script>
   'use strict';
-  let link = document.getElementsByTagName('a')[0];
   const client_id = '45028a0b0d3c',
         redirect_url = encodeURIComponent('https://azema.github.io/betaseries-oauth/connect.html');
-  link.href = `https://www.betaseries.com/authorize?client_id=${client_id}&redirect_uri=${redirect_url}`;
+  location.href = `https://www.betaseries.com/authorize?client_id=${client_id}&redirect_uri=${redirect_url}`;
 </script>
 </html>
