@@ -5,12 +5,12 @@ if [ -z "$1" ]; then
 	exit 1;
 fi
 
-if [ ! -f "$1" ]; then
+if [ ! -f "$1.css" ]; then
   echo "File does not exist"
   exit 1;
 fi
 
-file=$(basename -- "$1")
+file=$(basename -- "$1.css")
 filename="${file%.*}"
 extension="${file##*.}"
 filenameMin="$filename.min.$extension"
