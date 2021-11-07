@@ -59,13 +59,6 @@ button.button.blue {
   opacity: 0.5;
 }
 
-.checkSeen.seen {
-  background-image: url('data:image/svg+xml;utf8,<svg fill="%23fff" width="12" height="10" viewBox="2 3 12 10" xmlns="http://www.w3.org/2000/svg"><path fill="inherit" d="M6 10.78l-2.78-2.78-.947.94 3.727 3.727 8-8-.94-.94z"/></svg>');
-  background-color: rgba(13,21,28,.2);
-  background-repeat: no-repeat;
-  background-position: center;
-}
-
 /* -------------------------------------------------------------------------- *\
  * Style notification
  * -------------------------------------------------------------------------- */
