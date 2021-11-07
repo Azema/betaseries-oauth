@@ -11,27 +11,23 @@
 <script>
   'use strict';
 
-  const client_id = '45028a0b0d3c',
-        redirect_url = 'https://azema.github.io/betaseries-oauth/connect.html';
-
+  /* globals URLSearchParams */
   let params = new URLSearchParams(document.location.search.substring(1)),
-      body = new URLSearchParams({
-        client_id: client_id,
-        client_secret: '158d31a0edf07e7f1b11f224e1bc64ef',
-        redirect_uri: redirect_url
-      }),
       init = {
         method: 'POST',
         cache: 'no-cache',
-        body: body
-      },
-      request = new Request('https://api.betaseries.com/oauth/access_token');
+        body: new URLSearchParams({
+          client_id: '45028a0b0d3c',
+          client_secret: '158d31a0edf07e7f1b11f224e1bc64ef',
+          redirect_uri: 'https://azema.github.io/betaseries-oauth/connect.html'
+        })
+      };
 
   if (params.has('code')) {
     init.body.append('code', params.get('code'));
 
     try {
-      fetch(request, init).then(response => {
+      fetch('https://api.betaseries.com/oauth/access_token', init).then(response => {
         if (!response.ok) {
           throw new Error(`erreur HTTP! statut: ${response.status}`);
         }
