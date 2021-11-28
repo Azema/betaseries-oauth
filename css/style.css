@@ -32,8 +32,17 @@ button.button.blue {
   font-family: FontAwesome;
 }
 
+.blockInformations__metadatas .stars-outer {
+  font-size: 1.5em;
+}
+
 .stars-outer::before {
   content: "\f006 \f006 \f006 \f006 \f006";
+}
+
+.blockInformations__metadatas .stars-outer::before {
+  content: "\f006  \f006  \f006  \f006  \f006";
+  color: #FFAC3B;
 }
 
 .stars-inner, .stars-inner-user {
@@ -43,6 +52,11 @@ button.button.blue {
   white-space: nowrap;
   overflow: hidden;
   width: 0;
+}
+
+.blockInformations__metadatas .stars-inner::before {
+  content: "\f005  \f005  \f005  \f005  \f005";
+  color: #FFAC3B;
 }
 
 .stars-inner::before {
