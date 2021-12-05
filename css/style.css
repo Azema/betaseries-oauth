@@ -31,9 +31,13 @@ button.button.blue {
   position: relative;
   font-family: FontAwesome;
 }
+
 .blockInformations__synopsis button {
   background: transparent;
   border: none;
+}
+.blockInformations__synopsis button:focus {
+  outline: none;
 }
 .blockInformations__synopsis button.js-show-fulltext:before {
   content: "… ";
