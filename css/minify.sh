@@ -1,12 +1,19 @@
 #!/bin/bash
 
+base=`pwd`
+if [[ ! "$base" =~ "css" ]]; then
+  cd css;
+fi
+
 if [ -z "$1" ]; then
   echo "No argument supplied"
+  cd $base
 	exit 1;
 fi
 
 if [ ! -f "$1.css" ]; then
   echo "File does not exist"
+  cd $base
   exit 1;
 fi
 
@@ -25,3 +32,6 @@ $compressor --type css --charset utf-8 -v -o "$filenameMin" "$file"
 
 integrity=`cat $filenameMin | openssl dgst -sha384 -binary | openssl enc -base64 -A`
 echo "Integrity sha384-$integrity"
+
+cd $base
+exit 0
