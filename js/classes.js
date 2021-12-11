@@ -431,7 +431,7 @@ class Media {
                     }
                     fetchUri(resolve, reject);
                 }).catch(error => {
-                    if (debug) console.log('Il y a eu un problème avec l\'opération fetch: ' + error.message);
+                    if (this.debug) console.log('Il y a eu un problème avec l\'opération fetch: ' + error.message);
                     console.error(error);
                     reject(error.message);
                 });
