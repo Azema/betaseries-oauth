@@ -1,0 +1,3 @@
+[submodule "js/modules"]
+	path = js/modules
+	url = https://github.com/Azema/modulesJS.git
