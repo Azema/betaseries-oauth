@@ -2996,7 +2996,7 @@ Show_1.Show.prototype.fill = function(data) {
   this.thetvdb_id = parseInt(data.thetvdb_id, 10);
   this.pictures = new Array();
   this.mediaType = { singular: Base_1.MediaType.show, plural: 'shows', className: Show };
-  super.fill(data);
+  Media_1.Media.fill.call(this, data);
   return this;
 };
 
