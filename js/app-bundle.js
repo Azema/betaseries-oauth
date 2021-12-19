@@ -1751,15 +1751,19 @@ class Season {
 class Episode extends Base {
     code;
     date;
+    director;
     episode;
     global;
     season;
     platform_links;
+    releasesSvod;
     seen_total;
     show;
     special;
     subtitles;
     thetvdb_id;
+    watched_by;
+    writers;
     youtube_id;
     constructor(data, show) {
         super(data);
@@ -1774,11 +1778,13 @@ class Episode extends Base {
     fill(data) {
         this.code = data.code;
         this.date = new Date(data.date);
+        this.director = data.director;
         this.episode = parseInt(data.episode, 10);
         this.global = parseInt(data.global, 10);
         this.season = parseInt(data.season, 10);
         this.platform_links = data.platform_links;
-        this.seen_total = parseInt(data.seen_total, 10);
+        this.releasesSvod = data.releasesSvod;
+        this.seen_total = (data.seen_total !== null) ? parseInt(data.seen_total, 10) : 0;
         this.special = data.special === 1 ? true : false;
         this.subtitles = new Array();
         if (data.subtitles !== undefined) {
@@ -1788,6 +1794,8 @@ class Episode extends Base {
         }
         this.thetvdb_id = parseInt(data.thetvdb_id, 10);
         this.youtube_id = data.youtube_id;
+        this.watched_by = data.watched_by;
+        this.writers = data.writers;
         this.mediaType = { singular: MediaType.episode, plural: 'episodes', className: Episode };
         super.fill(data);
         return this;
@@ -1801,8 +1809,7 @@ class Episode extends Base {
      */
     addAttrTitle() {
         // Ajout de l'attribut title pour obtenir le nom complet de l'épisode, lorsqu'il est tronqué
-        if (this.elt)
-            this.elt.find('.slide__title').attr('title', this.title);
+        if (this.elt) this.elt.find('.slide__title').attr('title', this.title);
         return this;
     }
     /**
@@ -2216,13 +2223,18 @@ class Similar extends Media {
      * @return {Similar}
      */
     addViewed() {
+        const $slideImg = this.elt.find('a.slide__image');
         // Si la série a été vue ou commencée
         if (this.user.status &&
             ((this.mediaType.singular === MediaType.movie && this.user.status === 1) ||
                 (this.mediaType.singular === MediaType.show && this.user.status > 0))) {
             // On ajoute le bandeau "Viewed"
-            this.elt.find('a.slide__image').prepend(`<img src="${Base.serverBaseUrl}/img/viewed.png" class="bandViewed"/>`);
+            $slideImg
+                .prepend(`<img src="${Base.serverBaseUrl}/img/viewed.png" class="bandViewed"/>`);
         }
+        // On ajoute les informations pour faciliter la recherche ultérieure
+        $slideImg.attr('data-id', this.id).attr('data-type', this.mediaType.singular);
+        
         return this;
     }
     /**
@@ -2235,9 +2247,7 @@ class Similar extends Media {
         $title.html($title.html() +
             `<i class="fa fa-wrench popover-wrench"
                 aria-hidden="true"
-                style="margin-left:5px;cursor:pointer;"
-                data-id="${_this.id}"
-                data-type="${_this.mediaType.singular}">
+                style="margin-left:5px;cursor:pointer;">
             </i>`);
         $title.find('.popover-wrench').click((e) => {
             e.stopPropagation();
@@ -2646,7 +2656,7 @@ class UpdateAuto {
      */
     delete() {
         this.stop();
-        let objUpAuto = UpdateAuto.getValue('objUpAuto');
+        let objUpAuto = UpdateAuto.getValue('objUpAuto', {});
         if (objUpAuto[this._showId] !== undefined) {
             delete objUpAuto[this._showId];
             UpdateAuto.setValue('objUpAuto', objUpAuto);
