@@ -778,7 +778,7 @@ class Media extends Base {
     similars;
     nbSimilars;
     in_account;
-    fetchSimilars;
+
     constructor(data) {
         super(data);
         return this.fill(data);
@@ -816,6 +816,7 @@ class Media extends Base {
         super.fill(data);
         return this;
     }
+    fetchSimilars() {}
     /**
      * Retourne le similar correspondant à l'identifiant
      * @abstract
