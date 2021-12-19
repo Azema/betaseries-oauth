@@ -590,7 +590,6 @@ class Base {
         this.title = data.title;
         this.user = new User(data.user);
         this.description = data.description;
-        this.save();
         return this;
     }
     /**
@@ -654,7 +653,7 @@ class Base {
      * @return this
      */
     save() {
-        if (Base.cache instanceof CacheUS) {
+        if (Base.cache instanceof CacheUS && this.mediaType !== undefined) {
             Base.cache.set(this.mediaType.plural, this.id, this);
             this._callListeners(EventTypes.SAVE);
         }
@@ -1599,10 +1598,10 @@ class Show extends Media {
      * @throws  {Error} if seasonNumber is out of range of seasons
      */
     setCurrentSeason(seasonNumber) {
-        if (seasonNumber < 0 || seasonNumber >= this.seasons.length) {
+        if (seasonNumber < 0 || seasonNumber > this.seasons.length) {
             throw new Error(`seasonNumber ${seasonNumber} is out of range of seasons`);
         }
-        this.currentSeason = this.seasons[seasonNumber];
+        this.currentSeason = this.seasons[seasonNumber - 1];
         return this;
     }
 }
