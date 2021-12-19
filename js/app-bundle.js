@@ -1,12 +1,11 @@
 'use strict';
 
-var DataTypesCache;
-(function (DataTypesCache) {
-    DataTypesCache["shows"] = "shows";
-    DataTypesCache["episodes"] = "episodes";
-    DataTypesCache["movies"] = "movies";
-    DataTypesCache["members"] = "members";
-})(DataTypesCache || (DataTypesCache = {}));
+var DataTypesCache = DataTypesCache || {
+    shows: 'shows',
+    episodes: 'episodes',
+    movies: 'movies',
+    members: 'members'
+};
 /**
  * @class Gestion du Cache pour le script
  */
@@ -234,25 +233,22 @@ class User {
     tags;
     twitter;
 }
-var MediaType;
-(function (MediaType) {
-    MediaType["show"] = "show";
-    MediaType["movie"] = "movie";
-    MediaType["episode"] = "episode";
-})(MediaType || (MediaType = {}));
-var EventTypes;
-(function (EventTypes) {
-    EventTypes[EventTypes["UPDATE"] = 0] = "UPDATE";
-    EventTypes[EventTypes["SAVE"] = 1] = "SAVE";
-})(EventTypes || (EventTypes = {}));
-var HTTP_VERBS;
-(function (HTTP_VERBS) {
-    HTTP_VERBS["GET"] = "GET";
-    HTTP_VERBS["POST"] = "POST";
-    HTTP_VERBS["PUT"] = "PUT";
-    HTTP_VERBS["DELETE"] = "DELETE";
-    HTTP_VERBS["OPTIONS"] = "OPTIONS";
-})(HTTP_VERBS || (HTTP_VERBS = {}));
+var MediaType = MediaType || {
+    show: 'show',
+    movie: 'movie',
+    episode: 'episode'
+};
+var EventTypes = EventTypes || [
+    {UPDATE: 'UPDATE'},
+    {SAVE: 'SAVE'}
+];
+var HTTP_VERBS = HTTP_VERBS || {
+    "GET": "GET",
+    "POST": "POST",
+    "PUT": "PUT",
+    "DELETE": "DELETE",
+    "OPTIONS": "OPTIONS"
+};
 class Base {
     /*
                     STATIC
@@ -848,12 +844,11 @@ class Images {
     box;
     poster;
 }
-var Picked;
-(function (Picked) {
-    Picked[Picked["none"] = 0] = "none";
-    Picked[Picked["banner"] = 1] = "banner";
-    Picked[Picked["show"] = 2] = "show";
-})(Picked || (Picked = {}));
+var Picked = Picked || [
+    {"none": "none"},
+    {"banner": "banner"},
+    {"show": "show"}
+];
 class Picture {
     constructor(data) {
         this.id = parseInt(data.id, 10);
