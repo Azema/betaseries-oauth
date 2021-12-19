@@ -1,6 +1,6 @@
 'use strict';
 
-var DataTypesCache = DataTypesCache || {
+var DataTypesCache = {
     shows: 'shows',
     episodes: 'episodes',
     movies: 'movies',
@@ -233,16 +233,16 @@ class User {
     tags;
     twitter;
 }
-var MediaType = MediaType || {
+var MediaType = {
     show: 'show',
     movie: 'movie',
     episode: 'episode'
 };
-var EventTypes = EventTypes || [
+var EventTypes = [
     {UPDATE: 'UPDATE'},
     {SAVE: 'SAVE'}
 ];
-var HTTP_VERBS = HTTP_VERBS || {
+var HTTP_VERBS = {
     "GET": "GET",
     "POST": "POST",
     "PUT": "PUT",
@@ -844,7 +844,7 @@ class Images {
     box;
     poster;
 }
-var Picked = Picked || [
+var Picked = [
     {"none": "none"},
     {"banner": "banner"},
     {"show": "show"}
