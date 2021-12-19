@@ -2526,7 +2526,7 @@ class UpdateAuto {
      * @return {UpdateAuto} L'instance unique UpdateAuto
      */
     _save() {
-        let objUpAuto = UpdateAuto.getValue('objUpAuto');
+        let objUpAuto = UpdateAuto.getValue('objUpAuto', {});
         let obj = {
             status: this._status,
             auto: this._auto,
