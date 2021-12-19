@@ -6,7 +6,7 @@ var DataTypesCache;
     DataTypesCache["episodes"] = "episodes";
     DataTypesCache["movies"] = "movies";
     DataTypesCache["members"] = "members";
-})(DataTypesCache);
+})(DataTypesCache || (DataTypesCache = {}));
 /**
  * @class Gestion du Cache pour le script
  */
@@ -239,12 +239,12 @@ var MediaType;
     MediaType["show"] = "show";
     MediaType["movie"] = "movie";
     MediaType["episode"] = "episode";
-})(MediaType);
+})(MediaType || (MediaType = {}));
 var EventTypes;
 (function (EventTypes) {
     EventTypes[EventTypes["UPDATE"] = 0] = "UPDATE";
     EventTypes[EventTypes["SAVE"] = 1] = "SAVE";
-})(EventTypes);
+})(EventTypes || (EventTypes = {}));
 var HTTP_VERBS;
 (function (HTTP_VERBS) {
     HTTP_VERBS["GET"] = "GET";
@@ -252,7 +252,7 @@ var HTTP_VERBS;
     HTTP_VERBS["PUT"] = "PUT";
     HTTP_VERBS["DELETE"] = "DELETE";
     HTTP_VERBS["OPTIONS"] = "OPTIONS";
-})(HTTP_VERBS);
+})(HTTP_VERBS || (HTTP_VERBS = {}));
 class Base {
     /*
                     STATIC
@@ -853,7 +853,7 @@ var Picked;
     Picked[Picked["none"] = 0] = "none";
     Picked[Picked["banner"] = 1] = "banner";
     Picked[Picked["show"] = 2] = "show";
-})(Picked);
+})(Picked || (Picked = {}));
 class Picture {
     constructor(data) {
         this.id = parseInt(data.id, 10);
