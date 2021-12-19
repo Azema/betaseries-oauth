@@ -2459,6 +2459,8 @@ class Similar extends Media {
     }
 }
 class UpdateAuto {
+    static getValue = function(name) {};
+    static setValue = function(name, val) {};
     static instance;
     static intervals = [
         { val: 0, label: 'Jamais' },
@@ -2480,7 +2482,7 @@ class UpdateAuto {
     constructor(show) {
         this._show = show;
         this._showId = show.id;
-        let objUpAuto = GM_getValue('objUpAuto');
+        let objUpAuto = UpdateAuto.getValue('objUpAuto');
         this._exist = false;
         if (objUpAuto[this._showId] !== undefined) {
             this._exist = true;
@@ -2509,14 +2511,14 @@ class UpdateAuto {
      * @return {UpdateAuto} L'instance unique UpdateAuto
      */
     _save() {
-        let objUpAuto = GM_getValue('objUpAuto');
+        let objUpAuto = UpdateAuto.getValue('objUpAuto');
         let obj = {
             status: this._status,
             auto: this._auto,
             interval: this._interval
         };
         objUpAuto[this._showId] = obj;
-        GM_setValue('objUpAuto', objUpAuto);
+        UpdateAuto.setValue('objUpAuto', objUpAuto);
         this._exist = true;
         this.changeColorBtn();
         return this;
@@ -2629,10 +2631,10 @@ class UpdateAuto {
      */
     delete() {
         this.stop();
-        let objUpAuto = GM_getValue('objUpAuto');
+        let objUpAuto = UpdateAuto.getValue('objUpAuto');
         if (objUpAuto[this._showId] !== undefined) {
             delete objUpAuto[this._showId];
-            GM_setValue('objUpAuto', objUpAuto);
+            UpdateAuto.setValue('objUpAuto', objUpAuto);
         }
         return this;
     }
