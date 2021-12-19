@@ -903,7 +903,8 @@ class Platforms {
 }
 class Showrunner {
     constructor(data) {
-        this.id = parseInt(data.id, 10);
+        this.id = null;
+        if (data.id !== undefined) this.id = parseInt(data.id, 10);
         this.name = data.name;
         this.picture = data.picture;
     }
