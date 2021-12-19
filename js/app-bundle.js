@@ -2694,18 +2694,27 @@ Show.prototype.fill = function (data) {
     this.aliases = data.aliases;
     this.creation = data.creation;
     this.country = data.country;
-    this.images = new Images(data.images);
+    this.images = null;
+    if (data.images !== undefined) {
+        this.images = new Images(data.images);
+    }
     this.nbEpisodes = parseInt(data.episodes, 10);
     this.network = data.network;
     this.next_trailer = data.next_trailer;
     this.next_trailer_host = data.next_trailer_host;
     this.rating = data.rating;
-    this.platforms = new Platforms(data.platforms);
+    this.platforms = null;
+    if (data.platforms !== undefined) {
+        this.platforms = new Platforms(data.platforms);
+    }
     this.seasons = new Array();
     for (let s = 0; s < data.seasons_details.length; s++) {
         this.seasons.push(new Season(data.seasons_details[s], this));
     }
-    this.showrunner = new Showrunner(data.showrunner);
+    this.showrunner = null;
+    if (data.showrunner !== undefined) {
+        this.showrunner = new Showrunner(data.showrunner);
+    }
     this.social_links = data.social_links;
     this.status = data.status;
     this.thetvdb_id = parseInt(data.thetvdb_id, 10);
