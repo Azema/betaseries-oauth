@@ -19,7 +19,7 @@ class CacheUS {
      * @returns this
      */
     _init() {
-        console.log('DataTypesCache', DataTypesCache);
+        this._data = {};
         this._data[DataTypesCache.shows] = {};
         this._data[DataTypesCache.episodes] = {};
         this._data[DataTypesCache.movies] = {};
@@ -1703,6 +1703,7 @@ class Season {
     constructor(data, show) {
         this.number = parseInt(data.number, 10);
         this._show = show;
+        this.episodes = new Array();
         if (data.episodes && data.episodes instanceof Array && data.episodes[0] instanceof Episode) {
             this.episodes = data.episodes;
         }
