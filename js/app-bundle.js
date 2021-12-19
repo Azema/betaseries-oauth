@@ -4,7 +4,8 @@ const DataTypesCache = {
     shows: 'shows',
     episodes: 'episodes',
     movies: 'movies',
-    members: 'members'
+    members: 'members',
+    updates: 'updateAuto'
 };
 /**
  * @class Gestion du Cache pour le script
@@ -161,14 +162,16 @@ class CommentBS {
     user_note;
 }
 class Note {
-    constructor(data) {
+    constructor(data, parent) {
         this.total = parseInt(data.total, 10);
         this.mean = parseInt(data.mean, 10);
         this.user = parseInt(data.user, 10);
+        this._parent = parent;
     }
     total;
     mean;
     user;
+    _parent;
     getPercentage() {
         return Math.round(((this.mean / 5) * 100) / 10) * 10;
     }
@@ -184,6 +187,69 @@ class Note {
             toString += `, votre note: ${this.user}`;
         }
         return toString;
+    }
+    createPopupForVote() {
+        // La popup et ses éléments
+        const _this = this,
+              $popup = jQuery('#popin-dialog'), 
+              $contentHtmlElement = $popup.find(".popin-content-html"), 
+              $title = $contentHtmlElement.find(".title"), 
+              $text = $popup.find("p"), 
+              $closeButtons = $popup.find(".js-close-popupalert"), 
+              hidePopup = () => { $popup.attr('aria-hidden', 'true'); }, 
+              showPopup = () => { $popup.attr('aria-hidden', 'false'); };
+        // On vérifie que la popup est masquée
+        hidePopup();
+        // Ajouter les étoiles
+        let template = '', types = { FULL: 'full', EMPTY: 'empty', HALF: 'half', DISABLE: 'disable' }, className;
+        for (let i = 1; i <= 5; i++) {
+            className = this.user <= i - 1 ? types.EMPTY : types.FULL;
+            template += `
+                <svg viewBox="0 0 100 100" class="star-svg" data-number="${i}">
+                    <use xlink:href="#icon-star-blue-${className}"></use>
+                </svg>`;
+        }
+        // On vide la popup et on ajoute les étoiles
+        $text.empty().append(template);
+        $title.empty().append('<h3>Vote</h3>');
+        $closeButtons.click(e => {
+            hidePopup();
+        });
+        // On ajoute les events sur les étoiles
+        $text.find('.star-svg').mouseenter((e) => {
+            const $star = $(e.currentTarget), note = parseInt($star.data('number'), 10), $stars = $text.find('.star-svg');
+            for (let s = 1; s <= 5; s++) {
+                className = (s <= note) ? types.FULL : types.EMPTY;
+                $stars.find('use').attr('xlink:href', `#icon-star-blue-${className}`);
+            }
+        });
+        $text.find('.star-svg').mouseleave((e) => {
+            const note = _this.user, $stars = $text.find('.star-svg');
+            for (let s = 1; s <= 5; s++) {
+                className = (s <= note) ? types.FULL : types.EMPTY;
+                $stars.find('use').attr('xlink:href', `#icon-star-blue-${className}`);
+            }
+        });
+        $text.find('.star-svg').click((e) => {
+            const $star = $(e.currentTarget), note = parseInt($star.data('number'), 10), $stars = $text.find('.star-svg');
+            // On supprime les events
+            $stars.off('mouseenter').off('mouseleave');
+            _this._parent.addVote(note)
+            .then((result) => {
+                hidePopup();
+                if (result) {
+                    // TODO: Mettre à jour la note du média
+                }
+                else {
+                    Base.notification('Erreur Vote', "Une erreur s'est produite durant le vote");
+                }
+            })
+            .catch(err => {
+                hidePopup();
+            });
+        });
+        // On affiche la popup
+        showPopup();
     }
 }
 class Next {
@@ -587,7 +653,7 @@ class Base {
                 this.comments.push(new CommentBS(data.comments[c]));
             }
         }
-        this.objNote = (data.note) ? new Note(data.note) : new Note(data.notes);
+        this.objNote = (data.note) ? new Note(data.note, this) : new Note(data.notes, this);
         this.resource_url = data.resource_url;
         this.title = data.title;
         this.user = new User(data.user);
@@ -1606,6 +1672,25 @@ class Show extends Media {
         this.currentSeason = this.seasons[seasonNumber - 1];
         return this;
     }
+    /**
+     * Ajoute une note au média
+     * @param   {number} note Note du membre connecté pour le média
+     * @returns {Promise<boolean>}
+     */
+    addVote(note) {
+        const _this = this;
+        return new Promise((resolve, reject) => {
+            Base.callApi(HTTP_VERBS.POST, _this.mediaType.plural, 'note', { id: _this.id, note: note })
+            .then((data) => {
+                _this.fill(data[MediaType.show]);
+                resolve(true);
+            })
+            .catch(err => {
+                Base.notification('Erreur de vote', 'Une erreur s\'est produite lors de l\'envoi de la note: ' + err);
+                reject(err);
+            });
+        });
+    }
 }
 class Movie extends Media {
     /***************************************************/
@@ -1678,7 +1763,26 @@ class Movie extends Media {
         this.url = data.url;
         this.mediaType = { singular: MediaType.movie, plural: 'movies', className: Movie };
         super.fill(data);
-        return this;
+        return this.save();
+    }
+    /**
+     * Ajoute une note au média
+     * @param   {number} note Note du membre connecté pour le média
+     * @returns {Promise<boolean>}
+     */
+    addVote(note) {
+        const _this = this;
+        return new Promise((resolve, reject) => {
+            Base.callApi(HTTP_VERBS.POST, _this.mediaType.plural, 'note', { id: _this.id, note: note })
+            .then((data) => {
+                _this.fill(data[MediaType.show]);
+                resolve(true);
+            })
+            .catch(err => {
+                Base.notification('Erreur de vote', 'Une erreur s\'est produite lors de l\'envoi de la note: ' + err);
+                reject(err);
+            });
+        });
     }
 }
 class Subtitle {
@@ -1798,7 +1902,7 @@ class Episode extends Base {
         this.writers = data.writers;
         this.mediaType = { singular: MediaType.episode, plural: 'episodes', className: Episode };
         super.fill(data);
-        return this;
+        return this.save();
     }
     /**
      * Ajoute le titre de l'épisode à l'attribut Title
@@ -2101,6 +2205,25 @@ class Episode extends Base {
         }
         return this;
     }
+    /**
+     * Ajoute une note au média
+     * @param   {number} note Note du membre connecté pour le média
+     * @returns {Promise<boolean>}
+     */
+    addVote(note) {
+        const _this = this;
+        return new Promise((resolve, reject) => {
+            Base.callApi(HTTP_VERBS.POST, _this.mediaType.plural, 'note', { id: _this.id, note: note })
+                .then((data) => {
+                _this.fill(data[MediaType.show]);
+                resolve(true);
+            })
+                .catch(err => {
+                Base.notification('Erreur de vote', 'Une erreur s\'est produite lors de l\'envoi de la note: ' + err);
+                reject(err);
+            });
+        });
+    }
 }
 class Similar extends Media {
     /* Interface implMovie */
@@ -2233,7 +2356,9 @@ class Similar extends Media {
                 .prepend(`<img src="${Base.serverBaseUrl}/img/viewed.png" class="bandViewed"/>`);
         }
         // On ajoute les informations pour faciliter la recherche ultérieure
-        $slideImg.attr('data-id', this.id).attr('data-type', this.mediaType.singular);
+        $slideImg
+            .attr('data-id', this.id)
+            .attr('data-type', this.mediaType.singular);
         
         return this;
     }
@@ -2483,8 +2608,12 @@ class Similar extends Media {
     }
 }
 class UpdateAuto {
-    static getValue = function(name, defaultVal) {};
-    static setValue = function(name, val) {};
+    static getValue = function(name, defaultVal) { 
+        return Base.getOrDefault(DataTypesCache.updates, 'updateAuto', defaultVal);
+    };
+    static setValue = function(name, val) {
+        Base.cache.set(DataTypesCache.updates, 'updateAuto', val);
+    };
     static instance;
     static intervals = [
         { val: 0, label: 'Jamais' },
@@ -2747,7 +2876,7 @@ Show.prototype.fill = function (data) {
     this.pictures = new Array();
     this.mediaType = { singular: MediaType.show, plural: 'shows', className: Show };
     Media.prototype.fill.call(this, data);
-    return this;
+    return this.save();
 };
 /**
  * Retourne les similars associés au media
