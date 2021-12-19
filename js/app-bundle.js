@@ -1600,7 +1600,7 @@ class Show extends Media {
      */
     setCurrentSeason(seasonNumber) {
         if (seasonNumber < 0 || seasonNumber >= this.seasons.length) {
-            throw new Error("seasonNumber is out of range of seasons");
+            throw new Error(`seasonNumber ${seasonNumber} is out of range of seasons`);
         }
         this.currentSeason = this.seasons[seasonNumber];
         return this;
