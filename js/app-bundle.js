@@ -1778,8 +1778,11 @@ class Episode extends Base {
         this.seen_total = parseInt(data.seen_total, 10);
         this.special = data.special === 1 ? true : false;
         this.subtitles = new Array();
-        for (let s = 0; s < data.subtitles.length; s++) {
-            this.subtitles.push(new Subtitle(data.subtitles[s]));
+        console.log('Subtitles', data.subtitles);
+        if (data.subtitles !== null) {
+            for (let s = 0; s < data.subtitles.length; s++) {
+                this.subtitles.push(new Subtitle(data.subtitles[s]));
+            }
         }
         this.thetvdb_id = parseInt(data.thetvdb_id, 10);
         this.youtube_id = data.youtube_id;
@@ -2467,7 +2470,7 @@ class Similar extends Media {
     }
 }
 class UpdateAuto {
-    static getValue = function(name) {};
+    static getValue = function(name, defaultVal) {};
     static setValue = function(name, val) {};
     static instance;
     static intervals = [
@@ -2490,7 +2493,7 @@ class UpdateAuto {
     constructor(show) {
         this._show = show;
         this._showId = show.id;
-        let objUpAuto = UpdateAuto.getValue('objUpAuto');
+        let objUpAuto = UpdateAuto.getValue('objUpAuto', {});
         this._exist = false;
         if (objUpAuto[this._showId] !== undefined) {
             this._exist = true;
