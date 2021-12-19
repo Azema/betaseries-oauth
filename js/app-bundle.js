@@ -1,6 +1,6 @@
 'use strict';
 
-var DataTypesCache = {
+const DataTypesCache = {
     shows: 'shows',
     episodes: 'episodes',
     movies: 'movies',
@@ -19,6 +19,7 @@ class CacheUS {
      * @returns this
      */
     _init() {
+        console.log('DataTypesCache', DataTypesCache);
         this._data[DataTypesCache.shows] = {};
         this._data[DataTypesCache.episodes] = {};
         this._data[DataTypesCache.movies] = {};
@@ -233,16 +234,16 @@ class User {
     tags;
     twitter;
 }
-var MediaType = {
+const MediaType = {
     show: 'show',
     movie: 'movie',
     episode: 'episode'
 };
-var EventTypes = [
+const EventTypes = [
     {UPDATE: 'UPDATE'},
     {SAVE: 'SAVE'}
 ];
-var HTTP_VERBS = {
+const HTTP_VERBS = {
     "GET": "GET",
     "POST": "POST",
     "PUT": "PUT",
@@ -844,7 +845,7 @@ class Images {
     box;
     poster;
 }
-var Picked = [
+const Picked = [
     {"none": "none"},
     {"banner": "banner"},
     {"show": "show"}
