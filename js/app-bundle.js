@@ -2745,3 +2745,5 @@ Media.prototype.fetchSimilars = function () {
         });
     });
 };
+Show.prototype.fetchSimilars = Media.prototype.fetchSimilars;
+Movie.prototype.fetchSimilars = Media.prototype.fetchSimilars;
