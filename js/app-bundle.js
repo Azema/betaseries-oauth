@@ -562,8 +562,7 @@ class Base {
         if (!(data instanceof Object)) {
             throw new Error("data is not an object");
         }
-        this._initListeners()
-            .fill(data);
+        this._initListeners();
         return this;
     }
     /**
@@ -780,7 +779,7 @@ class Media extends Base {
 
     constructor(data) {
         super(data);
-        return this.fill(data);
+        return this;
     }
     /**
      * Remplit l'objet avec les données fournit en paramètre
@@ -1598,7 +1597,7 @@ class Show extends Media {
      * @throws  {Error} if seasonNumber is out of range of seasons
      */
     setCurrentSeason(seasonNumber) {
-        if (seasonNumber < 0 || seasonNumber > this.seasons.length) {
+        if (seasonNumber <= 0 || seasonNumber > this.seasons.length) {
             throw new Error(`seasonNumber ${seasonNumber} is out of range of seasons`);
         }
         this.currentSeason = this.seasons[seasonNumber - 1];
