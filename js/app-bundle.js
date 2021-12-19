@@ -2133,6 +2133,7 @@ class Similar extends Media {
         }
         super(data);
         this.mediaType = type;
+        console.log('Similar mediaType', this.mediaType, type);
         return this.fill(data);
     }
     /**
@@ -2746,5 +2747,5 @@ Media.prototype.fetchSimilars = function () {
         });
     });
 };
-Show.prototype.fetchSimilars = Media.prototype.fetchSimilars;
-Movie.prototype.fetchSimilars = Media.prototype.fetchSimilars;
+// Show.prototype.fetchSimilars = Media.prototype.fetchSimilars;
+// Movie.prototype.fetchSimilars = Media.prototype.fetchSimilars;
