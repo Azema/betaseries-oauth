@@ -188,7 +188,7 @@ class Note {
 }
 class Next {
     constructor(data) {
-        this.id = parseInt(data.id, 10);
+        this.id = (data.id !== null) ? parseInt(data.id, 10) : null;
         this.code = data.code;
         this.date = new Date(data.date);
         this.title = data.title;
@@ -202,21 +202,24 @@ class Next {
 }
 class User {
     constructor(data) {
-        this.archived = data.archived;
-        this.downloaded = data.downloaded;
-        this.favorited = data.favorited;
-        this.friends_want_to_watch = data.friends_want_to_watch;
-        this.friends_watched = data.friends_watched;
-        this.hidden = data.hidden;
-        this.last = data.last;
-        this.mail = data.mail;
-        this.next = new Next(data.next);
-        this.profile = data.profile;
-        this.remaining = data.remaining;
-        this.seen = data.seen;
-        this.status = parseInt(data.status, 10);
-        this.tags = data.tags;
-        this.twitter = data.twitter;
+        this.archived = data.archived || false;
+        this.downloaded = data.downloaded || false;
+        this.favorited = data.favorited || false;
+        this.friends_want_to_watch = data.friends_want_to_watch || [];
+        this.friends_watched = data.friends_watched || [];
+        this.hidden = data.hidden || false;
+        this.last = data.last || null;
+        this.mail = data.mail || false;
+        this.next = null;
+        if (data.next !== undefined) {
+            this.next = new Next(data.next);
+        }
+        this.profile = data.profile || '';
+        this.remaining = data.remaining || 0;
+        this.seen = data.seen || false;
+        this.status = parseInt(data.status, 10) || 0;
+        this.tags = data.tags || '';
+        this.twitter = data.twitter || false;
     }
     archived;
     downloaded;
