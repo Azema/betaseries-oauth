@@ -1778,8 +1778,7 @@ class Episode extends Base {
         this.seen_total = parseInt(data.seen_total, 10);
         this.special = data.special === 1 ? true : false;
         this.subtitles = new Array();
-        console.log('Subtitles', data.subtitles);
-        if (data.subtitles !== null) {
+        if (data.subtitles !== undefined) {
             for (let s = 0; s < data.subtitles.length; s++) {
                 this.subtitles.push(new Subtitle(data.subtitles[s]));
             }
