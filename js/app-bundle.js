@@ -2383,8 +2383,7 @@ class Similar extends Media {
      * @return {string}
      */
     getTitlePopup() {
-        if (Base.debug)
-            console.log('getTitlePopup', this);
+        // if (Base.debug) console.log('getTitlePopup', this);
         let title = this.title;
         if (this.objNote.total > 0) {
             title += ' <span style="font-size: 0.8em;color:#000;">' +
