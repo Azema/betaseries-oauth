@@ -440,6 +440,8 @@ class Note {
               showPopup = () => { $popup.attr('aria-hidden', 'false'); };
         // On vérifie que la popup est masquée
         hidePopup();
+        $popup.find("#popupalertyes").hide();
+        $popup.find("#popupalertno").hide();
         // Ajouter les étoiles
         let template = '', types = { FULL: 'full', EMPTY: 'empty', HALF: 'half', DISABLE: 'disable' }, className;
         for (let i = 1; i <= 5; i++) {
