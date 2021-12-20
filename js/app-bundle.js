@@ -134,7 +134,82 @@ class Character {
     movie_id;
 }
 class CommentBS {
-    constructor(data) {
+    id;
+    /**
+     * Référence du média, pour créer l'URL (type.titleUrl)
+     */
+    reference;
+    /**
+     * Type de média
+     */
+    type;
+    /**
+     * Identifiant du média
+     */
+    ref_id;
+    /**
+     * Identifiant du membre du commentaire
+     */
+    user_id;
+    /**
+     * Login du membre du commentaire
+     */
+    login;
+    /**
+     * URL de l'avatar du membre du commentaire
+     */
+    avatar;
+    /**
+     * Date de création du commentaire
+     */
+    date;
+    /**
+     * Contenu du commentaire
+     */
+    text;
+    /**
+     * Index du commentaire dans la liste des commentaires du média
+     */
+    inner_id;
+    /**
+     * Index du commentaire dont celui-ci est une réponse
+     */
+    in_reply_to;
+    /**
+     * Identifiant du commentaire dont celui-ci est une réponse
+     */
+    in_reply_id;
+    /**
+     * Informations sur le membre du commentaire original
+     */
+    in_reply_user;
+    /**
+     * Note du membre pour le média
+     */
+    user_note;
+    /**
+     * Votes pour ce commentaire
+     */
+    thumbs;
+    /**
+     * ???
+     */
+    thumbed;
+    /**
+     * Nombre de réponse à ce commentaires
+     */
+    replies;
+    /**
+     * Message de l'administration
+     */
+    from_admin;
+    /**
+     * ???
+     */
+    user_rank;
+    _parent;
+    constructor(data, parent) {
+        this._parent = parent;
         this.id = parseInt(data.id, 10);
         this.reference = data.reference;
         this.type = data.type;
@@ -146,20 +221,181 @@ class CommentBS {
         this.text = data.text;
         this.inner_id = parseInt(data.inner_id, 10);
         this.in_reply_to = parseInt(data.in_reply_to, 10);
+        this.in_reply_id = parseInt(data.in_reply_id, 10);
+        this.in_reply_user = data.in_reply_user;
         this.user_note = parseInt(data.user_note, 10);
+        this.thumbs = parseInt(data.thumbs, 10);
+        this.thumbed = data.thumbed;
+        this.replies = parseInt(data.replies, 10);
+        this.from_admin = data.from_admin;
+        this.user_rank = data.user_rank;
     }
-    id;
-    reference;
-    type;
-    ref_id;
-    user_id;
-    login;
-    avatar;
-    date;
-    text;
-    inner_id;
-    in_reply_to;
-    user_note;
+    /**
+     * Affiche le commentaire sur la page Web
+     */
+    display() {
+        // La popup et ses éléments
+        const _this = this, $popup = jQuery('#popin-dialog'), $contentHtmlElement = $popup.find(".popin-content-html"), $title = $contentHtmlElement.find(".title"), $text = $popup.find("p"), $closeButtons = $popup.find(".js-close-popupalert"), hidePopup = () => { $popup.attr('aria-hidden', 'true'); }, showPopup = () => { $popup.attr('aria-hidden', 'false'); };
+        // On vérifie que la popup est masquée
+        hidePopup();
+        /**
+         * Permet d'afficher une note avec des étoiles
+         * @param  {Number} note      La note à afficher
+         * @param  {Object} container DOMElement contenant la note à afficher
+         * @return {string}
+         */
+        function renderNote(note) {
+            let typeSvg, template = '';
+            Array.from({
+                length: 5
+            }, (_index, number) => {
+                typeSvg = note <= number ? "empty" : (note < number + 1) ? 'half' : "full";
+                template += `
+                    <svg viewBox="0 0 100 100" class="star-svg">
+                      <use xmlns:xlink="http://www.w3.org/1999/xlink"
+                           xlink:href="#icon-star-${typeSvg}">
+                      </use>
+                    </svg>
+                `;
+            });
+            return template;
+        }
+        function templateComment(comment) {
+            let className = (comment.in_reply_to !== 0) ? 'iv_i5' : '';
+            return `
+                <div class="comment ${className} positionRelative iv_iz" style="animation: 3s ease 0s 1 normal forwards running backgroundFadeOut;">
+                    <div class="media">
+                        <div class="media-left">
+                            <a href="/membre/${comment.login}" class="avatar">
+                                <img src="https://api.betaseries.com/pictures/members?key=${Base.userKey}&amp;id=${comment.user_id}&amp;width=64&amp;height=64&amp;placeholder=png" width="32" height="32" alt="">
+                            </a>
+                        </div>
+                        <div class="media-body">
+                            <a href="/membre/${comment.login}">
+                                <span class="mainLink">${comment.login}</span>&nbsp;
+                                <span class="mainLink mainLink--regular">&nbsp;</span>
+                            </a>
+                            <span style="line-height: 15px; word-break: break-word;">${comment.text}</span>
+                            <div class="iv_i3">
+                                <div class="options-main options-comment" data-commentId="${comment.id}">
+                                    <button type="button" class="btn-reset btnUpVote btnThumb">
+                                        <svg data-disabled="false" class="SvgLike" fill="#fff" width="16" height="14" viewBox="0 0 16 14" xmlns="http://www.w3.org/2000/svg">
+                                            <g fill="inherit" fill-rule="nonzero">
+                                                <path fill="#fff" fill-rule="evenodd" d="M.67 6h2.73v8h-2.73v-8zm14.909.67c0-.733-.614-1.333-1.364-1.333h-4.302l.648-3.047.02-.213c0-.273-.116-.527-.3-.707l-.723-.7-4.486 4.393c-.252.24-.402.573-.402.94v6.667c0 .733.614 1.333 1.364 1.333h6.136c.566 0 1.05-.333 1.255-.813l2.059-4.7c.061-.153.095-.313.095-.487v-1.273l-.007-.007.007-.053z"></path>
+                                                <path class="SvgLikeStroke" stroke="#54709D" d="M1.17 6.5v7h1.73v-7h-1.73zm13.909.142c-.016-.442-.397-.805-.863-.805h-4.92l.128-.604.639-2.99.018-.166c0-.13-.055-.257-.148-.348l-.373-.361-4.144 4.058c-.158.151-.247.355-.247.578v6.667c0 .455.387.833.864.833h6.136c.355 0 .664-.204.797-.514l2.053-4.685c.04-.1.06-.198.06-.301v-1.063l-.034-.034.034-.265z"></path>
+                                            </g>
+                                        </svg>
+                                    </button>
+                                    <button type="button" class="btn-reset btnDownVote btnThumb">
+                                        <svg data-disabled="false" class="SvgLike" fill="#fff" width="16" height="14" viewBox="0 0 16 14" xmlns="http://www.w3.org/2000/svg" style="transform: rotate(180deg) scaleX(-1); margin-left: 4px; vertical-align: -4px;">
+                                            <g fill="inherit" fill-rule="nonzero">
+                                                <path fill="#fff" fill-rule="evenodd" d="M.67 6h2.73v8h-2.73v-8zm14.909.67c0-.733-.614-1.333-1.364-1.333h-4.302l.648-3.047.02-.213c0-.273-.116-.527-.3-.707l-.723-.7-4.486 4.393c-.252.24-.402.573-.402.94v6.667c0 .733.614 1.333 1.364 1.333h6.136c.566 0 1.05-.333 1.255-.813l2.059-4.7c.061-.153.095-.313.095-.487v-1.273l-.007-.007.007-.053z"></path>
+                                                <path class="SvgLikeStroke" stroke="#54709D" d="M1.17 6.5v7h1.73v-7h-1.73zm13.909.142c-.016-.442-.397-.805-.863-.805h-4.92l.128-.604.639-2.99.018-.166c0-.13-.055-.257-.148-.348l-.373-.361-4.144 4.058c-.158.151-.247.355-.247.578v6.667c0 .455.387.833.864.833h6.136c.355 0 .664-.204.797-.514l2.053-4.685c.04-.1.06-.198.06-.301v-1.063l-.034-.034.034-.265z"></path>
+                                            </g>
+                                        </svg>
+                                    </button>
+                                    <strong class="mainLink" style="margin-left: 5px;">${comment.replies > 0 ? '+' + comment.replies : '-' + comment.replies}</strong>
+                                    <span class="mainLink">&nbsp;∙&nbsp;</span>
+                                    <button type="button" class="btn-reset mainLink mainLink--regular btnResponse" style="vertical-align: 0px;">Répondre</button>
+                                    <a href="#c_1269819" class="mainTime">
+                                        <span class="mainLink">&nbsp;∙&nbsp;</span>
+                                        Le ${comment.date.toString()}
+                                    </a>
+                                    <span class="stars" title="${comment.user_note} / 5">
+                                        ${renderNote(comment.user_note)}
+                                    </span>
+                                    <div class="iv_ix">
+                                        <button type="button" class="btn-reset btnToggleOptions">
+                                            <span class="svgContainer">
+                                                <svg width="4" height="16" xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" style="transform: rotate(90deg);">
+                                                    <defs>
+                                                        <path d="M12 8c1.1 0 2-.9 2-2s-.9-2-2-2-2 .9-2 2 .9 2 2 2zm0 2c-1.1 0-2 .9-2 2s.9 2 2 2 2-.9 2-2-.9-2-2-2zm0 6c-1.1 0-2 .9-2 2s.9 2 2 2 2-.9 2-2-.9-2-2-2z" id="svgthreedots"></path>
+                                                    </defs>
+                                                    <use fill="rgba(255, 255, 255, .5)" fill-rule="nonzero" xlink:href="#svgthreedots" transform="translate(-10 -4)"></use>
+                                                </svg>
+                                            </span>
+                                        </button>
+                                    </div>
+                                </div>
+                                <div class="options-options options-comment" style="display:none;">
+                                    <a href="/messages/nouveau?login=${comment.login}" class="mainLink">Envoyer un message</a>
+                                    <span class="mainLink">&nbsp;∙&nbsp;</span>
+                                    <button type="button" class="btn-reset mainLink btnSignal" style="vertical-align: 0px;">Signaler</button>
+                                    <button type="button" class="btn-reset btnToggleOptions" style="margin-left: 4px;">
+                                        <span class="svgContainer">
+                                            <svg fill="#333" width="9" height="9" viewBox="0 0 14 14" xmlns="http://www.w3.org/2000/svg">
+                                                <path d="M14 1.41l-1.41-1.41-5.59 5.59-5.59-5.59-1.41 1.41 5.59 5.59-5.59 5.59 1.41 1.41 5.59-5.59 5.59 5.59 1.41-1.41-5.59-5.59z"></path>
+                                            </svg>
+                                        </span>
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            `;
+        }
+        let template = '<div class="comments overflowYScroll" style="margin-bottom: 0px;">';
+        template += templateComment(this);
+        if (this.replies > 0) {
+            const replies = this._parent.getRepliesOfComment(this.inner_id);
+            for (let r = 0; r < replies.length; r++) {
+                template += templateComment(replies[r]);
+            }
+        }
+        template += '</div>';
+        // On vide la popup et on ajoute le commentaire
+        $text.empty().append(template);
+        $title.empty().append('Commentaires');
+        $closeButtons.click(() => hidePopup());
+        /*
+         * Ajoutons les events:
+         *  - btnUpVote: Voter pour ce commentaire
+         *  - btnDownVote: Voter contre ce commentaire
+         *  - btnToggleOptions: Switcher les options
+         */
+        $popup.find('.comments .comment .btnThumb').click((e) => {
+            e.stopPropagation();
+            e.preventDefault();
+            // Ajouter un flag pour indiquer qu'un vote a déjà eu lieu
+            const $btn = jQuery(e.currentTarget);
+            const commentId = parseInt($btn.parent().data('commentId'), 10);
+            let params = { id: commentId, type: 1, switch: false };
+            // On a déjà voté
+            if ($btn.data('thumbed') == '1') {
+                params.switch = true;
+            }
+            if ($btn.hasClass('btnDownVote')) {
+                params.type = -1;
+            }
+            Base.callApi(HTTP_VERBS.POST, 'comments', 'thumb', params)
+                .then((data) => {
+                if (commentId == _this.id) {
+                    _this.thumbs = data.comment.thumbs;
+                }
+                else {
+                    // Demander au parent d'incrémenter les thumbs du commentaire
+                    _this._parent.changeThumbsComment(commentId, data.comment.thumbs);
+                }
+                // On ajoute le flag pour indiquer que l'on a déjà voté
+                $btn.attr('data-thumbed', '1');
+            });
+        });
+        $popup.find('.btnToggleOptions').click((e) => {
+            e.stopPropagation();
+            e.preventDefault();
+            jQuery(e.currentTarget).parents('.iv_i3').first()
+                .find('.options-comment').each((_index, elt) => {
+                const $elt = jQuery(elt);
+                if ($elt.is(':visible')) {
+                    $elt.hide();
+                }
+                else {
+                    $elt.show();
+                }
+            });
+        });
+    }
 }
 class Note {
     constructor(data, parent) {
@@ -212,42 +448,45 @@ class Note {
         // On vide la popup et on ajoute les étoiles
         $text.empty().append(template);
         $title.empty().append('<h3>Vote</h3>');
-        $closeButtons.click(e => {
-            hidePopup();
-        });
+        $closeButtons.click(() => hidePopup() );
         // On ajoute les events sur les étoiles
-        $text.find('.star-svg').mouseenter((e) => {
-            const $star = $(e.currentTarget), note = parseInt($star.data('number'), 10), $stars = $text.find('.star-svg');
-            for (let s = 1; s <= 5; s++) {
-                className = (s <= note) ? types.FULL : types.EMPTY;
-                $stars.find('use').attr('xlink:href', `#icon-star-blue-${className}`);
-            }
-        });
-        $text.find('.star-svg').mouseleave((e) => {
-            const note = _this.user, $stars = $text.find('.star-svg');
-            for (let s = 1; s <= 5; s++) {
-                className = (s <= note) ? types.FULL : types.EMPTY;
-                $stars.find('use').attr('xlink:href', `#icon-star-blue-${className}`);
-            }
-        });
-        $text.find('.star-svg').click((e) => {
-            const $star = $(e.currentTarget), note = parseInt($star.data('number'), 10), $stars = $text.find('.star-svg');
-            // On supprime les events
-            $stars.off('mouseenter').off('mouseleave');
-            _this._parent.addVote(note)
-            .then((result) => {
-                hidePopup();
-                if (result) {
-                    // TODO: Mettre à jour la note du média
-                }
-                else {
-                    Base.notification('Erreur Vote', "Une erreur s'est produite durant le vote");
+        $text.find('.star-svg')
+            .mouseenter((e) => {
+                const $star = $(e.currentTarget), 
+                      note = parseInt($star.data('number'), 10), 
+                      $stars = $text.find('.star-svg');
+                for (let s = 1; s <= 5; s++) {
+                    className = (s <= note) ? types.FULL : types.EMPTY;
+                    $stars.find('use').attr('xlink:href', `#icon-star-blue-${className}`);
                 }
             })
-            .catch(err => {
-                hidePopup();
+            .mouseleave((e) => {
+                const note = _this.user, 
+                      $stars = $text.find('.star-svg');
+                for (let s = 1; s <= 5; s++) {
+                    className = (s <= note) ? types.FULL : types.EMPTY;
+                    $stars.find('use').attr('xlink:href', `#icon-star-blue-${className}`);
+                }
+            })
+            .click((e) => {
+                const $star = $(e.currentTarget), 
+                      note = parseInt($star.data('number'), 10), 
+                      $stars = $text.find('.star-svg');
+                // On supprime les events
+                $stars.off('mouseenter').off('mouseleave');
+                _this._parent.addVote(note)
+                    .then((result) => {
+                        hidePopup();
+                        if (result) {
+                            // TODO: Mettre à jour la note du média
+                        } else {
+                            Base.notification('Erreur Vote', "Une erreur s'est produite durant le vote");
+                        }
+                    })
+                    .catch(err => {
+                        hidePopup();
+                    });
             });
-        });
         // On affiche la popup
         showPopup();
     }
@@ -650,7 +889,7 @@ class Base {
         this.comments = [];
         if (data.comments && data.comments instanceof Array) {
             for (let c = 0; c < data.comments.length; c++) {
-                this.comments.push(new CommentBS(data.comments[c]));
+                this.comments.push(new CommentBS(data.comments[c], this));
             }
         }
         this.objNote = (data.note) ? new Note(data.note, this) : new Note(data.notes, this);
@@ -833,6 +1072,72 @@ class Base {
             attributeFilter: ['title']
         });
         return this;
+    }
+    /**
+     * Récupère les commentaires du média sur l'API
+     * @returns {Promise<Base>}
+     */
+    fetchComments() {
+        const _this = this;
+        return new Promise((resolve, reject) => {
+            Base.callApi(HTTP_VERBS.GET, 'comments', 'comments', {type: _this.mediaType.singular, id: _this.id})
+            .then(data => {
+                if (data.comments !== undefined) {
+                    _this.comments = new Array();
+                    for (let c = 0; c < data.comments.length; c++) {
+                        _this.comments.push(new CommentBS(data.comments[c], this));
+                    }
+                }
+                resolve(_this);
+            })
+            .catch(err => {
+                console.warn('fetchComments', err);
+                Base.notification('Récupération des commentaires', "Une erreur est apparue durant la récupération des commentaires");
+                reject(err);
+            });
+        });
+    }
+    /**
+     * Retourne le commentaire correspondant à l'ID fournit en paramètre
+     * @param   {number} cId L'identifiant du commentaire
+     * @returns {CommentBS|null}
+     */
+    getComment(cId) {
+        for (let c = 0; c < this.comments.length; c++) {
+            if (this.comments[c].id === cId) {
+                return this.comments[c];
+            }
+        }
+        return null;
+    }
+    /**
+     * Retourne les réponses à un commentaire
+     * @param   {number} commentIndex Index du commentaire original
+     * @returns {Array<CommentBS>}    Tableau des réponses
+     */
+    getRepliesOfComment(commentIndex) {
+        let replies = new Array();
+        for (let c = commentIndex; c < this.comments.length; c++) {
+            if (this.comments[c].in_reply_to == commentIndex) {
+                replies.push(this.comments[c]);
+            }
+        }
+        return replies;
+    }
+    /**
+     * Modifie le nombre de votes pour un commentaire
+     * @param   {number} commentId Identifiant du commentaire
+     * @param   {number} thumbs    Nombre de votes
+     * @returns {boolean}
+     */
+    changeThumbsComment(commentId, thumbs) {
+        for (let c = 0; c < this.comments.length; c++) {
+            if (this.comments[c].id === commentId) {
+                this.comments[c].thumbs = thumbs;
+                return true;
+            }
+        }
+        return false;
     }
 }
 class Media extends Base {
