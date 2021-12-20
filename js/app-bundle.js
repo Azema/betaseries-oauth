@@ -241,7 +241,7 @@ class CommentBS {
               $contentReact = $popup.find(".popin-content-reactmodule"),
               $title = $contentHtmlElement.find(".title"), 
               $text = $popup.find("p"), 
-              $closeButtons = $popup.find(".js-close-popupalert"), 
+              $closeButtons = $popup.find("#popin-showClose"), 
               hidePopup = () => { 
                   $popup.attr('aria-hidden', 'true'); 
                   $popup.find("#popupalertyes").show();
@@ -461,7 +461,7 @@ class Note {
               $contentReact = $popup.find(".popin-content-reactmodule"),
               $title = $contentHtmlElement.find(".title"), 
               $text = $popup.find("p"), 
-              $closeButtons = $popup.find(".js-close-popupalert"),
+              $closeButtons = $popup.find("#popin-showClose"),
               hidePopup = () => { 
                   $popup.attr('aria-hidden', 'true'); 
                   $popup.find("#popupalertyes").show();
@@ -506,7 +506,10 @@ class Note {
                 break;
         }
         $title.empty().text(title);
-        $closeButtons.click(() => hidePopup() );
+        $closeButtons.click(() => { 
+            hidePopup(); 
+            $popup.removeAttr('data-popin-type'); 
+        });
         // On ajoute les events sur les étoiles
         const updateStars = function(note) {
             const $stars = $text.find('.star-svg');
