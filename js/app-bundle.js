@@ -1081,7 +1081,8 @@ class Base {
     fetchComments() {
         const _this = this;
         return new Promise((resolve, reject) => {
-            Base.callApi(HTTP_VERBS.GET, 'comments', 'comments', {type: _this.mediaType.singular, id: _this.id})
+            const params = {type: _this.mediaType.singular, id: _this.id, nbpp: 50, replies: 1, order: 'desc'};
+            Base.callApi(HTTP_VERBS.GET, 'comments', 'comments', params)
             .then(data => {
                 if (data.comments !== undefined) {
                     _this.comments = new Array();
