@@ -246,10 +246,14 @@ class CommentBS {
                   $popup.attr('aria-hidden', 'true'); 
                   $popup.find("#popupalertyes").show();
                   $popup.find("#popupalertno").show();
+                  $contentHtmlElement.hide();
               },
               showPopup = () => { 
                   $popup.find("#popupalertyes").hide();
                   $popup.find("#popupalertno").hide();
+                  $contentHtmlElement.show();
+                  $contentReact.hide();
+                  $closeButtons.show();
                   $popup.attr('aria-hidden', 'false'); 
               };
         // On vérifie que la popup est masquée
@@ -362,9 +366,6 @@ class CommentBS {
         template += '</div>';
         // On vide la popup et on ajoute le commentaire
         $popup.attr('data-popin-type', 'comments');
-        $contentReact.hide();
-        $contentHtmlElement.show();
-        $closeButtons.show();
         $text.empty().append(template);
         $title.empty().append('Commentaires');
         $closeButtons.click(() => { hidePopup(); $popup.removeAttr('data-popin-type'); });
