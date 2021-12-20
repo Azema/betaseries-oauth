@@ -462,18 +462,34 @@ class Note {
         // On vérifie que la popup est masquée
         hidePopup();
         // Ajouter les étoiles
-        let template = '', types = { FULL: 'full', EMPTY: 'empty', HALF: 'half', DISABLE: 'disable' }, className;
+        let template = '<div style="display: flex; justify-content: center; margin-bottom: 15px;"><div role="button" tabindex="0" class="stars btn-reset">', 
+            types = { FULL: 'full', EMPTY: 'empty', HALF: 'half', DISABLE: 'disable' }, 
+            className;
         for (let i = 1; i <= 5; i++) {
             className = this.user <= i - 1 ? types.EMPTY : types.FULL;
             template += `
-                <svg viewBox="0 0 100 100" class="star-svg" data-number="${i}">
+                <svg viewBox="0 0 100 100" class="star-svg" data-number="${i}" style="width: 30px; height: 30px;">
                     <use xlink:href="#icon-starblue-${className}"></use>
                 </svg>`;
         }
         // On vide la popup et on ajoute les étoiles
         $popup.attr('data-popin-type', 'note-media');
-        $text.empty().append(template);
-        $title.empty().append('Vote');
+        $text.empty().append(template + '</div></div>');
+        let title = 'Noter ';
+        switch (this._parent.mediaType.singular) {
+            case MediaType.show:
+                title += 'la série';
+                break;
+            case MediaType.movie:
+                title += 'le film';
+                break;
+            case MediaType.episode:
+                title += "l'épisode";
+                break;
+            default:
+                break;
+        }
+        $title.empty().text(title);
         $closeButtons.click(() => hidePopup() );
         // On ajoute les events sur les étoiles
         $text.find('.star-svg')
