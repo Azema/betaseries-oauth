@@ -459,7 +459,7 @@ class Note {
     createPopupForVote() {
         // La popup et ses éléments
         const _this = this,
-              $popup = jQuery('#popin-dialog'), 
+              $popup = $('#popin-dialog'), 
               $contentHtmlElement = $popup.find(".popin-content-html"),
               $contentReact = $popup.find(".popin-content-reactmodule"),
               $title = $contentHtmlElement.find(".title"), 
@@ -515,23 +515,23 @@ class Note {
             $popup.removeAttr('data-popin-type'); 
         });
         // On ajoute les events sur les étoiles
-        const updateStars = function(note) {
-            const $stars = $text.find('.star-svg');
+        const updateStars = function(evt, note) {
+            const $stars = $(evt.currentTarget).parent().find('.star-svg use');
             let className;
             for (let s = 0; s < 5; s++) {
                 className = (s <= note - 1) ? StarTypes.FULL : StarTypes.EMPTY;
-                $($stars.get(s)).find('use').attr('xlink:href', `#icon-starblue-${className}`);
+                $($stars.get(s)).attr('xlink:href', `#icon-starblue-${className}`);
             }
         };
         $text.find('.star-svg')
             .mouseenter((e) => {
                 const note = parseInt($(e.currentTarget).data('number'), 10);
                 if (Base.debug) console.log('mouseenter - note: %d', note);
-                updateStars(note);
+                updateStars(e, note);
             })
             .mouseleave((e) => {
                 if (Base.debug) console.log('mouseleave - note: %d', _this.user);
-                updateStars(_this.user);
+                updateStars(e, _this.user);
             })
             .click((e) => {
                 const $star = $(e.currentTarget), 
