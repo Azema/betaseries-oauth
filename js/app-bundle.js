@@ -238,6 +238,8 @@ class CommentBS {
         const _this = this, $popup = jQuery('#popin-dialog'), $contentHtmlElement = $popup.find(".popin-content-html"), $title = $contentHtmlElement.find(".title"), $text = $popup.find("p"), $closeButtons = $popup.find(".js-close-popupalert"), hidePopup = () => { $popup.attr('aria-hidden', 'true'); }, showPopup = () => { $popup.attr('aria-hidden', 'false'); };
         // On vérifie que la popup est masquée
         hidePopup();
+        $popup.find("#popupalertyes").hide();
+        $popup.find("#popupalertno").hide();
         /**
          * Permet d'afficher une note avec des étoiles
          * @param  {Number} note      La note à afficher
@@ -345,9 +347,10 @@ class CommentBS {
         }
         template += '</div>';
         // On vide la popup et on ajoute le commentaire
+        $popup.attr('data-popin-type', 'comments');
         $text.empty().append(template);
         $title.empty().append('Commentaires');
-        $closeButtons.click(() => hidePopup());
+        $closeButtons.click(() => { hidePopup(); $popup.removeAttr('data-popin-type'); });
         /*
          * Ajoutons les events:
          *  - btnUpVote: Voter pour ce commentaire
@@ -856,6 +859,7 @@ class Base {
     description;
     characters;
     comments;
+    nbComments;
     id;
     objNote;
     resource_url;
@@ -887,6 +891,7 @@ class Base {
                 this.characters.push(new Character(data.characters[c]));
             }
         }
+        this.nbComments = parseInt(data.comments, 10);
         this.comments = [];
         if (data.comments && data.comments instanceof Array) {
             for (let c = 0; c < data.comments.length; c++) {
@@ -989,13 +994,6 @@ class Base {
         return this.characters.length;
     }
     /**
-     * Retourne le nombre de commentaires pour ce média
-     * @returns number
-     */
-    get nbComments() {
-        return this.comments.length;
-    }
-    /**
      * Décode le titre de la page
      * @return {Base} This
      */
@@ -1076,16 +1074,28 @@ class Base {
     }
     /**
      * Récupère les commentaires du média sur l'API
+     * @param   {number} nbpp Nombre de commentaires à récupérer
      * @returns {Promise<Base>}
      */
-    fetchComments() {
+    fetchComments(nbpp = 50, since = 0) {
         const _this = this;
         return new Promise((resolve, reject) => {
-            const params = {type: _this.mediaType.singular, id: _this.id, nbpp: 50, replies: 1, order: 'desc'};
+            const params = {
+                type: _this.mediaType.singular, 
+                id: _this.id, 
+                nbpp: nbpp, 
+                replies: 1, 
+                order: 'desc'
+            };
+            if (since > 0) {
+                params.since_id = since;
+            }
             Base.callApi(HTTP_VERBS.GET, 'comments', 'comments', params)
             .then(data => {
                 if (data.comments !== undefined) {
-                    _this.comments = new Array();
+                    if (since <= 0) {
+                        this.comments = new Array();
+                    }
                     for (let c = 0; c < data.comments.length; c++) {
                         _this.comments.push(new CommentBS(data.comments[c], this));
                     }
