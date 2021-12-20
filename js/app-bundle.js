@@ -296,7 +296,7 @@ class CommentBS {
                                             </g>
                                         </svg>
                                     </button>
-                                    <strong class="mainLink" style="margin-left: 5px;">${comment.replies > 0 ? '+' + comment.replies : '-' + comment.replies}</strong>
+                                    <strong class="mainLink" style="margin-left: 5px;">${comment.replies > 0 ? '+' + comment.replies : (comment.replies < 0) ? '-' + comment.replies : comment.replies}</strong>
                                     <span class="mainLink">&nbsp;∙&nbsp;</span>
                                     <button type="button" class="btn-reset mainLink mainLink--regular btnResponse" style="vertical-align: 0px;">Répondre</button>
                                     <a href="#c_1269819" class="mainTime">
