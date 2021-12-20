@@ -414,6 +414,13 @@ class CommentBS {
         showPopup();
     }
 }
+
+const StarTypes = {
+    "EMPTY": "empty",
+    "HALF": "half",
+    "FULL": "full",
+    "DISABLE": "disable"
+};
 class Note {
     constructor(data, parent) {
         this.total = parseInt(data.total, 10);
@@ -463,10 +470,9 @@ class Note {
         hidePopup();
         // Ajouter les étoiles
         let template = '<div style="display: flex; justify-content: center; margin-bottom: 15px;"><div role="button" tabindex="0" class="stars btn-reset">', 
-            types = { FULL: 'full', EMPTY: 'empty', HALF: 'half', DISABLE: 'disable' }, 
             className;
         for (let i = 1; i <= 5; i++) {
-            className = this.user <= i - 1 ? types.EMPTY : types.FULL;
+            className = this.user <= i - 1 ? StarTypes.EMPTY : StarTypes.FULL;
             template += `
                 <svg viewBox="0 0 100 100" class="star-svg" data-number="${i}" style="width: 30px; height: 30px;">
                     <use xlink:href="#icon-starblue-${className}"></use>
@@ -496,7 +502,7 @@ class Note {
             const $stars = $text.find('.star-svg');
             let className;
             for (let s = 0; s < 5; s++) {
-                className = (s <= note - 1) ? types.FULL : types.EMPTY;
+                className = (s <= note - 1) ? StarTypes.FULL : StarTypes.EMPTY;
                 $($stars.get(s)).find('use').attr('xlink:href', `#icon-starblue-${className}`);
             }
         };
@@ -527,6 +533,18 @@ class Note {
             });
         // On affiche la popup
         showPopup();
+    }
+    /**
+     * Met à jour l'affichage de la note
+     */
+    renderStars() {
+        const $stars = $('.blockInformations__metadatas .js-render-stars .star-svg use');
+        const note = Math.round(this.mean);
+        let className;
+        for (let s = 0; s < 5; s++) {
+            className = (note <= s) ? StarTypes.EMPTY : (note < s + 1) ? StarTypes.HALF : StarTypes.FULL;
+            $($stars.get(s)).attr('xlink:href', `#icon-star-${className}`);
+        }
     }
 }
 class Next {
@@ -1077,13 +1095,13 @@ class Base {
         const votes = $('.stars.js-render-stars'); // ElementHTML ayant pour attribut le titre avec la note de la série
         // if (debug) console.log('addNumberVoters Media.callApi', data);
         let title = this.changeTitleNote(true);
-        if (Base.debug) console.log('addNumberVoters - title: %s', title);
+        // if (Base.debug) console.log('addNumberVoters - title: %s', title);
         // On ajoute un observer sur l'attribut title de la note, en cas de changement lors d'un vote
         new MutationObserver((mutationsList) => {
             const changeTitleMutation = () => {
                 // On met à jour le nombre de votants, ainsi que la note du membre connecté
                 const upTitle = _this.changeTitleNote(false);
-                if (Base.debug) console.log('Observer changeTitle - upTitle: %s', upTitle);
+                // if (Base.debug) console.log('Observer changeTitle - upTitle: %s', upTitle);
                 // On évite une boucle infinie
                 if (upTitle !== title) {
                     votes.attr('title', upTitle);
@@ -1119,6 +1137,7 @@ class Base {
             .then((data) => {
                 _this.fill(data[MediaType.show]);
                 _this.changeTitleNote(true);
+                _this.objNote.renderStars();
                 resolve(true);
             })
             .catch(err => {
