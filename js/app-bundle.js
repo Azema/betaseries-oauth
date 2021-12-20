@@ -526,11 +526,11 @@ class Note {
         $text.find('.star-svg')
             .mouseenter((e) => {
                 const note = parseInt($(e.currentTarget).data('number'), 10);
-                if (Base.debug) console.log('mouseenter - note: %d', note);
+                // if (Base.debug) console.log('mouseenter - note: %d', note);
                 updateStars(e, note);
             })
             .mouseleave((e) => {
-                if (Base.debug) console.log('mouseleave - note: %d', _this.user);
+                // if (Base.debug) console.log('mouseleave - note: %d', _this.user);
                 updateStars(e, _this.user);
             })
             .click((e) => {
