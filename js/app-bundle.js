@@ -363,6 +363,7 @@ class CommentBS {
         // On vide la popup et on ajoute le commentaire
         $popup.attr('data-popin-type', 'comments');
         $contentReact.hide();
+        $contentHtmlElement.show();
         $closeButtons.show();
         $text.empty().append(template);
         $title.empty().append('Commentaires');
