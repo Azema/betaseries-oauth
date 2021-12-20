@@ -235,11 +235,24 @@ class CommentBS {
      */
     display() {
         // La popup et ses éléments
-        const _this = this, $popup = jQuery('#popin-dialog'), $contentHtmlElement = $popup.find(".popin-content-html"), $title = $contentHtmlElement.find(".title"), $text = $popup.find("p"), $closeButtons = $popup.find(".js-close-popupalert"), hidePopup = () => { $popup.attr('aria-hidden', 'true'); }, showPopup = () => { $popup.attr('aria-hidden', 'false'); };
+        const _this = this, 
+              $popup = jQuery('#popin-dialog'), 
+              $contentHtmlElement = $popup.find(".popin-content-html"), 
+              $title = $contentHtmlElement.find(".title"), 
+              $text = $popup.find("p"), 
+              $closeButtons = $popup.find(".js-close-popupalert"), 
+              hidePopup = () => { 
+                  $popup.attr('aria-hidden', 'true'); 
+                  $popup.find("#popupalertyes").show();
+                  $popup.find("#popupalertno").show();
+              },
+              showPopup = () => { 
+                  $popup.find("#popupalertyes").hide();
+                  $popup.find("#popupalertno").hide();
+                  $popup.attr('aria-hidden', 'false'); 
+              };
         // On vérifie que la popup est masquée
         hidePopup();
-        $popup.find("#popupalertyes").hide();
-        $popup.find("#popupalertno").hide();
         /**
          * Permet d'afficher une note avec des étoiles
          * @param  {Number} note      La note à afficher
@@ -435,13 +448,19 @@ class Note {
               $contentHtmlElement = $popup.find(".popin-content-html"), 
               $title = $contentHtmlElement.find(".title"), 
               $text = $popup.find("p"), 
-              $closeButtons = $popup.find(".js-close-popupalert"), 
-              hidePopup = () => { $popup.attr('aria-hidden', 'true'); }, 
-              showPopup = () => { $popup.attr('aria-hidden', 'false'); };
+              $closeButtons = $popup.find(".js-close-popupalert"),
+              hidePopup = () => { 
+                  $popup.attr('aria-hidden', 'true'); 
+                  $popup.find("#popupalertyes").show();
+                  $popup.find("#popupalertno").show();
+              },
+              showPopup = () => { 
+                  $popup.find("#popupalertyes").hide();
+                  $popup.find("#popupalertno").hide();
+                  $popup.attr('aria-hidden', 'false'); 
+              };
         // On vérifie que la popup est masquée
         hidePopup();
-        $popup.find("#popupalertyes").hide();
-        $popup.find("#popupalertno").hide();
         // Ajouter les étoiles
         let template = '', types = { FULL: 'full', EMPTY: 'empty', HALF: 'half', DISABLE: 'disable' }, className;
         for (let i = 1; i <= 5; i++) {
@@ -452,6 +471,7 @@ class Note {
                 </svg>`;
         }
         // On vide la popup et on ajoute les étoiles
+        $popup.attr('data-popin-type', 'note-media');
         $text.empty().append(template);
         $title.empty().append('<h3>Vote</h3>');
         $closeButtons.click(() => hidePopup() );
