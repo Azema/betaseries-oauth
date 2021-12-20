@@ -247,6 +247,9 @@ class CommentBS {
                   $popup.find("#popupalertyes").show();
                   $popup.find("#popupalertno").show();
                   $contentHtmlElement.hide();
+                  // On désactive les events
+                  $popup.find('.comments .comment .btnThumb').off('click');
+                  $popup.find('.btnToggleOptions').off('click');
               },
               showPopup = () => { 
                   $popup.find("#popupalertyes").hide();
@@ -467,6 +470,7 @@ class Note {
                   $popup.find("#popupalertyes").show();
                   $popup.find("#popupalertno").show();
                   $contentHtmlElement.hide();
+                  $text.find('.star-svg').off('mouseenter').off('mouseleave').off('click');
               },
               showPopup = () => { 
                   $popup.find("#popupalertyes").hide();
