@@ -500,7 +500,7 @@ class Note {
                 console.log('mouseenter: %d', note);
                 for (let s = 1; s <= 5; s++) {
                     className = (s <= note) ? types.FULL : types.EMPTY;
-                    $stars.find('use').attr('xlink:href', `#icon-starblue-${className}`);
+                    $($stars.get(s)).find('use').attr('xlink:href', `#icon-starblue-${className}`);
                 }
             })
             .mouseleave((e) => {
@@ -509,7 +509,7 @@ class Note {
                 console.log('mouseleave: %d', note);
                 for (let s = 1; s <= 5; s++) {
                     className = (s <= note) ? types.FULL : types.EMPTY;
-                    $stars.find('use').attr('xlink:href', `#icon-starblue-${className}`);
+                    $($stars.get(s)).find('use').attr('xlink:href', `#icon-starblue-${className}`);
                 }
             })
             .click((e) => {
