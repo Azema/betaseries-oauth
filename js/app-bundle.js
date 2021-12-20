@@ -467,13 +467,13 @@ class Note {
             className = this.user <= i - 1 ? types.EMPTY : types.FULL;
             template += `
                 <svg viewBox="0 0 100 100" class="star-svg" data-number="${i}">
-                    <use xlink:href="#icon-star-blue-${className}"></use>
+                    <use xlink:href="#icon-starblue-${className}"></use>
                 </svg>`;
         }
         // On vide la popup et on ajoute les étoiles
         $popup.attr('data-popin-type', 'note-media');
         $text.empty().append(template);
-        $title.empty().append('<h3>Vote</h3>');
+        $title.empty().append('Vote');
         $closeButtons.click(() => hidePopup() );
         // On ajoute les events sur les étoiles
         $text.find('.star-svg')
@@ -483,7 +483,7 @@ class Note {
                       $stars = $text.find('.star-svg');
                 for (let s = 1; s <= 5; s++) {
                     className = (s <= note) ? types.FULL : types.EMPTY;
-                    $stars.find('use').attr('xlink:href', `#icon-star-blue-${className}`);
+                    $stars.find('use').attr('xlink:href', `#icon-starblue-${className}`);
                 }
             })
             .mouseleave((e) => {
@@ -491,7 +491,7 @@ class Note {
                       $stars = $text.find('.star-svg');
                 for (let s = 1; s <= 5; s++) {
                     className = (s <= note) ? types.FULL : types.EMPTY;
-                    $stars.find('use').attr('xlink:href', `#icon-star-blue-${className}`);
+                    $stars.find('use').attr('xlink:href', `#icon-starblue-${className}`);
                 }
             })
             .click((e) => {
