@@ -517,10 +517,7 @@ class Note {
                 _this._parent.addVote(note)
                     .then((result) => {
                         hidePopup();
-                        if (result) {
-                            // TODO: Mettre à jour la note du média
-                            _this._parent.changeTitleNote(true);
-                        } else {
+                        if (!result) {
                             Base.notification('Erreur Vote', "Une erreur s'est produite durant le vote");
                         }
                     })
@@ -1078,25 +1075,26 @@ class Base {
     addNumberVoters() {
         const _this = this;
         const votes = $('.stars.js-render-stars'); // ElementHTML ayant pour attribut le titre avec la note de la série
-        if (Base.debug)
-            console.log('addNumberVoters');
         // if (debug) console.log('addNumberVoters Media.callApi', data);
-        const title = this.changeTitleNote(true);
+        let title = this.changeTitleNote(true);
+        if (Base.debug) console.log('addNumberVoters - title: %s', title);
         // On ajoute un observer sur l'attribut title de la note, en cas de changement lors d'un vote
         new MutationObserver((mutationsList) => {
             const changeTitleMutation = () => {
                 // On met à jour le nombre de votants, ainsi que la note du membre connecté
                 const upTitle = _this.changeTitleNote(false);
+                if (Base.debug) console.log('Observer changeTitle - upTitle: %s', upTitle);
                 // On évite une boucle infinie
                 if (upTitle !== title) {
                     votes.attr('title', upTitle);
+                    title = upTitle;
                 }
             };
             let mutation;
             for (mutation of mutationsList) {
                 // On vérifie si le titre a été modifié
                 // @TODO: A tester
-                if (!/vote/.test(mutation.target.nodeValue)) {
+                if (!/vote/.test(mutation.target.nodeValue) && mutation.target.nodeValue != title) {
                     changeTitleMutation();
                 }
             }
@@ -1108,6 +1106,26 @@ class Base {
             attributeFilter: ['title']
         });
         return this;
+    }
+    /**
+     * Ajoute une note au média
+     * @param   {number} note Note du membre connecté pour le média
+     * @returns {Promise<boolean>}
+     */
+    addVote(note) {
+        const _this = this;
+        return new Promise((resolve, reject) => {
+            Base.callApi(HTTP_VERBS.POST, _this.mediaType.plural, 'note', { id: _this.id, note: note })
+            .then((data) => {
+                _this.fill(data[MediaType.show]);
+                _this.changeTitleNote(true);
+                resolve(true);
+            })
+            .catch(err => {
+                Base.notification('Erreur de vote', 'Une erreur s\'est produite lors de l\'envoi de la note: ' + err);
+                reject(err);
+            });
+        });
     }
     /**
      * Récupère les commentaires du média sur l'API
@@ -2026,25 +2044,6 @@ class Show extends Media {
         this.currentSeason = this.seasons[seasonNumber - 1];
         return this;
     }
-    /**
-     * Ajoute une note au média
-     * @param   {number} note Note du membre connecté pour le média
-     * @returns {Promise<boolean>}
-     */
-    addVote(note) {
-        const _this = this;
-        return new Promise((resolve, reject) => {
-            Base.callApi(HTTP_VERBS.POST, _this.mediaType.plural, 'note', { id: _this.id, note: note })
-            .then((data) => {
-                _this.fill(data[MediaType.show]);
-                resolve(true);
-            })
-            .catch(err => {
-                Base.notification('Erreur de vote', 'Une erreur s\'est produite lors de l\'envoi de la note: ' + err);
-                reject(err);
-            });
-        });
-    }
 }
 class Movie extends Media {
     /***************************************************/
@@ -2118,25 +2117,6 @@ class Movie extends Media {
         this.mediaType = { singular: MediaType.movie, plural: 'movies', className: Movie };
         super.fill(data);
         return this.save();
-    }
-    /**
-     * Ajoute une note au média
-     * @param   {number} note Note du membre connecté pour le média
-     * @returns {Promise<boolean>}
-     */
-    addVote(note) {
-        const _this = this;
-        return new Promise((resolve, reject) => {
-            Base.callApi(HTTP_VERBS.POST, _this.mediaType.plural, 'note', { id: _this.id, note: note })
-            .then((data) => {
-                _this.fill(data[MediaType.show]);
-                resolve(true);
-            })
-            .catch(err => {
-                Base.notification('Erreur de vote', 'Une erreur s\'est produite lors de l\'envoi de la note: ' + err);
-                reject(err);
-            });
-        });
     }
 }
 class Subtitle {
@@ -2558,25 +2538,6 @@ class Episode extends Base {
                 </div>`);
         }
         return this;
-    }
-    /**
-     * Ajoute une note au média
-     * @param   {number} note Note du membre connecté pour le média
-     * @returns {Promise<boolean>}
-     */
-    addVote(note) {
-        const _this = this;
-        return new Promise((resolve, reject) => {
-            Base.callApi(HTTP_VERBS.POST, _this.mediaType.plural, 'note', { id: _this.id, note: note })
-                .then((data) => {
-                _this.fill(data[MediaType.show]);
-                resolve(true);
-            })
-                .catch(err => {
-                Base.notification('Erreur de vote', 'Une erreur s\'est produite lors de l\'envoi de la note: ' + err);
-                reject(err);
-            });
-        });
     }
 }
 class Similar extends Media {
