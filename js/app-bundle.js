@@ -498,8 +498,8 @@ class Note {
                       note = parseInt($star.data('number'), 10), 
                       $stars = $text.find('.star-svg');
                 console.log('mouseenter: %d', note);
-                for (let s = 1; s <= 5; s++) {
-                    className = (s <= note) ? types.FULL : types.EMPTY;
+                for (let s = 0; s < 5; s++) {
+                    className = (s <= note - 1) ? types.FULL : types.EMPTY;
                     $($stars.get(s)).find('use').attr('xlink:href', `#icon-starblue-${className}`);
                 }
             })
@@ -507,8 +507,8 @@ class Note {
                 const note = _this.user, 
                 $stars = $text.find('.star-svg');
                 console.log('mouseleave: %d', note);
-                for (let s = 1; s <= 5; s++) {
-                    className = (s <= note) ? types.FULL : types.EMPTY;
+                for (let s = 0; s < 5; s++) {
+                    className = (s <= note - 1) ? types.FULL : types.EMPTY;
                     $($stars.get(s)).find('use').attr('xlink:href', `#icon-starblue-${className}`);
                 }
             })
