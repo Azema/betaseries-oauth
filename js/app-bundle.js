@@ -457,7 +457,8 @@ class Note {
         // La popup et ses éléments
         const _this = this,
               $popup = jQuery('#popin-dialog'), 
-              $contentHtmlElement = $popup.find(".popin-content-html"), 
+              $contentHtmlElement = $popup.find(".popin-content-html"),
+              $contentReact = $popup.find(".popin-content-reactmodule"),
               $title = $contentHtmlElement.find(".title"), 
               $text = $popup.find("p"), 
               $closeButtons = $popup.find(".js-close-popupalert"),
