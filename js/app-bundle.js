@@ -492,23 +492,21 @@ class Note {
         $title.empty().text(title);
         $closeButtons.click(() => hidePopup() );
         // On ajoute les events sur les étoiles
+        const updateStars = function(note) {
+            const $stars = $text.find('.star-svg');
+            let className;
+            for (let s = 0; s < 5; s++) {
+                className = (s <= note - 1) ? types.FULL : types.EMPTY;
+                $($stars.get(s)).find('use').attr('xlink:href', `#icon-starblue-${className}`);
+            }
+        };
         $text.find('.star-svg')
             .mouseenter((e) => {
-                const $star = $(e.currentTarget), 
-                      note = parseInt($star.data('number'), 10), 
-                      $stars = $text.find('.star-svg');
-                for (let s = 0; s < 5; s++) {
-                    className = (s <= note - 1) ? types.FULL : types.EMPTY;
-                    $($stars.get(s)).find('use').attr('xlink:href', `#icon-starblue-${className}`);
-                }
+                const note = parseInt($(e.currentTarget).data('number'), 10);
+                updateStars(note);
             })
             .mouseleave((e) => {
-                const note = _this.user, 
-                $stars = $text.find('.star-svg');
-                for (let s = 0; s < 5; s++) {
-                    className = (s <= note - 1) ? types.FULL : types.EMPTY;
-                    $($stars.get(s)).find('use').attr('xlink:href', `#icon-starblue-${className}`);
-                }
+                updateStars(_this.user);
             })
             .click((e) => {
                 const $star = $(e.currentTarget), 
