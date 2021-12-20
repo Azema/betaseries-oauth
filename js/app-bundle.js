@@ -395,6 +395,7 @@ class CommentBS {
                 }
             });
         });
+        showPopup();
     }
 }
 class Note {
