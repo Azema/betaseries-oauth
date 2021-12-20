@@ -944,8 +944,12 @@ class Base {
             }
         }
         this.nbComments = parseInt(data.comments, 10);
-        this.comments = [];
-        if (data.comments && data.comments instanceof Array) {
+        if (! this.comments || this.comments.length <= 0) {
+            this.comments = [];
+        }
+        if (data.comments && data.comments instanceof Array && data.comments[0] instanceof CommentBS) {
+            this.comments = data.comments;
+        } else if (data.comments && data.comments instanceof Array) {
             for (let c = 0; c < data.comments.length; c++) {
                 this.comments.push(new CommentBS(data.comments[c], this));
             }
