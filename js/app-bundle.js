@@ -497,6 +497,7 @@ class Note {
                 const $star = $(e.currentTarget), 
                       note = parseInt($star.data('number'), 10), 
                       $stars = $text.find('.star-svg');
+                console.log('mouseenter: %d', note);
                 for (let s = 1; s <= 5; s++) {
                     className = (s <= note) ? types.FULL : types.EMPTY;
                     $stars.find('use').attr('xlink:href', `#icon-starblue-${className}`);
@@ -504,7 +505,8 @@ class Note {
             })
             .mouseleave((e) => {
                 const note = _this.user, 
-                      $stars = $text.find('.star-svg');
+                $stars = $text.find('.star-svg');
+                console.log('mouseleave: %d', note);
                 for (let s = 1; s <= 5; s++) {
                     className = (s <= note) ? types.FULL : types.EMPTY;
                     $stars.find('use').attr('xlink:href', `#icon-starblue-${className}`);
