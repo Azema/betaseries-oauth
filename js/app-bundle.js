@@ -465,10 +465,14 @@ class Note {
                   $popup.attr('aria-hidden', 'true'); 
                   $popup.find("#popupalertyes").show();
                   $popup.find("#popupalertno").show();
+                  $contentHtmlElement.hide();
               },
               showPopup = () => { 
                   $popup.find("#popupalertyes").hide();
                   $popup.find("#popupalertno").hide();
+                  $contentHtmlElement.show();
+                  $contentReact.hide();
+                  $closeButtons.show();
                   $popup.attr('aria-hidden', 'false'); 
               };
         // On vérifie que la popup est masquée
