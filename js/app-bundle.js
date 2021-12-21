@@ -1816,7 +1816,10 @@ class Show extends Media {
         function changeBtnAdd(show) {
             let $optionsLinks = $('#dropdownOptions').siblings('.dropdown-menu').children('a.header-navigation-item');
             if ($optionsLinks.length <= 2) {
-                let react_id = jQuery('script[id^="/reactjs/"]').get(0).id.split('.')[1], urlShow = show.resource_url.substring(location.origin.length), title = show.title.replace(/"/g, '\\"').replace(/'/g, "\\'"), templateOpts = `
+                let react_id = $('script[id^="/reactjs/"]').get(0).id.split('.')[1], 
+                    urlShow = show.resource_url.substring(location.origin.length), 
+                    title = show.title.replace(/"/g, '\\"').replace(/'/g, "\\'"), 
+                    templateOpts = `
                             <button type="button" class="btn-reset header-navigation-item" onclick="new PopupAlert({
                             showClose: true,
                             type: "popin-subtitles",
@@ -1846,17 +1849,17 @@ class Show extends Media {
                 if ($optionsLinks.length === 1) {
                     templateOpts = `<a class="header-navigation-item" href="${urlShow}/actions">Vos actions sur la série</a>` + templateOpts;
                 }
-                jQuery('#dropdownOptions').siblings('.dropdown-menu.header-navigation')
+                $('#dropdownOptions').siblings('.dropdown-menu.header-navigation')
                     .append(templateOpts);
             }
             // On remplace le bouton Ajouter par les boutons Archiver et Favoris
-            const divs = jQuery('#reactjs-show-actions > div');
+            const divs = $('#reactjs-show-actions > div');
             if (divs.length === 1) {
-                jQuery('#reactjs-show-actions').remove();
-                let $container = jQuery('.blockInformations__actions'), method = 'prepend';
+                $('#reactjs-show-actions').remove();
+                let $container = $('.blockInformations__actions'), method = 'prepend';
                 // Si le bouton VOD est présent, on place les boutons après
                 if ($('#dropdownWatchOn').length > 0) {
-                    $container = jQuery('#dropdownWatchOn').parent();
+                    $container = $('#dropdownWatchOn').parent();
                     method = 'after';
                 }
                 $container[method](`
@@ -1888,7 +1891,7 @@ class Show extends Media {
                             <div class="label">${Base.trans('show.button.favorite.label')}</div>
                             </div>
                         </div>`);
-                show.elt = jQuery('reactjs-show-actions');
+                show.elt = $('reactjs-show-actions');
                 // On ofusque l'image des épisodes non-vu
                 let vignette;
                 for (let v = 0; v < vignettes.length; v++) {
@@ -1897,6 +1900,9 @@ class Show extends Media {
                         vignette.find('img.js-lazy-image').attr('style', 'filter: blur(5px);');
                     }
                 }
+                // On doit ajouter le bouton pour noter le média
+                const $stars = $('.blockInformations__metadatas .js-render-stars');
+                $stars.replaceWith(`<button type="button" class="btn-reset fontSize0">${$stars.html()}</button>`);
             }
             _this.addEventBtnsArchiveAndFavoris();
             _this.deleteShowClick();
