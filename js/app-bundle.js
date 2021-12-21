@@ -2132,6 +2132,11 @@ class Show extends Media {
         return this;
     }
 }
+const MovieStatus = {
+    TOSEE: 0,
+    SEEN: 1,
+    DONTWANTTOSEE: 2
+};
 class Movie extends Media {
     /***************************************************/
     /*                      STATIC                     */
@@ -2204,6 +2209,48 @@ class Movie extends Media {
         this.mediaType = { singular: MediaType.movie, plural: 'movies', className: Movie };
         super.fill(data);
         return this.save();
+    }
+    /**
+     * Définit le film, sur le compte du membre connecté, comme "vu"
+     * @returns {Promise<Movie>}
+     */
+    markAsView() {
+        return this.changeStatus(MovieStatus.SEEN);
+    }
+    /**
+     * Définit le film, sur le compte du membre connecté, comme "à voir"
+     * @returns {Promise<Movie>}
+     */
+    markToSee() {
+        return this.changeStatus(MovieStatus.TOSEE);
+    }
+    /**
+     * Définit le film, sur le compte du membre connecté, comme "ne pas voir"
+     * @returns {Promise<Movie>}
+     */
+    markDontWantToSee() {
+        return this.changeStatus(MovieStatus.DONTWANTTOSEE);
+    }
+    /**
+     * Modifie le statut du film sur le compte du membre connecté
+     * @param   {number} status     Le nouveau statut du film
+     * @returns {Promise<Movie>}    L'instance du film
+     */
+    changeStatus(status) {
+        const _this = this;
+        if (!Base.userIdentified() || this.user.status === MovieStatus.SEEN) {
+            return Promise.resolve(this);
+        }
+        return Base.callApi(HTTP_VERBS.POST, this.mediaType.plural, 'movie', {id: this.id, state: status})
+        .then((data) => {
+            _this.fill(data);
+            return this;
+        })
+        .catch(err => {
+            console.warn("Erreur ajout film sur compte", err);
+            Base.notification('Ajout du film', "Erreur lors de l'ajout du film sur votre compte");
+            return this;
+        });
     }
 }
 class Subtitle {
