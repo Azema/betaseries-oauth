@@ -2944,8 +2944,8 @@ class Similar extends Media {
                 <input type="radio" class="movie movieMustSee" name="movieState" value="0" data-movie="${this.id}" ${this.user.status === 0 ? 'checked' : ''} style="margin-right:5px;"></input>`;
             // Ajouter une case à cocher pour l'état "Ne pas voir"
             template += `<label for="notSee">Ne pas voir</label>
-                <input type="radio" class="movie movieNotSee" name="movieState" value="2" data-movie="${this.id}"  ${this.user.status === 2 ? 'checked' : ''}></input></p>`;
-            template += `<button class="btn-reset reset">Reset</button>`;
+                <input type="radio" class="movie movieNotSee" name="movieState" value="2" data-movie="${this.id}"  ${this.user.status === 2 ? 'checked' : ''}></input>`;
+            template += `<button class="btn-reset reset">Reset</button></p>`;
             template += _renderGenres();
             template += _renderCreation();
             if (this.director) {
