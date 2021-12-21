@@ -362,13 +362,15 @@ class CommentBS {
         }
         let template = '<div class="comments overflowYScroll" style="margin-bottom: 0px;">';
         template += templateComment(this);
+        let promise = Promise.resolve(true);
         if (this.nbReplies > 0 && this.replies.length <= 0) {
-            this._parent.fetchRepliesOfComment(this.id)
+            promise = this._parent.fetchRepliesOfComment(this.id)
                 .then((replies) => {
                 _this.replies = replies;
                 for (let r = 0; r < replies.length; r++) {
                     template += templateComment(replies[r]);
                 }
+                return true;
             });
         }
         else if (this.nbReplies > 0) {
@@ -376,96 +378,98 @@ class CommentBS {
                 template += templateComment(this.replies[r]);
             }
         }
-        template += '</div>';
-        // On vide la popup et on ajoute le commentaire
-        $popup.attr('data-popin-type', 'comments');
-        $text.empty().append(template);
-        $title.empty().append('Commentaires <i class="fa fa-chevron-circle-left prev-comment" aria-hidden="true"></i> <i class="fa fa-chevron-circle-right next-comment" aria-hidden="true"></i>');
-        $closeButtons.click(() => {
-            hidePopup();
-            $popup.removeAttr('data-popin-type');
-        });
-        const $prevCmt = $title.find('.prev-comment');
-        if (this.first) {
-            $prevCmt.css('color', 'grey').css('cursor', 'initial');
-        }
-        else {
-            $prevCmt.click((e) => {
+        // On attend les réponses du commentaire
+        promise.then(() => {
+            // On vide la popup et on ajoute le commentaire
+            $popup.attr('data-popin-type', 'comments');
+            $title.empty().append('Commentaires <i class="fa fa-chevron-circle-left prev-comment" aria-hidden="true"></i> <i class="fa fa-chevron-circle-right next-comment" aria-hidden="true"></i>');
+            $text.empty().append(template + '</div>');
+            $closeButtons.click(() => {
+                hidePopup();
+                $popup.removeAttr('data-popin-type');
+            });
+            const $prevCmt = $title.find('.prev-comment');
+            if (this.first) {
+                $prevCmt.css('color', 'grey').css('cursor', 'initial');
+            }
+            else {
+                $prevCmt.click((e) => {
+                    e.stopPropagation();
+                    e.preventDefault();
+                    // Il faut tout nettoyer, comme pour la fermeture
+                    $popup.find('.comments .comment .btnThumb').off('click');
+                    $popup.find('.btnToggleOptions').off('click');
+                    $popup.find('i.fa').off('click');
+                    // Il faut demander au parent d'afficher le commentaire précédent
+                    _this._parent.getPrevComment(_this.id).display();
+                });
+            }
+            const $nextCmt = $title.find('.next-comment');
+            // TODO: Je ne suis pas très sur de ce test
+            if (this.last) {
+                $nextCmt.css('color', 'grey').css('cursor', 'initial');
+            }
+            else {
+                $nextCmt.click((e) => {
+                    e.stopPropagation();
+                    e.preventDefault();
+                    // Il faut tout nettoyer, comme pour la fermeture
+                    $popup.find('.comments .comment .btnThumb').off('click');
+                    $popup.find('.btnToggleOptions').off('click');
+                    $popup.find('i.fa').off('click');
+                    // Il faut demander au parent d'afficher le commentaire précédent
+                    _this._parent.getNextComment(_this.id).display();
+                });
+            }
+            /*
+            * Ajoutons les events:
+            *  - btnUpVote: Voter pour ce commentaire
+            *  - btnDownVote: Voter contre ce commentaire
+            *  - btnToggleOptions: Switcher les options
+            */
+            $popup.find('.comments .comment .btnThumb').click((e) => {
                 e.stopPropagation();
                 e.preventDefault();
-                // Il faut tout nettoyer, comme pour la fermeture
-                $popup.find('.comments .comment .btnThumb').off('click');
-                $popup.find('.btnToggleOptions').off('click');
-                $popup.find('i.fa').off('click');
-                // Il faut demander au parent d'afficher le commentaire précédent
-                _this._parent.getPrevComment(_this.id).display();
+                // Ajouter un flag pour indiquer qu'un vote a déjà eu lieu
+                const $btn = jQuery(e.currentTarget);
+                const commentId = parseInt($btn.parent().data('commentId'), 10);
+                let params = { id: commentId, type: 1, switch: false };
+                // On a déjà voté
+                if ($btn.data('thumbed') == '1') {
+                    params.switch = true;
+                }
+                if ($btn.hasClass('btnDownVote')) {
+                    params.type = -1;
+                }
+                Base.callApi(HTTP_VERBS.POST, 'comments', 'thumb', params)
+                    .then((data) => {
+                    if (commentId == _this.id) {
+                        _this.thumbs = data.comment.thumbs;
+                    }
+                    else {
+                        // Demander au parent d'incrémenter les thumbs du commentaire
+                        _this._parent.changeThumbsComment(commentId, data.comment.thumbs);
+                    }
+                    // On ajoute le flag pour indiquer que l'on a déjà voté
+                    $btn.attr('data-thumbed', '1');
+                });
             });
-        }
-        const $nextCmt = $title.find('.next-comment');
-        // TODO: Je ne suis pas très sur de ce test
-        if (this.last) {
-            $nextCmt.css('color', 'grey').css('cursor', 'initial');
-        }
-        else {
-            $nextCmt.click((e) => {
+            $popup.find('.btnToggleOptions').click((e) => {
                 e.stopPropagation();
                 e.preventDefault();
-                // Il faut tout nettoyer, comme pour la fermeture
-                $popup.find('.comments .comment .btnThumb').off('click');
-                $popup.find('.btnToggleOptions').off('click');
-                $popup.find('i.fa').off('click');
-                // Il faut demander au parent d'afficher le commentaire précédent
-                _this._parent.getNextComment(_this.id).display();
+                jQuery(e.currentTarget).parents('.iv_i3').first()
+                    .find('.options-comment').each((_index, elt) => {
+                    const $elt = jQuery(elt);
+                    if ($elt.is(':visible')) {
+                        $elt.hide();
+                    }
+                    else {
+                        $elt.show();
+                    }
+                });
             });
-        }
-        /*
-         * Ajoutons les events:
-         *  - btnUpVote: Voter pour ce commentaire
-         *  - btnDownVote: Voter contre ce commentaire
-         *  - btnToggleOptions: Switcher les options
-         */
-        $popup.find('.comments .comment .btnThumb').click((e) => {
-            e.stopPropagation();
-            e.preventDefault();
-            // Ajouter un flag pour indiquer qu'un vote a déjà eu lieu
-            const $btn = jQuery(e.currentTarget);
-            const commentId = parseInt($btn.parent().data('commentId'), 10);
-            let params = { id: commentId, type: 1, switch: false };
-            // On a déjà voté
-            if ($btn.data('thumbed') == '1') {
-                params.switch = true;
-            }
-            if ($btn.hasClass('btnDownVote')) {
-                params.type = -1;
-            }
-            Base.callApi(HTTP_VERBS.POST, 'comments', 'thumb', params)
-                .then((data) => {
-                if (commentId == _this.id) {
-                    _this.thumbs = data.comment.thumbs;
-                }
-                else {
-                    // Demander au parent d'incrémenter les thumbs du commentaire
-                    _this._parent.changeThumbsComment(commentId, data.comment.thumbs);
-                }
-                // On ajoute le flag pour indiquer que l'on a déjà voté
-                $btn.attr('data-thumbed', '1');
-            });
+            showPopup();
         });
-        $popup.find('.btnToggleOptions').click((e) => {
-            e.stopPropagation();
-            e.preventDefault();
-            jQuery(e.currentTarget).parents('.iv_i3').first()
-                .find('.options-comment').each((_index, elt) => {
-                const $elt = jQuery(elt);
-                if ($elt.is(':visible')) {
-                    $elt.hide();
-                }
-                else {
-                    $elt.show();
-                }
-            });
-        });
-        showPopup();
     }
 }
 var StarTypes;
