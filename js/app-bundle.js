@@ -198,6 +198,11 @@ class CommentBS {
     /**
      * Nombre de réponse à ce commentaires
      */
+    nbReplies;
+    /**
+     * Tableau des réponses
+     * @type {Array<CommentBS>}
+     */
     replies;
     /**
      * Message de l'administration
@@ -226,7 +231,8 @@ class CommentBS {
         this.user_note = parseInt(data.user_note, 10);
         this.thumbs = parseInt(data.thumbs, 10);
         this.thumbed = data.thumbed;
-        this.replies = parseInt(data.replies, 10);
+        this.nbReplies = parseInt(data.replies, 10);
+        this.replies = new Array();
         this.from_admin = data.from_admin;
         this.user_rank = data.user_rank;
     }
@@ -317,7 +323,7 @@ class CommentBS {
                                             </g>
                                         </svg>
                                     </button>
-                                    <strong class="mainLink" style="margin-left: 5px;">${comment.replies > 0 ? '+' + comment.replies : (comment.replies < 0) ? '-' + comment.replies : comment.replies}</strong>
+                                    <strong class="mainLink" style="margin-left: 5px;">${comment.nbReplies > 0 ? '+' + comment.nbReplies : (comment.nbReplies < 0) ? '-' + comment.nbReplies : comment.nbReplies}</strong>
                                     <span class="mainLink">&nbsp;∙&nbsp;</span>
                                     <button type="button" class="btn-reset mainLink mainLink--regular btnResponse" style="vertical-align: 0px;">Répondre</button>
                                     <a href="#c_1269819" class="mainTime">
@@ -360,10 +366,17 @@ class CommentBS {
         }
         let template = '<div class="comments overflowYScroll" style="margin-bottom: 0px;">';
         template += templateComment(this);
-        if (this.replies > 0) {
-            const replies = this._parent.getRepliesOfComment(this.inner_id);
-            for (let r = 0; r < replies.length; r++) {
-                template += templateComment(replies[r]);
+        if (this.nbReplies > 0 && this.replies.length <= 0) {
+            this._parent.fetchRepliesOfComment(this.id)
+            .then(replies => {
+                this.replies = replies;
+                for (let r = 0; r < replies.length; r++) {
+                    template += templateComment(replies[r]);
+                }
+            });
+        } else if (this.nbReplies > 0) {
+            for (let r = 0; r < this.replies.length; r++) {
+                template += templateComment(this.replies[r]);
             }
         }
         template += '</div>';
@@ -456,6 +469,9 @@ class Note {
         }
         return toString;
     }
+    /**
+     * Crée une popup pour noter le média
+     */
     createPopupForVote() {
         // La popup et ses éléments
         const _this = this,
@@ -470,6 +486,7 @@ class Note {
                   $popup.find("#popupalertyes").show();
                   $popup.find("#popupalertno").show();
                   $contentHtmlElement.hide();
+                  // On désactive les events
                   $text.find('.star-svg').off('mouseenter').off('mouseleave').off('click');
               },
               showPopup = () => { 
@@ -534,11 +551,11 @@ class Note {
                 updateStars(e, _this.user);
             })
             .click((e) => {
-                const $star = $(e.currentTarget), 
-                      note = parseInt($star.data('number'), 10), 
-                      $stars = $text.find('.star-svg');
+                const note = parseInt($(e.currentTarget).data('number'), 10), 
+                      $stars = $(e.currentTarget).parent().find('.star-svg');
                 // On supprime les events
                 $stars.off('mouseenter').off('mouseleave');
+                // $text.empty();
                 _this._parent.addVote(note)
                     .then((result) => {
                         hidePopup();
@@ -546,9 +563,7 @@ class Note {
                             Base.notification('Erreur Vote', "Une erreur s'est produite durant le vote");
                         }
                     })
-                    .catch(err => {
-                        hidePopup();
-                    });
+                    .catch(() => hidePopup() );
             });
         // On affiche la popup
         showPopup();
@@ -1181,7 +1196,7 @@ class Base {
                 type: _this.mediaType.singular, 
                 id: _this.id, 
                 nbpp: nbpp, 
-                replies: 1, 
+                replies: 0, 
                 order: 'desc'
             };
             if (since > 0) {
@@ -1221,17 +1236,22 @@ class Base {
     }
     /**
      * Retourne les réponses à un commentaire
-     * @param   {number} commentIndex Index du commentaire original
-     * @returns {Array<CommentBS>}    Tableau des réponses
+     * @param   {number} commentId Identifiant du commentaire original
+     * @returns {Promise<Array<CommentBS>>} Tableau des réponses
      */
-    getRepliesOfComment(commentIndex) {
-        let replies = new Array();
-        for (let c = commentIndex; c < this.comments.length; c++) {
-            if (this.comments[c].in_reply_to == commentIndex) {
-                replies.push(this.comments[c]);
-            }
-        }
-        return replies;
+    fetchRepliesOfComment(commentId) {
+        return new Promise((resolve, reject) => {
+            Base.callApi(HTTP_VERBS.GET, 'comments', 'replies', {id: commentId, order: 'desc'})
+            .then(data => {
+                const replies = new Array();
+                if (data.comments) {
+                    for (let c = 0; c < data.comments.length; c++) {
+                        replies.push(new CommentBS(data.comments[c], this));
+                    }
+                }
+                resolve(replies);
+            }).catch(() => reject());
+        });
     }
     /**
      * Modifie le nombre de votes pour un commentaire
