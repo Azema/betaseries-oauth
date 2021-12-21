@@ -2945,6 +2945,7 @@ class Similar extends Media {
             // Ajouter une case à cocher pour l'état "Ne pas voir"
             template += `<label for="notSee">Ne pas voir</label>
                 <input type="radio" class="movie movieNotSee" name="movieState" value="2" data-movie="${this.id}"  ${this.user.status === 2 ? 'checked' : ''}></input></p>`;
+            template += `<button class="btn-reset reset">Reset</button>`;
             template += _renderGenres();
             template += _renderCreation();
             if (this.director) {
@@ -3038,22 +3039,33 @@ class Similar extends Media {
      * Add Show to account member
      * @return {Promise<Similar>} Promise of show
      */
-    addToAccount(state = 0) {
+     addToAccount(state = 0) {
+        if (this.in_account) return Promise.resolve(this);
+        return this.changeState(state);
+    }
+    /**
+     * Modifie le statut du similar
+     * @param   {number} state Le nouveau statut du similar
+     * @returns {Promise<Similar>} 
+     */
+    changeState(state) {
+        if (state < -1 || state > 2) {
+            throw new Error("Parameter state is incorrect: " + state.toString());
+        }
         const _this = this;
-        if (this.in_account)
-            return new Promise(resolve => resolve(_this));
-        let params = { id: this.id };
+        let params = {id: this.id};
         if (this.mediaType.singular === MediaType.movie) {
             params.state = state;
         }
-        return new Promise((resolve, reject) => {
-            Base.callApi('POST', _this.mediaType.plural, _this.mediaType.singular, params)
-                .then(data => {
-                _this.fill(data[_this.mediaType.singular]).save();
-                resolve(_this);
-            }, err => {
-                reject(err);
-            });
+        return Base.callApi(HTTP_VERBS.POST, this.mediaType.plural, this.mediaType.singular, params)
+        .then((data) => {
+            _this.fill(data[_this.mediaType.singular]);
+            return _this;
+        })
+        .catch(err => {
+            console.warn('Erreur changeState similar', err);
+            Base.notification('Change State Similar', 'Erreur lors du changement de statut: ' + err.toString());
+            return _this;
         });
     }
 }
