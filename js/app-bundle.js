@@ -1909,6 +1909,7 @@ class Show extends Media {
                         </span>
                     </button>`
                 );
+                _this.elt = $('.blockInformations');
                 _this.addNumberVoters();
             }
             _this.addEventBtnsArchiveAndFavoris();
