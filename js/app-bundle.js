@@ -1981,6 +1981,15 @@ class Show extends Media {
                             }
                             _this.addShowClick();
                         });
+                        // On doit ajouter le bouton pour noter le média
+                        const $stars = jQuery('.blockInformations__metadatas .js-render-stars');
+                        $stars.parent().replaceWith(`
+                            <span class="stars js-render-stars">
+                                ${$stars.html()}
+                            </span>`
+                        );
+                        _this.elt = $('.blockInformations');
+                        _this.addNumberVoters();
                     };
                     new PopupAlert({
                         title: Base.trans("popup.delete_show_success.title"),
