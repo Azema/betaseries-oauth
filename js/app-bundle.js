@@ -2938,14 +2938,14 @@ class Similar extends Media {
             template += '</p>';
             // Ajouter une case à cocher pour l'état "Vu"
             template += `<p><label for="seen">Vu</label>
-                <input type="radio" class="movie movieSeen" name="movieState" value="1" data-movie="${this.id}" ${this.user.status === 1 ? 'checked' : ''} style="margin-right:5px;"></input>`;
+                <input type="radio" class="movie movieSeen" name="movieState" value="1" data-movie="${this.id}" ${this.user.status === 1 ? 'checked' : ''} style="margin-right:5px;vertical-align:middle;"></input>`;
             // Ajouter une case à cocher pour l'état "A voir"
             template += `<label for="mustSee">A voir</label>
-                <input type="radio" class="movie movieMustSee" name="movieState" value="0" data-movie="${this.id}" ${this.user.status === 0 ? 'checked' : ''} style="margin-right:5px;"></input>`;
+                <input type="radio" class="movie movieMustSee" name="movieState" value="0" data-movie="${this.id}" ${this.user.status === 0 ? 'checked' : ''} style="margin-right:5px;vertical-align:middle;"></input>`;
             // Ajouter une case à cocher pour l'état "Ne pas voir"
             template += `<label for="notSee">Ne pas voir</label>
-                <input type="radio" class="movie movieNotSee" name="movieState" value="2" data-movie="${this.id}"  ${this.user.status === 2 ? 'checked' : ''}></input>`;
-            template += `<button class="btn-reset reset" style="margin-left:10px;">Reset</button></p>`;
+                <input type="radio" class="movie movieNotSee" name="movieState" value="2" data-movie="${this.id}"  ${this.user.status === 2 ? 'checked' : ''} style="vertical-align:middle;"></input>`;
+            template += `<button class="btn-reset reset" style="margin-left:10px;padding:2px 5px;">Reset</button></p>`;
             template += _renderGenres();
             template += _renderCreation();
             if (this.director) {
@@ -3054,10 +3054,14 @@ class Similar extends Media {
         }
         const _this = this;
         let params = {id: this.id};
-        if (this.mediaType.singular === MediaType.movie) {
+        let verb = HTTP_VERBS.POST;
+        if (state === -1 && this.mediaType.singular === MediaType.movie) {
+            verb = HTTP_VERBS.DELETE;
+        }
+        else if (this.mediaType.singular === MediaType.movie) {
             params.state = state;
         }
-        return Base.callApi(HTTP_VERBS.POST, this.mediaType.plural, this.mediaType.singular, params)
+        return Base.callApi(verb, this.mediaType.plural, this.mediaType.singular, params)
         .then((data) => {
             _this.fill(data[_this.mediaType.singular]);
             return _this;
