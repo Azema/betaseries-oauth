@@ -2938,13 +2938,13 @@ class Similar extends Media {
             template += '</p>';
             // Ajouter une case à cocher pour l'état "Vu"
             template += `<p><label for="seen">Vu</label>
-                <input type="checkbox" class="movie movieSeen" name="seen" data-movie="${this.id}" ${this.user.status === 1 ? 'checked' : ''} style="margin-right:5px;"></input>`;
+                <input type="radio" class="movie movieSeen" name="movieState" value="1" data-movie="${this.id}" ${this.user.status === 1 ? 'checked' : ''} style="margin-right:5px;"></input>`;
             // Ajouter une case à cocher pour l'état "A voir"
             template += `<label for="mustSee">A voir</label>
-                <input type="checkbox" class="movie movieMustSee" name="mustSee" data-movie="${this.id}" ${this.user.status === 0 ? 'checked' : ''} style="margin-right:5px;"></input>`;
+                <input type="radio" class="movie movieMustSee" name="movieState" value="0" data-movie="${this.id}" ${this.user.status === 0 ? 'checked' : ''} style="margin-right:5px;"></input>`;
             // Ajouter une case à cocher pour l'état "Ne pas voir"
             template += `<label for="notSee">Ne pas voir</label>
-                <input type="checkbox" class="movie movieNotSee" name="notSee" data-movie="${this.id}"  ${this.user.status === 2 ? 'checked' : ''}></input></p>`;
+                <input type="radio" class="movie movieNotSee" name="movieState" value="2" data-movie="${this.id}"  ${this.user.status === 2 ? 'checked' : ''}></input></p>`;
             template += _renderGenres();
             template += _renderCreation();
             if (this.director) {
