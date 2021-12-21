@@ -1642,7 +1642,7 @@ class Show extends Media {
             });
         }
         // Si il n'y a plus d'épisodes à regarder
-        if (this.user.remaining === 0) {
+        if (this.user.remaining === 0 && this.in_account) {
             let promise = new Promise(resolve => { return resolve(void 0); });
             // On propose d'archiver si la série n'est plus en production
             if (this.in_account && this.isEnded() && !this.isArchived()) {
