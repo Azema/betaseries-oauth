@@ -1295,7 +1295,9 @@ class Media extends Base {
         this.language = data.language;
         this.length = parseInt(data.length, 10);
         this.original_title = data.original_title;
-        this.similars = new Array();
+        if (!this.similars || this.similars.length <= 0) {
+            this.similars = new Array();
+        }
         this.nbSimilars = 0;
         if (data.similars && data.similars instanceof Array) {
             this.similars = data.similars;
