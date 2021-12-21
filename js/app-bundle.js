@@ -1902,7 +1902,14 @@ class Show extends Media {
                 }
                 // On doit ajouter le bouton pour noter le média
                 const $stars = $('.blockInformations__metadatas .js-render-stars');
-                $stars.replaceWith(`<button type="button" class="btn-reset fontSize0">${$stars.html()}</button>`);
+                $stars.replaceWith(`
+                    <button type="button" class="btn-reset fontSize0">
+                        <span class="stars js-render-stars">
+                            ${$stars.html()}
+                        </span>
+                    </button>`
+                );
+                _this.addNumberVoters();
             }
             _this.addEventBtnsArchiveAndFavoris();
             _this.deleteShowClick();
