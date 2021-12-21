@@ -3354,7 +3354,7 @@ Show.prototype.fill = function (data) {
     this.status = data.status;
     this.thetvdb_id = parseInt(data.thetvdb_id, 10);
     this.pictures = new Array();
-    this.mediaType = { singular: Base_1.MediaType.show, plural: 'shows', className: Show };
+    this.mediaType = { singular: MediaType.show, plural: 'shows', className: Show };
     Media.prototype.fill.call(this, data);
     return this.save();
 };
@@ -3366,7 +3366,7 @@ Media.prototype.fetchSimilars = function () {
     const _this = this;
     this.similars = [];
     return new Promise((resolve, reject) => {
-        Base_1.Base.callApi('GET', this.mediaType.plural, 'similars', { id: this.id, details: true }, true)
+        Base.callApi('GET', this.mediaType.plural, 'similars', { id: this.id, details: true }, true)
             .then(data => {
             if (data.similars) {
                 for (let s = 0; s < data.similars.length; s++) {
