@@ -1,12 +1,12 @@
-'use strict';
-
-const DataTypesCache = {
-    shows: 'shows',
-    episodes: 'episodes',
-    movies: 'movies',
-    members: 'members',
-    updates: 'updateAuto'
-};
+"use strict";
+var DataTypesCache;
+(function (DataTypesCache) {
+    DataTypesCache["shows"] = "shows";
+    DataTypesCache["episodes"] = "episodes";
+    DataTypesCache["movies"] = "movies";
+    DataTypesCache["members"] = "members";
+    DataTypesCache["updates"] = "updateAuto";
+})(DataTypesCache = DataTypesCache || (DataTypesCache = {}));
 /**
  * @class Gestion du Cache pour le script
  */
@@ -113,15 +113,15 @@ class CacheUS {
 }
 class Character {
     constructor(data) {
-        this.actor = data.actor;
-        this.picture = data.picture;
-        this.name = data.name;
-        this.guest = data.guest;
-        this.id = parseInt(data.id, 10);
-        this.description = data.description;
-        this.role = data.role;
-        this.show_id = parseInt(data.show_id, 10);
-        this.movie_id = parseInt(data.movie_id, 10);
+        this.actor = data.actor || '';
+        this.picture = data.picture || '';
+        this.name = data.name || '';
+        this.guest = data.guest || false;
+        this.id = (data.id !== undefined) ? parseInt(data.id, 10) : 0;
+        this.description = data.description || null;
+        this.role = data.role || '';
+        this.show_id = (data.show_id !== undefined) ? parseInt(data.show_id, 10) : 0;
+        this.movie_id = (data.movie_id !== undefined) ? parseInt(data.movie_id, 10) : 0;
     }
     actor;
     description;
@@ -200,7 +200,7 @@ class CommentBS {
      */
     nbReplies;
     /**
-     * Tableau des réponses
+     * Les réponses au commentaire
      * @type {Array<CommentBS>}
      */
     replies;
@@ -241,30 +241,22 @@ class CommentBS {
      */
     display() {
         // La popup et ses éléments
-        const _this = this, 
-              $popup = jQuery('#popin-dialog'), 
-              $contentHtmlElement = $popup.find(".popin-content-html"),
-              $contentReact = $popup.find(".popin-content-reactmodule"),
-              $title = $contentHtmlElement.find(".title"), 
-              $text = $popup.find("p"), 
-              $closeButtons = $popup.find("#popin-showClose"), 
-              hidePopup = () => { 
-                  $popup.attr('aria-hidden', 'true'); 
-                  $popup.find("#popupalertyes").show();
-                  $popup.find("#popupalertno").show();
-                  $contentHtmlElement.hide();
-                  // On désactive les events
-                  $popup.find('.comments .comment .btnThumb').off('click');
-                  $popup.find('.btnToggleOptions').off('click');
-              },
-              showPopup = () => { 
-                  $popup.find("#popupalertyes").hide();
-                  $popup.find("#popupalertno").hide();
-                  $contentHtmlElement.show();
-                  $contentReact.hide();
-                  $closeButtons.show();
-                  $popup.attr('aria-hidden', 'false'); 
-              };
+        const _this = this, $popup = jQuery('#popin-dialog'), $contentHtmlElement = $popup.find(".popin-content-html"), $contentReact = $popup.find('.popin-content-reactmodule'), $title = $contentHtmlElement.find(".title"), $text = $popup.find("p"), $closeButtons = $popup.find("#popin-showClose"), hidePopup = () => {
+            $popup.attr('aria-hidden', 'true');
+            $popup.find("#popupalertyes").show();
+            $popup.find("#popupalertno").show();
+            $contentHtmlElement.hide();
+            // On désactive les events
+            $popup.find('.comments .comment .btnThumb').off('click');
+            $popup.find('.btnToggleOptions').off('click');
+        }, showPopup = () => {
+            $popup.find("#popupalertyes").hide();
+            $popup.find("#popupalertno").hide();
+            $contentHtmlElement.show();
+            $contentReact.hide();
+            $closeButtons.show();
+            $popup.attr('aria-hidden', 'false');
+        };
         // On vérifie que la popup est masquée
         hidePopup();
         /**
@@ -368,13 +360,14 @@ class CommentBS {
         template += templateComment(this);
         if (this.nbReplies > 0 && this.replies.length <= 0) {
             this._parent.fetchRepliesOfComment(this.id)
-            .then(replies => {
-                this.replies = replies;
+                .then((replies) => {
+                _this.replies = replies;
                 for (let r = 0; r < replies.length; r++) {
                     template += templateComment(replies[r]);
                 }
             });
-        } else if (this.nbReplies > 0) {
+        }
+        else if (this.nbReplies > 0) {
             for (let r = 0; r < this.replies.length; r++) {
                 template += templateComment(this.replies[r]);
             }
@@ -384,7 +377,10 @@ class CommentBS {
         $popup.attr('data-popin-type', 'comments');
         $text.empty().append(template);
         $title.empty().append('Commentaires');
-        $closeButtons.click(() => { hidePopup(); $popup.removeAttr('data-popin-type'); });
+        $closeButtons.click(() => {
+            hidePopup();
+            $popup.removeAttr('data-popin-type');
+        });
         /*
          * Ajoutons les events:
          *  - btnUpVote: Voter pour ce commentaire
@@ -435,13 +431,13 @@ class CommentBS {
         showPopup();
     }
 }
-
-const StarTypes = {
-    "EMPTY": "empty",
-    "HALF": "half",
-    "FULL": "full",
-    "DISABLE": "disable"
-};
+var StarTypes;
+(function (StarTypes) {
+    StarTypes["EMPTY"] = "empty";
+    StarTypes["HALF"] = "half";
+    StarTypes["FULL"] = "full";
+    StarTypes["DISABLE"] = "disable";
+})(StarTypes || (StarTypes = {}));
 class Note {
     constructor(data, parent) {
         this.total = parseInt(data.total, 10);
@@ -453,9 +449,17 @@ class Note {
     mean;
     user;
     _parent;
+    /**
+     * Retourne la note moyenne sous forme de pourcentage
+     * @returns {number} La note sous forme de pourcentage
+     */
     getPercentage() {
         return Math.round(((this.mean / 5) * 100) / 10) * 10;
     }
+    /**
+     * Retourne l'objet Note sous forme de chaine
+     * @returns {string}
+     */
     toString() {
         const votes = 'vote' + (this.total > 1 ? 's' : ''), 
         // On met en forme le nombre de votes
@@ -470,38 +474,29 @@ class Note {
         return toString;
     }
     /**
-     * Crée une popup pour noter le média
+     * Crée une popup avec 5 étoiles pour noter le média
      */
     createPopupForVote() {
         // La popup et ses éléments
-        const _this = this,
-              $popup = $('#popin-dialog'), 
-              $contentHtmlElement = $popup.find(".popin-content-html"),
-              $contentReact = $popup.find(".popin-content-reactmodule"),
-              $title = $contentHtmlElement.find(".title"), 
-              $text = $popup.find("p"), 
-              $closeButtons = $popup.find("#popin-showClose"),
-              hidePopup = () => { 
-                  $popup.attr('aria-hidden', 'true'); 
-                  $popup.find("#popupalertyes").show();
-                  $popup.find("#popupalertno").show();
-                  $contentHtmlElement.hide();
-                  // On désactive les events
-                  $text.find('.star-svg').off('mouseenter').off('mouseleave').off('click');
-              },
-              showPopup = () => { 
-                  $popup.find("#popupalertyes").hide();
-                  $popup.find("#popupalertno").hide();
-                  $contentHtmlElement.show();
-                  $contentReact.hide();
-                  $closeButtons.show();
-                  $popup.attr('aria-hidden', 'false'); 
-              };
+        const _this = this, $popup = jQuery('#popin-dialog'), $contentHtmlElement = $popup.find(".popin-content-html"), $contentReact = $popup.find('.popin-content-reactmodule'), $title = $contentHtmlElement.find(".title"), $text = $popup.find("p"), $closeButtons = $popup.find("#popin-showClose"), hidePopup = () => {
+            $popup.attr('aria-hidden', 'true');
+            $popup.find("#popupalertyes").show();
+            $popup.find("#popupalertno").show();
+            $contentHtmlElement.hide();
+            // On désactive les events
+            $text.find('.star-svg').off('mouseenter').off('mouseleave').off('click');
+        }, showPopup = () => {
+            $popup.find("#popupalertyes").hide();
+            $popup.find("#popupalertno").hide();
+            $contentHtmlElement.show();
+            $contentReact.hide();
+            $closeButtons.show();
+            $popup.attr('aria-hidden', 'false');
+        };
         // On vérifie que la popup est masquée
         hidePopup();
         // Ajouter les étoiles
-        let template = '<div style="display: flex; justify-content: center; margin-bottom: 15px;"><div role="button" tabindex="0" class="stars btn-reset">', 
-            className;
+        let template = '<div style="display: flex; justify-content: center; margin-bottom: 15px;"><div role="button" tabindex="0" class="stars btn-reset">', className;
         for (let i = 1; i <= 5; i++) {
             className = this.user <= i - 1 ? StarTypes.EMPTY : StarTypes.FULL;
             template += `
@@ -510,7 +505,6 @@ class Note {
                 </svg>`;
         }
         // On vide la popup et on ajoute les étoiles
-        $popup.attr('data-popin-type', 'note-media');
         $text.empty().append(template + '</div></div>');
         let title = 'Noter ';
         switch (this._parent.mediaType.singular) {
@@ -527,44 +521,43 @@ class Note {
                 break;
         }
         $title.empty().text(title);
-        $closeButtons.click(() => { 
-            hidePopup(); 
-            $popup.removeAttr('data-popin-type'); 
+        $closeButtons.click(() => {
+            hidePopup();
+            $popup.removeAttr('data-popin-type');
         });
         // On ajoute les events sur les étoiles
-        const updateStars = function(evt, note) {
-            const $stars = $(evt.currentTarget).parent().find('.star-svg use');
+        const updateStars = function (evt, note) {
+            const $stars = jQuery(evt.currentTarget).parent().find('.star-svg use');
             let className;
             for (let s = 0; s < 5; s++) {
                 className = (s <= note - 1) ? StarTypes.FULL : StarTypes.EMPTY;
                 $($stars.get(s)).attr('xlink:href', `#icon-starblue-${className}`);
             }
         };
-        $text.find('.star-svg')
-            .mouseenter((e) => {
-                const note = parseInt($(e.currentTarget).data('number'), 10);
-                // if (Base.debug) console.log('mouseenter - note: %d', note);
-                updateStars(e, note);
+        $text.find('.star-svg').mouseenter((e) => {
+            const note = parseInt($(e.currentTarget).data('number'), 10);
+            updateStars(e, note);
+        });
+        $text.find('.star-svg').mouseleave((e) => {
+            updateStars(e, _this.user);
+        });
+        $text.find('.star-svg').click((e) => {
+            const note = parseInt(jQuery(e.currentTarget).data('number'), 10), $stars = jQuery(e.currentTarget).parent().find('.star-svg');
+            // On supprime les events
+            $stars.off('mouseenter').off('mouseleave');
+            _this._parent.addVote(note)
+                .then((result) => {
+                hidePopup();
+                if (result) {
+                    // TODO: Mettre à jour la note du média
+                    _this._parent.changeTitleNote(true);
+                }
+                else {
+                    Base.notification('Erreur Vote', "Une erreur s'est produite durant le vote");
+                }
             })
-            .mouseleave((e) => {
-                // if (Base.debug) console.log('mouseleave - note: %d', _this.user);
-                updateStars(e, _this.user);
-            })
-            .click((e) => {
-                const note = parseInt($(e.currentTarget).data('number'), 10), 
-                      $stars = $(e.currentTarget).parent().find('.star-svg');
-                // On supprime les events
-                $stars.off('mouseenter').off('mouseleave');
-                // $text.empty();
-                _this._parent.addVote(note)
-                    .then((result) => {
-                        hidePopup();
-                        if (!result) {
-                            Base.notification('Erreur Vote', "Une erreur s'est produite durant le vote");
-                        }
-                    })
-                    .catch(() => hidePopup() );
-            });
+                .catch(() => hidePopup());
+        });
         // On affiche la popup
         showPopup();
     }
@@ -572,7 +565,7 @@ class Note {
      * Met à jour l'affichage de la note
      */
     renderStars() {
-        const $stars = $('.blockInformations__metadatas .js-render-stars .star-svg use');
+        const $stars = jQuery('.blockInformations__metadatas .js-render-stars .star-svg use');
         const note = Math.round(this.mean);
         let className;
         for (let s = 0; s < 5; s++) {
@@ -583,7 +576,7 @@ class Note {
 }
 class Next {
     constructor(data) {
-        this.id = (data.id !== null) ? parseInt(data.id, 10) : null;
+        this.id = (data.id !== undefined) ? parseInt(data.id, 10) : null;
         this.code = data.code;
         this.date = new Date(data.date);
         this.title = data.title;
@@ -603,7 +596,7 @@ class User {
         this.friends_want_to_watch = data.friends_want_to_watch || [];
         this.friends_watched = data.friends_watched || [];
         this.hidden = data.hidden || false;
-        this.last = data.last || null;
+        this.last = data.last || '';
         this.mail = data.mail || false;
         this.next = null;
         if (data.next !== undefined) {
@@ -612,7 +605,7 @@ class User {
         this.profile = data.profile || '';
         this.remaining = data.remaining || 0;
         this.seen = data.seen || false;
-        this.status = parseInt(data.status, 10) || 0;
+        this.status = (data.status !== undefined) ? parseInt(data.status, 10) : 0;
         this.tags = data.tags || '';
         this.twitter = data.twitter || false;
     }
@@ -632,22 +625,25 @@ class User {
     tags;
     twitter;
 }
-const MediaType = {
-    show: 'show',
-    movie: 'movie',
-    episode: 'episode'
-};
-const EventTypes = {
-    UPDATE: 'UPDATE',
-    SAVE: 'SAVE'
-};
-const HTTP_VERBS = {
-    "GET": "GET",
-    "POST": "POST",
-    "PUT": "PUT",
-    "DELETE": "DELETE",
-    "OPTIONS": "OPTIONS"
-};
+var MediaType;
+(function (MediaType) {
+    MediaType["show"] = "show";
+    MediaType["movie"] = "movie";
+    MediaType["episode"] = "episode";
+})(MediaType = MediaType || (MediaType = {}));
+var EventTypes;
+(function (EventTypes) {
+    EventTypes["UPDATE"] = "update";
+    EventTypes["SAVE"] = "save";
+})(EventTypes = EventTypes || (EventTypes = {}));
+var HTTP_VERBS;
+(function (HTTP_VERBS) {
+    HTTP_VERBS["GET"] = "GET";
+    HTTP_VERBS["POST"] = "POST";
+    HTTP_VERBS["PUT"] = "PUT";
+    HTTP_VERBS["DELETE"] = "DELETE";
+    HTTP_VERBS["OPTIONS"] = "OPTIONS";
+})(HTTP_VERBS = HTTP_VERBS || (HTTP_VERBS = {}));
 class Base {
     /*
                     STATIC
@@ -800,7 +796,7 @@ class Base {
      * @param  {String}   action            L'action à appliquer sur la ressource (ex: search, list...)
      * @param  {*}        args              Un objet (clef, valeur) à transmettre dans la requête
      * @param  {bool}     [force=false]     Indique si on doit utiliser le cache ou non (Par défaut: false)
-     * @return {Promise}
+     * @return {Promise<Obj>}
      */
     static callApi(type, resource, action, args, force = false) {
         if (Base.api && Base.api.resources.indexOf(resource) === -1) {
@@ -945,7 +941,6 @@ class Base {
     description;
     characters;
     comments;
-    nbComments;
     id;
     objNote;
     resource_url;
@@ -977,13 +972,8 @@ class Base {
                 this.characters.push(new Character(data.characters[c]));
             }
         }
-        this.nbComments = parseInt(data.comments, 10);
-        if (! this.comments || this.comments.length <= 0) {
-            this.comments = [];
-        }
-        if (data.comments && data.comments instanceof Array && data.comments[0] instanceof CommentBS) {
-            this.comments = data.comments;
-        } else if (data.comments && data.comments instanceof Array) {
+        this.comments = [];
+        if (data.comments && data.comments instanceof Array) {
             for (let c = 0; c < data.comments.length; c++) {
                 this.comments.push(new CommentBS(data.comments[c], this));
             }
@@ -1056,7 +1046,7 @@ class Base {
      * @return this
      */
     save() {
-        if (Base.cache instanceof CacheUS && this.mediaType !== undefined) {
+        if (Base.cache instanceof CacheUS) {
             Base.cache.set(this.mediaType.plural, this.id, this);
             this._callListeners(EventTypes.SAVE);
         }
@@ -1082,6 +1072,13 @@ class Base {
      */
     get nbCharacters() {
         return this.characters.length;
+    }
+    /**
+     * Retourne le nombre de commentaires pour ce média
+     * @returns number
+     */
+    get nbComments() {
+        return this.comments.length;
     }
     /**
      * Décode le titre de la page
@@ -1131,7 +1128,6 @@ class Base {
     addNumberVoters() {
         const _this = this;
         const votes = $('.stars.js-render-stars'); // ElementHTML ayant pour attribut le titre avec la note de la série
-        // if (debug) console.log('addNumberVoters Media.callApi', data);
         let title = this.changeTitleNote(true);
         // if (Base.debug) console.log('addNumberVoters - title: %s', title);
         // On ajoute un observer sur l'attribut title de la note, en cas de changement lors d'un vote
@@ -1139,7 +1135,7 @@ class Base {
             const changeTitleMutation = () => {
                 // On met à jour le nombre de votants, ainsi que la note du membre connecté
                 const upTitle = _this.changeTitleNote(false);
-                // if (Base.debug) console.log('Observer changeTitle - upTitle: %s', upTitle);
+                // if (Base.debug) console.log('Observer upTitle: %s', upTitle);
                 // On évite une boucle infinie
                 if (upTitle !== title) {
                     votes.attr('title', upTitle);
@@ -1171,14 +1167,12 @@ class Base {
     addVote(note) {
         const _this = this;
         return new Promise((resolve, reject) => {
-            Base.callApi(HTTP_VERBS.POST, _this.mediaType.plural, 'note', { id: _this.id, note: note })
-            .then((data) => {
+            Base.callApi(HTTP_VERBS.POST, this.mediaType.plural, 'note', { id: this.id, note: note })
+                .then((data) => {
                 _this.fill(data[this.mediaType.singular]);
-                _this.changeTitleNote(true);
-                _this.objNote.renderStars();
                 resolve(true);
             })
-            .catch(err => {
+                .catch(err => {
                 Base.notification('Erreur de vote', 'Une erreur s\'est produite lors de l\'envoi de la note: ' + err);
                 reject(err);
             });
@@ -1186,27 +1180,26 @@ class Base {
     }
     /**
      * Récupère les commentaires du média sur l'API
-     * @param   {number} nbpp Nombre de commentaires à récupérer
      * @returns {Promise<Base>}
      */
     fetchComments(nbpp = 50, since = 0) {
         const _this = this;
         return new Promise((resolve, reject) => {
-            const params = {
-                type: _this.mediaType.singular, 
-                id: _this.id, 
-                nbpp: nbpp, 
-                replies: 0, 
+            let params = {
+                type: _this.mediaType.singular,
+                id: _this.id,
+                nbpp: nbpp,
+                replies: 0,
                 order: 'desc'
             };
             if (since > 0) {
                 params.since_id = since;
             }
             Base.callApi(HTTP_VERBS.GET, 'comments', 'comments', params)
-            .then(data => {
+                .then((data) => {
                 if (data.comments !== undefined) {
                     if (since <= 0) {
-                        this.comments = new Array();
+                        _this.comments = new Array();
                     }
                     for (let c = 0; c < data.comments.length; c++) {
                         _this.comments.push(new CommentBS(data.comments[c], this));
@@ -1214,7 +1207,7 @@ class Base {
                 }
                 resolve(_this);
             })
-            .catch(err => {
+                .catch(err => {
                 console.warn('fetchComments', err);
                 Base.notification('Récupération des commentaires', "Une erreur est apparue durant la récupération des commentaires");
                 reject(err);
@@ -1235,14 +1228,14 @@ class Base {
         return null;
     }
     /**
-     * Retourne les réponses à un commentaire
+     * Retourne les réponses d'un commentaire
      * @param   {number} commentId Identifiant du commentaire original
-     * @returns {Promise<Array<CommentBS>>} Tableau des réponses
+     * @returns {Array<CommentBS>}    Tableau des réponses
      */
     fetchRepliesOfComment(commentId) {
         return new Promise((resolve, reject) => {
-            Base.callApi(HTTP_VERBS.GET, 'comments', 'replies', {id: commentId, order: 'desc'})
-            .then(data => {
+            Base.callApi(HTTP_VERBS.GET, 'comments', 'replies', { id: commentId, order: 'desc' })
+                .then((data) => {
                 const replies = new Array();
                 if (data.comments) {
                     for (let c = 0; c < data.comments.length; c++) {
@@ -1279,7 +1272,6 @@ class Media extends Base {
     similars;
     nbSimilars;
     in_account;
-
     constructor(data) {
         super(data);
         return this;
@@ -1319,7 +1311,13 @@ class Media extends Base {
         super.fill(data);
         return this;
     }
-    fetchSimilars() {}
+    /**
+     * Retourne les similars associés au media
+     * @return {Promise<Media>}
+     */
+    fetchSimilars() {
+        return new Promise(resolve => resolve(this));
+    }
     /**
      * Retourne le similar correspondant à l'identifiant
      * @abstract
@@ -1349,11 +1347,12 @@ class Images {
     box;
     poster;
 }
-const Picked = [
-    {"none": "none"},
-    {"banner": "banner"},
-    {"show": "show"}
-];
+var Picked;
+(function (Picked) {
+    Picked[Picked["none"] = 0] = "none";
+    Picked[Picked["banner"] = 1] = "banner";
+    Picked[Picked["show"] = 2] = "show";
+})(Picked = Picked || (Picked = {}));
 class Picture {
     constructor(data) {
         this.id = parseInt(data.id, 10);
@@ -1407,8 +1406,7 @@ class Platforms {
 }
 class Showrunner {
     constructor(data) {
-        this.id = null;
-        if (data.id !== undefined) this.id = parseInt(data.id, 10);
+        this.id = parseInt(data.id, 10);
         this.name = data.name;
         this.picture = data.picture;
     }
@@ -1611,7 +1609,6 @@ class Show extends Media {
         return new Promise((resolve, reject) => {
             _this.fetch(force).then(data => {
                 _this.fill(data.show);
-                _this.save();
                 _this.updateRender(() => {
                     resolve(_this);
                     cb();
@@ -1818,10 +1815,7 @@ class Show extends Media {
         function changeBtnAdd(show) {
             let $optionsLinks = $('#dropdownOptions').siblings('.dropdown-menu').children('a.header-navigation-item');
             if ($optionsLinks.length <= 2) {
-                let react_id = $('script[id^="/reactjs/"]').get(0).id.split('.')[1], 
-                    urlShow = show.resource_url.substring(location.origin.length), 
-                    title = show.title.replace(/"/g, '\\"').replace(/'/g, "\\'"), 
-                    templateOpts = `
+                let react_id = jQuery('script[id^="/reactjs/"]').get(0).id.split('.')[1], urlShow = show.resource_url.substring(location.origin.length), title = show.title.replace(/"/g, '\\"').replace(/'/g, "\\'"), templateOpts = `
                             <button type="button" class="btn-reset header-navigation-item" onclick="new PopupAlert({
                             showClose: true,
                             type: "popin-subtitles",
@@ -1851,17 +1845,17 @@ class Show extends Media {
                 if ($optionsLinks.length === 1) {
                     templateOpts = `<a class="header-navigation-item" href="${urlShow}/actions">Vos actions sur la série</a>` + templateOpts;
                 }
-                $('#dropdownOptions').siblings('.dropdown-menu.header-navigation')
+                jQuery('#dropdownOptions').siblings('.dropdown-menu.header-navigation')
                     .append(templateOpts);
             }
             // On remplace le bouton Ajouter par les boutons Archiver et Favoris
-            const divs = $('#reactjs-show-actions > div');
+            const divs = jQuery('#reactjs-show-actions > div');
             if (divs.length === 1) {
-                $('#reactjs-show-actions').remove();
-                let $container = $('.blockInformations__actions'), method = 'prepend';
+                jQuery('#reactjs-show-actions').remove();
+                let $container = jQuery('.blockInformations__actions'), method = 'prepend';
                 // Si le bouton VOD est présent, on place les boutons après
                 if ($('#dropdownWatchOn').length > 0) {
-                    $container = $('#dropdownWatchOn').parent();
+                    $container = jQuery('#dropdownWatchOn').parent();
                     method = 'after';
                 }
                 $container[method](`
@@ -1893,7 +1887,7 @@ class Show extends Media {
                             <div class="label">${Base.trans('show.button.favorite.label')}</div>
                             </div>
                         </div>`);
-                show.elt = $('reactjs-show-actions');
+                show.elt = jQuery('reactjs-show-actions');
                 // On ofusque l'image des épisodes non-vu
                 let vignette;
                 for (let v = 0; v < vignettes.length; v++) {
@@ -1903,14 +1897,13 @@ class Show extends Media {
                     }
                 }
                 // On doit ajouter le bouton pour noter le média
-                const $stars = $('.blockInformations__metadatas .js-render-stars');
+                const $stars = jQuery('.blockInformations__metadatas .js-render-stars');
                 $stars.replaceWith(`
                     <button type="button" class="btn-reset fontSize0">
                         <span class="stars js-render-stars">
                             ${$stars.html()}
                         </span>
-                    </button>`
-                );
+                    </button>`);
                 _this.elt = $('.blockInformations');
                 _this.addNumberVoters();
             }
@@ -1983,13 +1976,12 @@ class Show extends Media {
                             }
                             _this.addShowClick();
                         });
-                        // On doit ajouter le bouton pour noter le média
+                        // On doit supprimer le bouton pour noter le média
                         const $stars = jQuery('.blockInformations__metadatas .js-render-stars');
                         $stars.parent().replaceWith(`
                             <span class="stars js-render-stars">
                                 ${$stars.html()}
-                            </span>`
-                        );
+                            </span>`);
                         _this.elt = $('.blockInformations');
                         _this.addNumberVoters();
                     };
@@ -2120,23 +2112,24 @@ class Show extends Media {
     }
     /**
      * Définit la saison courante
-     * @param   {number} seasonNumber Le numéro de la saison courante
+     * @param   {number} seasonNumber Le numéro de la saison courante (commence à 1)
      * @returns {Show}  L'instance de la série
      * @throws  {Error} if seasonNumber is out of range of seasons
      */
     setCurrentSeason(seasonNumber) {
         if (seasonNumber <= 0 || seasonNumber > this.seasons.length) {
-            throw new Error(`seasonNumber ${seasonNumber} is out of range of seasons`);
+            throw new Error("seasonNumber is out of range of seasons");
         }
         this.currentSeason = this.seasons[seasonNumber - 1];
         return this;
     }
 }
-const MovieStatus = {
-    TOSEE: 0,
-    SEEN: 1,
-    DONTWANTTOSEE: 2
-};
+var MovieStatus;
+(function (MovieStatus) {
+    MovieStatus[MovieStatus["TOSEE"] = 0] = "TOSEE";
+    MovieStatus[MovieStatus["SEEN"] = 1] = "SEEN";
+    MovieStatus[MovieStatus["DONTWANTTOSEE"] = 2] = "DONTWANTTOSEE";
+})(MovieStatus = MovieStatus || (MovieStatus = {}));
 class Movie extends Media {
     /***************************************************/
     /*                      STATIC                     */
@@ -2210,6 +2203,11 @@ class Movie extends Media {
         super.fill(data);
         return this.save();
     }
+    /*
+    Bouton Vu: $(`.blockInformations__action .label:contains("${Base.trans('film.button.watched.label')}")`).siblings('button')
+    Bouton A voir: $(`.blockInformations__action .label:contains("${Base.trans('film.button.to_watch.label')}")`).siblings('button')
+    Bouton Favori: $(`.blockInformations__action .label:contains("${Base.trans('film.button.favorite.label')}")`).siblings('button')
+    */
     /**
      * Définit le film, sur le compte du membre connecté, comme "vu"
      * @returns {Promise<Movie>}
@@ -2239,15 +2237,16 @@ class Movie extends Media {
     changeStatus(state) {
         const _this = this;
         if (!Base.userIdentified() || this.user.status === state) {
-            if (Base.debug) console.info('User not identified or state is equal with user status');
+            if (Base.debug)
+                console.info('User not identified or state is equal with user status');
             return Promise.resolve(this);
         }
-        return Base.callApi(HTTP_VERBS.POST, this.mediaType.plural, 'movie', {id: this.id, state: state})
-        .then((data) => {
+        return Base.callApi(HTTP_VERBS.POST, this.mediaType.plural, 'movie', { id: this.id, state: state })
+            .then((data) => {
             _this.fill(data.movie);
             return this;
         })
-        .catch(err => {
+            .catch(err => {
             console.warn("Erreur ajout film sur compte", err);
             Base.notification('Ajout du film', "Erreur lors de l'ajout du film sur votre compte");
             return this;
@@ -2279,7 +2278,6 @@ class Season {
     constructor(data, show) {
         this.number = parseInt(data.number, 10);
         this._show = show;
-        this.episodes = new Array();
         if (data.episodes && data.episodes instanceof Array && data.episodes[0] instanceof Episode) {
             this.episodes = data.episodes;
         }
@@ -2366,9 +2364,9 @@ class Episode extends Base {
             }
         }
         this.thetvdb_id = parseInt(data.thetvdb_id, 10);
-        this.youtube_id = data.youtube_id;
         this.watched_by = data.watched_by;
         this.writers = data.writers;
+        this.youtube_id = data.youtube_id;
         this.mediaType = { singular: MediaType.episode, plural: 'episodes', className: Episode };
         super.fill(data);
         return this.save();
@@ -2382,7 +2380,8 @@ class Episode extends Base {
      */
     addAttrTitle() {
         // Ajout de l'attribut title pour obtenir le nom complet de l'épisode, lorsqu'il est tronqué
-        if (this.elt) this.elt.find('.slide__title').attr('title', this.title);
+        if (this.elt)
+            this.elt.find('.slide__title').attr('title', this.title);
         return this;
     }
     /**
@@ -2730,7 +2729,7 @@ class Similar extends Media {
             this.creation = data.creation;
             this.country = data.country;
             this.images = null;
-            if (data.images !== null) {
+            if (data.images !== undefined) {
                 this.images = new Images(data.images);
             }
             this.nbEpisodes = parseInt(data.episodes, 10);
@@ -2739,13 +2738,13 @@ class Similar extends Media {
             this.next_trailer_host = data.next_trailer_host;
             this.rating = data.rating;
             this.platforms = null;
-            if (data.platforms !== null) {
+            if (data.platforms !== undefined) {
                 this.platforms = new Platforms(data.platforms);
             }
             this.seasons = new Array();
             this.nbSeasons = parseInt(data.seasons, 10);
             this.showrunner = null;
-            if (data.showrunner !== null) {
+            if (data.showrunner !== undefined) {
                 this.showrunner = new Showrunner(data.showrunner);
             }
             this.social_links = data.social_links;
@@ -2802,14 +2801,12 @@ class Similar extends Media {
             ((this.mediaType.singular === MediaType.movie && this.user.status === 1) ||
                 (this.mediaType.singular === MediaType.show && this.user.status > 0))) {
             // On ajoute le bandeau "Viewed"
-            $slideImg
-                .prepend(`<img src="${Base.serverBaseUrl}/img/viewed.png" class="bandViewed"/>`);
+            $slideImg.prepend(`<img src="${Base.serverBaseUrl}/img/viewed.png" class="bandViewed"/>`);
         }
-        // On ajoute les informations pour faciliter la recherche ultérieure
+        // On ajoute des infos pour la recherche du similar pour les popups
         $slideImg
             .attr('data-id', this.id)
             .attr('data-type', this.mediaType.singular);
-        
         return this;
     }
     /**
@@ -2822,7 +2819,9 @@ class Similar extends Media {
         $title.html($title.html() +
             `<i class="fa fa-wrench popover-wrench"
                 aria-hidden="true"
-                style="margin-left:5px;cursor:pointer;">
+                style="margin-left:5px;cursor:pointer;"
+                data-id="${_this.id}"
+                data-type="${_this.mediaType.singular}">
             </i>`);
         $title.find('.popover-wrench').click((e) => {
             e.stopPropagation();
@@ -2895,7 +2894,7 @@ class Similar extends Media {
         if (this.mediaType.singular === MediaType.show) {
             const status = this.status.toLowerCase() == 'ended' ? 'Terminée' : 'En cours';
             const seen = (this.user.status > 0) ? 'Vu à <strong>' + this.user.status + '%</strong>' : 'Pas vu';
-            template += `<p><strong>${this.nbSeasons}</strong> saison${(this.seasons.length > 1 ? 's' : '')}, <strong>${this.nbEpisodes}</strong> épisodes, `;
+            template += `<p><strong>${this.seasons.length}</strong> saison${(this.seasons.length > 1 ? 's' : '')}, <strong>${this.nbEpisodes}</strong> épisodes, `;
             if (this.objNote.total > 0) {
                 template += `<strong>${this.objNote.total}</strong> votes`;
                 if (this.objNote.user > 0) {
@@ -2945,7 +2944,7 @@ class Similar extends Media {
             // Ajouter une case à cocher pour l'état "Ne pas voir"
             template += `<label for="notSee">Ne pas voir</label>
                 <input type="radio" class="movie movieNotSee" name="movieState" value="2" data-movie="${this.id}"  ${this.user.status === 2 ? 'checked' : ''} style="vertical-align:middle;"></input>`;
-            template += `<button class="btn btn-danger reset" style="margin-left:10px;padding:2px 5px;${this.user.status < 0 ? 'display:none;':''}">Reset</button></p>`;
+            template += `<button class="btn btn-danger reset" style="margin-left:10px;padding:2px 5px;${this.user.status < 0 ? 'display:none;' : ''}">Reset</button></p>`;
             template += _renderGenres();
             template += _renderCreation();
             if (this.director) {
@@ -3039,21 +3038,22 @@ class Similar extends Media {
      * Add Show to account member
      * @return {Promise<Similar>} Promise of show
      */
-     addToAccount(state = 0) {
-        if (this.in_account) return Promise.resolve(this);
+    addToAccount(state = 0) {
+        if (this.in_account)
+            return Promise.resolve(this);
         return this.changeState(state);
     }
     /**
      * Modifie le statut du similar
      * @param   {number} state Le nouveau statut du similar
-     * @returns {Promise<Similar>} 
+     * @returns {Promise<Similar>}
      */
     changeState(state) {
         if (state < -1 || state > 2) {
             throw new Error("Parameter state is incorrect: " + state.toString());
         }
         const _this = this;
-        let params = {id: this.id};
+        let params = { id: this.id };
         let verb = HTTP_VERBS.POST;
         if (state === -1 && this.mediaType.singular === MediaType.movie) {
             verb = HTTP_VERBS.DELETE;
@@ -3062,7 +3062,7 @@ class Similar extends Media {
             params.state = state;
         }
         return Base.callApi(verb, this.mediaType.plural, this.mediaType.singular, params)
-        .then((data) => {
+            .then((data) => {
             _this.fill(data[_this.mediaType.singular]);
             // En attente de la résolution du bug https://www.betaseries.com/bugs/api/462
             if (verb === HTTP_VERBS.DELETE) {
@@ -3072,18 +3072,26 @@ class Similar extends Media {
             }
             return _this;
         })
-        .catch(err => {
+            .catch(err => {
             console.warn('Erreur changeState similar', err);
             Base.notification('Change State Similar', 'Erreur lors du changement de statut: ' + err.toString());
             return _this;
         });
     }
+    /**
+     * Ajoute une note au média
+     * @param   {number} note Note du membre connecté pour le média
+     * @returns {Promise<boolean>}
+     */
+    addVote(note) {
+        throw new Error('On ne vote pas pour un similar');
+    }
 }
 class UpdateAuto {
-    static getValue = function(name, defaultVal) { 
-        return Base.getOrDefault(DataTypesCache.updates, 'updateAuto', defaultVal);
+    static getValue = function (name, defaultVal) {
+        return Base.cache.getOrDefault(DataTypesCache.updates, 'updateAuto', defaultVal);
     };
-    static setValue = function(name, val) {
+    static setValue = function (name, val) {
         Base.cache.set(DataTypesCache.updates, 'updateAuto', val);
     };
     static instance;
@@ -3322,7 +3330,7 @@ Show.prototype.fill = function (data) {
     this.creation = data.creation;
     this.country = data.country;
     this.images = null;
-    if (data.images !== null && data.images !== undefined) {
+    if (data.images !== undefined) {
         this.images = new Images(data.images);
     }
     this.nbEpisodes = parseInt(data.episodes, 10);
@@ -3331,7 +3339,7 @@ Show.prototype.fill = function (data) {
     this.next_trailer_host = data.next_trailer_host;
     this.rating = data.rating;
     this.platforms = null;
-    if (data.platforms !== null && data.platforms !== undefined) {
+    if (data.platforms !== undefined) {
         this.platforms = new Platforms(data.platforms);
     }
     this.seasons = new Array();
@@ -3339,14 +3347,14 @@ Show.prototype.fill = function (data) {
         this.seasons.push(new Season(data.seasons_details[s], this));
     }
     this.showrunner = null;
-    if (data.showrunner !== null && data.showrunner !== undefined) {
+    if (data.showrunner !== undefined) {
         this.showrunner = new Showrunner(data.showrunner);
     }
     this.social_links = data.social_links;
     this.status = data.status;
     this.thetvdb_id = parseInt(data.thetvdb_id, 10);
     this.pictures = new Array();
-    this.mediaType = { singular: MediaType.show, plural: 'shows', className: Show };
+    this.mediaType = { singular: Base_1.MediaType.show, plural: 'shows', className: Show };
     Media.prototype.fill.call(this, data);
     return this.save();
 };
@@ -3358,7 +3366,7 @@ Media.prototype.fetchSimilars = function () {
     const _this = this;
     this.similars = [];
     return new Promise((resolve, reject) => {
-        Base.callApi('GET', this.mediaType.plural, 'similars', { id: this.id, details: true }, true)
+        Base_1.Base.callApi('GET', this.mediaType.plural, 'similars', { id: this.id, details: true }, true)
             .then(data => {
             if (data.similars) {
                 for (let s = 0; s < data.similars.length; s++) {
@@ -3372,5 +3380,3 @@ Media.prototype.fetchSimilars = function () {
         });
     });
 };
-// Show.prototype.fetchSimilars = Media.prototype.fetchSimilars;
-// Movie.prototype.fetchSimilars = Media.prototype.fetchSimilars;
