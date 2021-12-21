@@ -2243,7 +2243,7 @@ class Movie extends Media {
         }
         return Base.callApi(HTTP_VERBS.POST, this.mediaType.plural, 'movie', {id: this.id, state: status})
         .then((data) => {
-            _this.fill(data);
+            _this.fill(data.movie);
             return this;
         })
         .catch(err => {
