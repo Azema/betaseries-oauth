@@ -376,11 +376,44 @@ class CommentBS {
         // On vide la popup et on ajoute le commentaire
         $popup.attr('data-popin-type', 'comments');
         $text.empty().append(template);
-        $title.empty().append('Commentaires');
+        $title.empty().append('Commentaires <i class="fa fa-chevron-circle-left prev-comment" aria-hidden="true"></i> <i class="fa fa-chevron-circle-right next-comment" aria-hidden="true"></i>');
         $closeButtons.click(() => {
             hidePopup();
             $popup.removeAttr('data-popin-type');
         });
+        const $prevCmt = $title.find('.prev-comment');
+        if (this.inner_id <= 1) {
+            $prevCmt.css('color', 'grey').css('pointer', 'inherit');
+        }
+        else {
+            $prevCmt.click((e) => {
+                e.stopPropagation();
+                e.preventDefault();
+                // Il faut tout nettoyer, comme pour la fermeture
+                $popup.find('.comments .comment .btnThumb').off('click');
+                $popup.find('.btnToggleOptions').off('click');
+                $popup.find('i.fa').off('click');
+                // Il faut demander au parent d'afficher le commentaire précédent
+                _this._parent.getPrevComment(_this.id).display();
+            });
+        }
+        const $nextCmt = $title.find('.next-comment');
+        // TODO: Je ne suis pas très sur de ce test
+        if (this.inner_id >= _this._parent.nbComments) {
+            $nextCmt.css('color', 'grey').css('pointer', 'inherit');
+        }
+        else {
+            $nextCmt.click((e) => {
+                e.stopPropagation();
+                e.preventDefault();
+                // Il faut tout nettoyer, comme pour la fermeture
+                $popup.find('.comments .comment .btnThumb').off('click');
+                $popup.find('.btnToggleOptions').off('click');
+                $popup.find('i.fa').off('click');
+                // Il faut demander au parent d'afficher le commentaire précédent
+                _this._parent.getNextComment(_this.id).display();
+            });
+        }
         /*
          * Ajoutons les events:
          *  - btnUpVote: Voter pour ce commentaire
@@ -1223,6 +1256,34 @@ class Base {
         for (let c = 0; c < this.comments.length; c++) {
             if (this.comments[c].id === cId) {
                 return this.comments[c];
+            }
+        }
+        return null;
+    }
+    /**
+     * Retourne le commentaire précédent celui fournit en paramètre
+     * @param   {number} cId L'identifiant du commentaire
+     * @returns {CommentBS|null}
+     */
+    getPrevComment(cId) {
+        for (let c = 0; c < this.comments.length; c++) {
+            if (this.comments[c].id === cId && c > 0) {
+                return this.comments[c - 1];
+            }
+        }
+        return null;
+    }
+    /**
+     * Retourne le commentaire suivant celui fournit en paramètre
+     * @param   {number} cId L'identifiant du commentaire
+     * @returns {CommentBS|null}
+     */
+    getNextComment(cId) {
+        const len = this.comments.length;
+        for (let c = 0; c < this.comments.length; c++) {
+            // TODO: Vérifier que tous les commentaires ont été récupérer
+            if (this.comments[c].id === cId && c < len - 1) {
+                return this.comments[c + 1];
             }
         }
         return null;
