@@ -212,6 +212,8 @@ class CommentBS {
      * ???
      */
     user_rank;
+    first;
+    last;
     _parent;
     constructor(data, parent) {
         this._parent = parent;
@@ -235,6 +237,8 @@ class CommentBS {
         this.replies = new Array();
         this.from_admin = data.from_admin;
         this.user_rank = data.user_rank;
+        this.first = !!data.first;
+        this.last = !!data.last;
     }
     /**
      * Affiche le commentaire sur la page Web
@@ -382,8 +386,8 @@ class CommentBS {
             $popup.removeAttr('data-popin-type');
         });
         const $prevCmt = $title.find('.prev-comment');
-        if (this.inner_id <= 1) {
-            $prevCmt.css('color', 'grey').css('pointer', 'inherit');
+        if (this.first) {
+            $prevCmt.css('color', 'grey').css('cursor', 'pointer');
         }
         else {
             $prevCmt.click((e) => {
@@ -399,8 +403,8 @@ class CommentBS {
         }
         const $nextCmt = $title.find('.next-comment');
         // TODO: Je ne suis pas très sur de ce test
-        if (this.inner_id >= _this._parent.nbComments) {
-            $nextCmt.css('color', 'grey').css('pointer', 'inherit');
+        if (this.last) {
+            $nextCmt.css('color', 'grey').css('cursor', 'pointer');
         }
         else {
             $nextCmt.click((e) => {
@@ -1234,7 +1238,16 @@ class Base {
                     if (since <= 0) {
                         _this.comments = new Array();
                     }
+                    else {
+                        // On modifie le flag de fin, vu qu'on rajoute des commentaires
+                        this.comments[this.comments.length - 1].last = false;
+                    }
                     for (let c = 0; c < data.comments.length; c++) {
+                        data.comments[c].first = data.comments[c].last = false;
+                        if (c === 0 && since <= 0)
+                            data.comments[c].first = true;
+                        if (c === data.comments.length - 1)
+                            data.comments[c].last = true;
                         _this.comments.push(new CommentBS(data.comments[c], this));
                     }
                 }
