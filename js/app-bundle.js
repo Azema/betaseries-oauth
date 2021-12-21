@@ -2945,7 +2945,7 @@ class Similar extends Media {
             // Ajouter une case à cocher pour l'état "Ne pas voir"
             template += `<label for="notSee">Ne pas voir</label>
                 <input type="radio" class="movie movieNotSee" name="movieState" value="2" data-movie="${this.id}"  ${this.user.status === 2 ? 'checked' : ''} style="vertical-align:middle;"></input>`;
-            template += `<button class="btn btn-danger reset" style="margin-left:10px;padding:2px 5px;">Reset</button></p>`;
+            template += `<button class="btn btn-danger reset" style="margin-left:10px;padding:2px 5px;${this.user.status < 0 ? 'display:none;':''}">Reset</button></p>`;
             template += _renderGenres();
             template += _renderCreation();
             if (this.director) {
@@ -3068,6 +3068,7 @@ class Similar extends Media {
             if (verb === HTTP_VERBS.DELETE) {
                 _this.in_account = false;
                 _this.user.status = -1;
+                _this.save();
             }
             return _this;
         })
