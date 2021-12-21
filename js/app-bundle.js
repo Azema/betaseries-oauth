@@ -387,7 +387,7 @@ class CommentBS {
         });
         const $prevCmt = $title.find('.prev-comment');
         if (this.first) {
-            $prevCmt.css('color', 'grey').css('cursor', 'pointer');
+            $prevCmt.css('color', 'grey').css('cursor', 'initial');
         }
         else {
             $prevCmt.click((e) => {
@@ -404,7 +404,7 @@ class CommentBS {
         const $nextCmt = $title.find('.next-comment');
         // TODO: Je ne suis pas très sur de ce test
         if (this.last) {
-            $nextCmt.css('color', 'grey').css('cursor', 'pointer');
+            $nextCmt.css('color', 'grey').css('cursor', 'initial');
         }
         else {
             $nextCmt.click((e) => {
@@ -1306,19 +1306,15 @@ class Base {
      * @param   {number} commentId Identifiant du commentaire original
      * @returns {Array<CommentBS>}    Tableau des réponses
      */
-    fetchRepliesOfComment(commentId) {
-        return new Promise((resolve, reject) => {
-            Base.callApi(HTTP_VERBS.GET, 'comments', 'replies', { id: commentId, order: 'desc' })
-                .then((data) => {
-                const replies = new Array();
-                if (data.comments) {
-                    for (let c = 0; c < data.comments.length; c++) {
-                        replies.push(new CommentBS(data.comments[c], this));
-                    }
-                }
-                resolve(replies);
-            }).catch(() => reject());
-        });
+    async fetchRepliesOfComment(commentId) {
+        const data = await Base.callApi(HTTP_VERBS.GET, 'comments', 'replies', { id: commentId, order: 'desc' });
+        const replies = new Array();
+        if (data.comments) {
+            for (let c = 0; c < data.comments.length; c++) {
+                replies.push(new CommentBS(data.comments[c], this));
+            }
+        }
+        return replies;
     }
     /**
      * Modifie le nombre de votes pour un commentaire
