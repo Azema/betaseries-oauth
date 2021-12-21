@@ -3064,6 +3064,11 @@ class Similar extends Media {
         return Base.callApi(verb, this.mediaType.plural, this.mediaType.singular, params)
         .then((data) => {
             _this.fill(data[_this.mediaType.singular]);
+            // En attente de la résolution du bug https://www.betaseries.com/bugs/api/462
+            if (verb === HTTP_VERBS.DELETE) {
+                _this.in_account = false;
+                _this.user.status = -1;
+            }
             return _this;
         })
         .catch(err => {
