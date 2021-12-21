@@ -286,6 +286,7 @@ class CommentBS {
             return template;
         }
         function templateComment(comment) {
+            let spoiler = /\[spoiler\]/.test(comment.text);
             let className = (comment.in_reply_to !== 0) ? 'iv_i5' : '';
             return `
                 <div class="comment ${className} positionRelative iv_iz" style="animation: 3s ease 0s 1 normal forwards running backgroundFadeOut;">
@@ -300,7 +301,8 @@ class CommentBS {
                                 <span class="mainLink">${comment.login}</span>&nbsp;
                                 <span class="mainLink mainLink--regular">&nbsp;</span>
                             </a>
-                            <span style="line-height: 15px; word-break: break-word;">${comment.text}</span>
+                            <span style="line-height: 15px; word-break: break-word;${spoiler ? 'display:none;' : ''}" class="comment-text">${comment.text}</span>
+                            ${spoiler ? '<button type="button" class="btn-reset mainLink view-spoiler" style="vertical-align: 0px;">Voir le spoiler</button>' : ''}
                             <div class="iv_i3">
                                 <div class="options-main options-comment" data-commentId="${comment.id}">
                                     <button type="button" class="btn-reset btnUpVote btnThumb">
@@ -419,6 +421,15 @@ class CommentBS {
                     $popup.find('i.fa').off('click');
                     // Il faut demander au parent d'afficher le commentaire précédent
                     _this._parent.getNextComment(_this.id).display();
+                });
+            }
+            const $btnSpoiler = $text.find('.view-spoiler');
+            if ($btnSpoiler.length > 0) {
+                $btnSpoiler.click((e) => {
+                    e.stopPropagation();
+                    e.preventDefault();
+                    $(e.currentTarget).prev('span.comment-text').fadeIn();
+                    $(e.currentTarget).fadeOut();
                 });
             }
             /*
