@@ -1173,7 +1173,7 @@ class Base {
         return new Promise((resolve, reject) => {
             Base.callApi(HTTP_VERBS.POST, _this.mediaType.plural, 'note', { id: _this.id, note: note })
             .then((data) => {
-                _this.fill(data[MediaType.show]);
+                _this.fill(data[this.mediaType.singular]);
                 _this.changeTitleNote(true);
                 _this.objNote.renderStars();
                 resolve(true);
