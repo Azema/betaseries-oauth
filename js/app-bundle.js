@@ -2233,15 +2233,16 @@ class Movie extends Media {
     }
     /**
      * Modifie le statut du film sur le compte du membre connecté
-     * @param   {number} status     Le nouveau statut du film
+     * @param   {number} state     Le nouveau statut du film
      * @returns {Promise<Movie>}    L'instance du film
      */
-    changeStatus(status) {
+    changeStatus(state) {
         const _this = this;
-        if (!Base.userIdentified() || this.user.status === MovieStatus.SEEN) {
+        if (!Base.userIdentified() || this.user.status === state) {
+            if (Base.debug) console.info('User not identified or state is equal with user status');
             return Promise.resolve(this);
         }
-        return Base.callApi(HTTP_VERBS.POST, this.mediaType.plural, 'movie', {id: this.id, state: status})
+        return Base.callApi(HTTP_VERBS.POST, this.mediaType.plural, 'movie', {id: this.id, state: state})
         .then((data) => {
             _this.fill(data.movie);
             return this;
