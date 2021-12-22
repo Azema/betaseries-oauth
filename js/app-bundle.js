@@ -1505,7 +1505,7 @@ class Platforms {
 }
 class Showrunner {
     constructor(data) {
-        this.id = parseInt(data.id, 10);
+        this.id = data.id ? parseInt(data.id, 10) : null;
         this.name = data.name;
         this.picture = data.picture;
     }
