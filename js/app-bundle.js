@@ -1564,11 +1564,12 @@ class Show extends Media {
      * @returns {Show}
      */
     _init() {
+        // On gère l'ajout et la suppression de la série dans le compte utilisateur
         if (this.in_account) {
-            this.addShowClick();
+            this.deleteShowClick();
         }
         else {
-            this.deleteShowClick();
+            this.addShowClick();
         }
         return this;
     }
