@@ -3617,22 +3617,75 @@ class Options {
     }
 }
 class Member {
+    /**
+     * @type {number} Identifiant du membre
+     */
     id;
+    /**
+     * @type {number} Identifiant Facebook ?
+     */
     fb_id;
+    /**
+     * @type {string} Login du membre
+     */
     login;
+    /**
+     * @type {number} Points d'expérience
+     */
     xp;
+    /**
+     * @type {string} Locale utiliser par le membre
+     */
     locale;
+    /**
+     * @type {number} ?
+     */
     cached;
+    /**
+     * @type {string} URL de l'avatar du membre
+     */
     avatar;
+    /**
+     * @type {string} URL de la bannière du membre
+     */
     profile_banner;
+    /**
+     * @type {boolean} ?
+     */
     in_account;
+    /**
+     * @type {boolean} Membre Administrateur ?
+     */
     is_admin;
+    /**
+     * @type {number} Année d'inscription
+     */
     subscription;
+    /**
+     * @type {boolean} Indique si l'adresse mail a été validée
+     */
     valid_email;
+    /**
+     * @type {Array<string>} ?
+     */
     screeners;
+    /**
+     * @type {string} Login Twitter
+     */
     twitterLogin;
+    /**
+     * @type {Stats} Les statistiques du membre
+     */
     stats;
+    /**
+     * @type {Options} Les options de paramétrage du membre
+     */
     options;
+    /**
+     * Constructeur de la classe Membre
+     * @param data Les données provenant de l'API
+     * @returns {Member}
+     */
     constructor(data) {
         this.id = parseInt(data.id, 10);
         this.fb_id = parseInt(data.fb_id, 10);
