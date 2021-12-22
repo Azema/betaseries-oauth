@@ -1557,7 +1557,20 @@ class Show extends Media {
     constructor(data, element) {
         super(data);
         this.elt = element;
-        return this.fill(data);
+        return this.fill(data)._init();
+    }
+    /**
+     * Initialise l'objet lors de sa construction et après son remplissage
+     * @returns {Show}
+     */
+    _init() {
+        if (this.in_account) {
+            this.addShowClick();
+        }
+        else {
+            this.deleteShowClick();
+        }
+        return this;
     }
     /**
      * Définit si le média est enregistré sur le compte du membre
