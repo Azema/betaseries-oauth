@@ -1565,11 +1565,13 @@ class Show extends Media {
      */
     set in_account(i) {
         this._in_account = !!i;
-        if (this._in_account) {
-            this.addShowClick(true);
-        }
-        else {
-            this.deleteShowClick();
+        if (this.id !== null && this.id !== undefined) {
+            if (this._in_account) {
+                this.addShowClick(true);
+            }
+            else {
+                this.deleteShowClick();
+            }
         }
     }
     /**
