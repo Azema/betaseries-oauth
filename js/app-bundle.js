@@ -1850,7 +1850,7 @@ class Show extends Media {
         if (Base.debug)
             console.log('updateNextEpisode');
         const $nextEpisode = jQuery('a.blockNextEpisode');
-        if ($nextEpisode.length > 0 && this.user.next && this.user.next.id !== null) {
+        if ($nextEpisode.length > 0 && this.user.next && !isNaN(this.user.next.id)) {
             if (Base.debug)
                 console.log('nextEpisode et show.user.next OK', this.user);
             // Modifier l'image
@@ -1864,12 +1864,12 @@ class Show extends Media {
             // Modifier le nombre d'épisodes restants
             $remaining.text($remaining.text().trim().replace(/^\d+/, this.user.remaining.toString()));
         }
-        else if ($nextEpisode.length <= 0 && this.user.next && this.user.next.id !== null) {
+        else if ($nextEpisode.length <= 0 && this.user.next && !isNaN(this.user.next.id)) {
             if (Base.debug)
                 console.log('No nextEpisode et show.user.next OK', this.user);
             buildNextEpisode(this);
         }
-        else if (!this.user.next || this.user.next.id === null) {
+        else if (!this.user.next || isNaN(this.user.next.id)) {
             $nextEpisode.remove();
         }
         cb();
