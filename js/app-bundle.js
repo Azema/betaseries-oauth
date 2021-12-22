@@ -687,6 +687,8 @@ var EventTypes;
 (function (EventTypes) {
     EventTypes["UPDATE"] = "update";
     EventTypes["SAVE"] = "save";
+    EventTypes["ADD"] = "add";
+    EventTypes["REMOVE"] = "remove";
 })(EventTypes = EventTypes || (EventTypes = {}));
 var HTTP_VERBS;
 (function (HTTP_VERBS) {
@@ -1043,8 +1045,9 @@ class Base {
      */
     _initListeners() {
         this._listeners = {};
-        for (let e = 0; e < Base.EventTypes.length; e++) {
-            this._listeners[Base.EventTypes[e]] = new Array();
+        const EvtTypes = this.constructor.EventTypes;
+        for (let e = 0; e < EvtTypes.length; e++) {
+            this._listeners[EvtTypes[e]] = new Array();
         }
         return this;
     }
@@ -1518,6 +1521,11 @@ class Show extends Media {
     /*                      STATIC                     */
     /***************************************************/
     /**
+     * Types d'évenements gérés par cette classe
+     * @type {Array}
+     */
+    static EventTypes = new Array(EventTypes.UPDATE, EventTypes.SAVE, EventTypes.ADD, EventTypes.REMOVE);
+    /**
      * Methode static servant à retourner un objet show
      * à partir de son ID
      * @param  {number} id             L'identifiant de la série
@@ -1639,6 +1647,7 @@ class Show extends Media {
             Base.callApi('POST', 'shows', 'show', { id: _this.id })
                 .then(data => {
                 _this.fill(data.show);
+                _this._callListeners(EventTypes.ADD);
                 _this.save();
                 resolve(_this);
             }, err => {
@@ -1658,6 +1667,7 @@ class Show extends Media {
             Base.callApi('DELETE', 'shows', 'show', { id: _this.id })
                 .then(data => {
                 _this.fill(data.show);
+                _this._callListeners(EventTypes.REMOVE);
                 _this.save();
                 resolve(this);
             }, err => {
