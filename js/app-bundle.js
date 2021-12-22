@@ -1890,6 +1890,8 @@ class Show extends Media {
      * @returns {void}
      */
     addShowClick(trigEpisode = false) {
+        if (Base.debug)
+            console.log('addShowClick', { in_account: this.in_account });
         const _this = this;
         const vignettes = $('#episodes .slide__image');
         // Vérifier si le membre a ajouter la série à son compte
@@ -2049,6 +2051,8 @@ class Show extends Media {
      * @returns {void}
      */
     deleteShowClick() {
+        if (Base.debug)
+            console.log('deleteShowClick', { in_account: this.in_account });
         const _this = this;
         let $optionsLinks = $('#dropdownOptions').siblings('.dropdown-menu').children('a.header-navigation-item');
         // Le menu Options est au complet
