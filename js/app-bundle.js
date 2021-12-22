@@ -1576,6 +1576,13 @@ class Show extends Media {
         return this;
     }
     /**
+     * Indique si le média est enregistré sur le compte du membre
+     * @returns {boolean}
+     */
+    get in_account() {
+        return this._in_account;
+    }
+    /**
      * Définit si le média est enregistré sur le compte du membre
      * @param {boolean} i Flag
      */
