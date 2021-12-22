@@ -2960,7 +2960,7 @@ class Similar extends Media {
             this.creation = data.creation;
             this.country = data.country;
             this.images = null;
-            if (data.images !== undefined) {
+            if (data.images !== undefined && data.images !== null) {
                 this.images = new Images(data.images);
             }
             this.nbEpisodes = parseInt(data.episodes, 10);
@@ -2969,13 +2969,13 @@ class Similar extends Media {
             this.next_trailer_host = data.next_trailer_host;
             this.rating = data.rating;
             this.platforms = null;
-            if (data.platforms !== undefined) {
+            if (data.platforms !== undefined && data.platforms !== null) {
                 this.platforms = new Platforms(data.platforms);
             }
             this.seasons = new Array();
             this.nbSeasons = parseInt(data.seasons, 10);
             this.showrunner = null;
-            if (data.showrunner !== undefined) {
+            if (data.showrunner !== undefined && data.showrunner !== null) {
                 this.showrunner = new Showrunner(data.showrunner);
             }
             this.social_links = data.social_links;
