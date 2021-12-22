@@ -1581,10 +1581,10 @@ class Show extends Media {
         this._in_account = !!i;
         if (this.id !== null && this.id !== undefined) {
             if (this._in_account) {
-                this.addShowClick(true);
+                this.deleteShowClick();
             }
             else {
-                this.deleteShowClick();
+                this.addShowClick(true);
             }
         }
     }
