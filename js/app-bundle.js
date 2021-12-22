@@ -326,7 +326,7 @@ class CommentBS {
                                     <button type="button" class="btn-reset mainLink mainLink--regular btnResponse" style="vertical-align: 0px;">Répondre</button>
                                     <a href="#c_1269819" class="mainTime">
                                         <span class="mainLink">&nbsp;∙&nbsp;</span>
-                                        Le ${typeof moment !== 'undefined' ? moment(comment.date).format('D MMMM YYYY HH:mm') : comment.date.toString()}
+                                        Le ${typeof moment !== 'undefined' ? moment(comment.date).format('D MM YYYY HH:mm') : comment.date.toString()}
                                     </a>
                                     <span class="stars" title="${comment.user_note} / 5">
                                         ${renderNote(comment.user_note)}
@@ -3403,6 +3403,125 @@ class UpdateAuto {
             }, (this._interval * 60) * 1000);
         }
         return this;
+    }
+}
+var DaysOfWeek;
+(function (DaysOfWeek) {
+    DaysOfWeek["monday"] = "lundi";
+    DaysOfWeek["tuesday"] = "mardi";
+    DaysOfWeek["wednesday"] = "mercredi";
+    DaysOfWeek["thursday"] = "jeudi";
+    DaysOfWeek["friday"] = "vendredi";
+    DaysOfWeek["saturday"] = "samedi";
+    DaysOfWeek["sunday"] = "dimanche";
+})(DaysOfWeek || (DaysOfWeek = {}));
+class Stats {
+    friends;
+    shows;
+    seasons;
+    episodes;
+    comments;
+    progress;
+    episodes_to_watch;
+    time_on_tv;
+    time_to_spend;
+    movies;
+    badges;
+    member_since_days;
+    friends_of_friends;
+    episodes_per_month;
+    favorite_day;
+    five_stars_percent;
+    four_five_stars_total;
+    streak_days;
+    favorite_genre;
+    written_words;
+    without_days;
+    shows_finished;
+    shows_current;
+    shows_to_watch;
+    shows_abandoned;
+    movies_to_watch;
+    time_on_movies;
+    time_to_spend_movies;
+    constructor(data) {
+        for (let key in Object.keys(data)) {
+            this[key] = data[key];
+        }
+    }
+}
+class Options {
+    downloaded;
+    notation;
+    timelag;
+    global;
+    specials;
+    episodes_tri;
+    friendship;
+    country;
+    language;
+    mail_mois;
+    mail_hebdo;
+    notification_news;
+    twitter_auto;
+    constructor(data) {
+        for (let key in Object.keys(data)) {
+            this[key] = data[key];
+        }
+    }
+}
+class Member {
+    id;
+    fb_id;
+    login;
+    xp;
+    locale;
+    cached;
+    avatar;
+    profile_banner;
+    in_account;
+    is_admin;
+    subscription;
+    valid_email;
+    screeners;
+    twitterLogin;
+    stats;
+    options;
+    constructor(data) {
+        this.id = parseInt(data.id, 10);
+        this.fb_id = parseInt(data.fb_id, 10);
+        this.login = data.login;
+        this.xp = parseInt(data.xp, 10);
+        this.locale = data.locale;
+        this.cached = parseInt(data.cached, 10);
+        this.avatar = data.avatar;
+        this.profile_banner = data.profile_banner;
+        this.in_account = !!data.in_account;
+        this.is_admin = !!data.is_admin;
+        this.subscription = parseInt(data.subscription, 10);
+        this.valid_email = !!data.valid_email;
+        this.screeners = data.screeners;
+        this.twitterLogin = data.twitterLogin;
+        this.stats = new Stats(data.stats);
+        this.options = new Options(data.options);
+    }
+    /**
+     * Retourne les infos du membre connecté
+     * @returns {Promise<Member>} Une instance du membre connecté
+     */
+    static fetch() {
+        let params = {};
+        if (Base.userId !== null) {
+            params.id = Base.userId;
+        }
+        return Base.callApi(HTTP_VERBS.GET, 'members', 'infos', params)
+            .then((data) => {
+            return new Member(data.member);
+        })
+            .catch(err => {
+            console.warn('Erreur lors de la récupération des infos du membre', err);
+            throw new Error("Erreur de récupération du membre");
+        });
     }
 }
 /**
