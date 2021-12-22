@@ -1594,14 +1594,13 @@ class Show extends Media {
      */
     set in_account(i) {
         this._in_account = !!i;
-        if (this.id !== null && this.id !== undefined) {
+        /*if (this.id !== null && this.id !== undefined) {
             if (this._in_account) {
                 this.deleteShowClick();
-            }
-            else {
+            } else {
                 this.addShowClick(true);
             }
-        }
+        }*/
     }
     /**
      * Récupère les données de la série sur l'API
@@ -2083,7 +2082,7 @@ class Show extends Media {
                         _this.user.favorited = false;
                         _this.user.remaining = 0;
                         _this.user.last = "S00E00";
-                        _this.user.next.id = null;
+                        _this.user.next.id = NaN;
                         _this.save();
                         // On remet le bouton Ajouter
                         jQuery('#reactjs-show-actions').html(`
