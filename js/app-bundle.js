@@ -3733,7 +3733,7 @@ Show.prototype.fill = function (data) {
     this.creation = data.creation;
     this.country = data.country;
     this.images = null;
-    if (data.images !== undefined && data.images !== null) {
+    if (data.images !== undefined && data.images != null) {
         this.images = new Images(data.images);
     }
     this.nbEpisodes = parseInt(data.episodes, 10);
@@ -3742,7 +3742,7 @@ Show.prototype.fill = function (data) {
     this.next_trailer_host = data.next_trailer_host;
     this.rating = data.rating;
     this.platforms = null;
-    if (data.platforms !== undefined && data.platforms !== null) {
+    if (data.platforms !== undefined && data.platforms != null) {
         this.platforms = new Platforms(data.platforms);
     }
     this.seasons = new Array();
@@ -3750,7 +3750,7 @@ Show.prototype.fill = function (data) {
         this.seasons.push(new Season(data.seasons_details[s], this));
     }
     this.showrunner = null;
-    if (data.showrunner !== undefined && data.showrunner !== null) {
+    if (data.showrunner !== undefined && data.showrunner != null) {
         this.showrunner = new Showrunner(data.showrunner);
     }
     this.social_links = data.social_links;
