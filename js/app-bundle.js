@@ -1356,7 +1356,7 @@ class Media extends Base {
     original_title;
     similars;
     nbSimilars;
-    in_account;
+    _in_account;
     constructor(data) {
         super(data);
         return this;
@@ -1395,6 +1395,20 @@ class Media extends Base {
         this.in_account = data.in_account;
         super.fill(data);
         return this;
+    }
+    /**
+     * Indique si le média est enregistré sur le compte du membre
+     * @returns {boolean}
+     */
+    get in_account() {
+        return this._in_account;
+    }
+    /**
+     * Définit si le média est enregistré sur le compte du membre
+     * @param {boolean} i Flag
+     */
+    set in_account(i) {
+        this._in_account = !!i;
     }
     /**
      * Retourne les similars associés au media
@@ -1544,6 +1558,19 @@ class Show extends Media {
         super(data);
         this.elt = element;
         return this.fill(data);
+    }
+    /**
+     * Définit si le média est enregistré sur le compte du membre
+     * @param {boolean} i Flag
+     */
+    set in_account(i) {
+        this._in_account = !!i;
+        if (this._in_account) {
+            this.addShowClick(true);
+        }
+        else {
+            this.deleteShowClick();
+        }
     }
     /**
      * Récupère les données de la série sur l'API
@@ -2357,9 +2384,24 @@ class Subtitle {
     date;
 }
 class Season {
+    /**
+     * @type {number} Numéro de la saison dans la série
+     */
     number;
+    /**
+     * @type {Array<Episode>} Tableau des épisodes de la saison
+     */
     episodes;
+    /**
+     * @type {Show} L'objet Show auquel est rattaché la saison
+     */
     _show;
+    /**
+     * Constructeur de la classe Season
+     * @param   {Obj}   data    Les données provenant de l'API
+     * @param   {Show}  show    L'objet Show contenant la saison
+     * @returns {Season}
+     */
     constructor(data, show) {
         this.number = parseInt(data.number, 10);
         this._show = show;
@@ -2382,7 +2424,7 @@ class Season {
                 .then(data => {
                 _this.episodes = [];
                 for (let e = 0; e < data.episodes.length; e++) {
-                    _this.episodes.push(new Episode(data.episodes[e], _this._show));
+                    _this.episodes.push(new Episode(data.episodes[e], _this._show, _this));
                 }
                 resolve(_this);
             }, err => {
@@ -2403,27 +2445,111 @@ class Season {
         }
         return null;
     }
+    /**
+     * Retourne le nombre d'épisodes vus
+     * @returns {number} Le nombre d'épisodes vus dans la saison
+     */
+    getNbEpisodesSeen() {
+        let nbEpisodesSeen = 0;
+        for (let e = 0; e < this.episodes.length; e++) {
+            if (this.episodes[e].user.seen)
+                nbEpisodesSeen++;
+        }
+        return nbEpisodesSeen;
+    }
+    /**
+     * Retourne le nombre d'épisodes spéciaux
+     * @returns {number} Le nombre d'épisodes spéciaux
+     */
+    getNbEpisodesSpecial() {
+        let nbEpisodesSpecial = 0;
+        for (let e = 0; e < this.episodes.length; e++) {
+            if (this.episodes[e].special)
+                nbEpisodesSpecial++;
+        }
+        return nbEpisodesSpecial;
+    }
 }
 class Episode extends Base {
+    /**
+     * @type {Season} L'objet Season contenant l'épisode
+     */
+    _season;
+    /**
+     * @type {string} Le code de l'épisode SXXEXX
+     */
     code;
+    /**
+     * @type {Date} La date de sortie de l'épisode
+     */
     date;
+    /**
+     * @type {string}
+     */
     director;
+    /**
+     * @type {number} Le numéro de l'épisode dans la saison
+     */
     episode;
+    /**
+     * @type {number} Le numéro de l'épisode dans la série
+     */
     global;
-    season;
+    /**
+     * @type {number} Le numéro de la saison
+     */
+    numSeason;
+    /**
+     * @type {Array<Platform_link>} Les plateformes de diffusion
+     */
     platform_links;
+    /**
+     * @type {ReleasesSvod}
+     */
     releasesSvod;
+    /**
+     * @type {number} Nombre de membres de BS à avoir vu l'épisode
+     */
     seen_total;
+    /**
+     * @type {Show} L'objet Show contenant l'épisode
+     */
     show;
+    /**
+     * @type {boolean} Indique si il s'agit d'un épisode spécial
+     */
     special;
+    /**
+     * @type {Array<Subtitle>} Tableau des sous-titres dispo sur BS
+     */
     subtitles;
+    /**
+     * @type {number} Identifiant de l'épisode sur thetvdb.com
+     */
     thetvdb_id;
+    /**
+     * @type {Array<WatchedBy>} Tableau des amis ayant vu l'épisode
+     */
     watched_by;
+    /**
+     * @type {Array<string>} Tableau des scénaristes de l'épisode
+     */
     writers;
+    /**
+     * @type {string} Identifiant de la vidéo sur Youtube
+     */
     youtube_id;
-    constructor(data, show) {
+    /**
+     * Constructeur de la classe Episode
+     * @param   {Obj}       data    Les données provenant de l'API
+     * @param   {Show}      show    L'objet Show
+     * @param   {Season}    season  L'objet Season contenant l'épisode
+     * @returns {Episode}
+     */
+    constructor(data, show, season) {
         super(data);
         this.show = show;
+        this._season = season;
         return this.fill(data);
     }
     /**
@@ -2437,7 +2563,7 @@ class Episode extends Base {
         this.director = data.director;
         this.episode = parseInt(data.episode, 10);
         this.global = parseInt(data.global, 10);
-        this.season = parseInt(data.season, 10);
+        this.numSeason = parseInt(data.season, 10);
         this.platform_links = data.platform_links;
         this.releasesSvod = data.releasesSvod;
         this.seen_total = (data.seen_total !== null) ? parseInt(data.seen_total, 10) : 0;
@@ -2493,7 +2619,7 @@ class Episode extends Base {
                                 class="checkSeen"
                                 data-id="${this.id}"
                                 data-pos="${pos}"
-                                data-special="${this.special}"
+                                data-special="${this.special ? '1' : '0'}"
                                 style="background: rgba(13,21,28,.2);"
                                 title="${Base.trans("member_shows.markas")}"></div>`);
             this.elt.find('.slide__image img.js-lazy-image').attr('style', 'filter: blur(5px);');
@@ -2518,6 +2644,7 @@ class Episode extends Base {
             $checkSeen.attr('id', 'episode-' + this.id);
             $checkSeen.data('id', this.id);
             $checkSeen.data('pos', pos);
+            $checkSeen.data('special', this.special ? '1' : '0');
         }
         // if (Base.debug) console.log('updateCheckSeen', {seen: this.user.seen, elt: this.elt, checkSeen: $checkSeen.length, classSeen: $checkSeen.hasClass('seen'), pos: pos, Episode: this});
         // Si le membre a vu l'épisode et qu'il n'est pas indiqué, on change le statut
@@ -2583,11 +2710,11 @@ class Episode extends Base {
                 }
             }
         }
-        promise.then(response => {
+        promise.then((response) => {
             if (method === HTTP_VERBS.POST && !response) {
                 args.bulk = false; // Flag pour ne pas mettre les épisodes précédents comme vus automatiquement
             }
-            Base.callApi(method, 'episodes', 'watched', args).then(data => {
+            Base.callApi(method, 'episodes', 'watched', args).then((data) => {
                 if (Base.debug)
                     console.log('updateStatus %s episodes/watched', method, data);
                 if (!(_this.show instanceof Show) && Base.cache.has(DataTypesCache.shows, data.show.id)) {
@@ -2597,16 +2724,14 @@ class Episode extends Base {
                 // au compte du membre connecté
                 if (!_this.show.in_account && data.episode.show.in_account) {
                     _this.show.in_account = true;
-                    _this.show
-                        .save()
-                        .addShowClick(true);
+                    _this.show.save();
                 }
                 // On met à jour l'objet Episode
                 if (method === HTTP_VERBS.POST && response && pos) {
                     const $vignettes = jQuery('#episodes .slide_flex');
                     let episode = null;
                     for (let e = 0; e < pos; e++) {
-                        episode = _this.show.currentSeason.episodes[e];
+                        episode = _this._season.episodes[e];
                         if (episode.elt === null) {
                             episode.elt = jQuery($vignettes.get(e));
                         }
@@ -2621,8 +2746,8 @@ class Episode extends Base {
                 _this
                     .fill(data.episode)
                     .updateRender(status, true)
-                    .save()
-                    ._callListeners(EventTypes.UPDATE);
+                    ._callListeners(EventTypes.UPDATE)
+                    .save();
             })
                 .catch(err => {
                 if (Base.debug)
@@ -2648,8 +2773,8 @@ class Episode extends Base {
     updateRender(newStatus, update = true) {
         const _this = this;
         const $elt = this.elt.find('.checkSeen');
-        const lenEpisodes = jQuery('#episodes .checkSeen').length;
-        const lenNotSpecial = jQuery('#episodes .checkSeen[data-special="0"]').length;
+        const lenEpisodes = _this._season.episodes.length;
+        const lenNotSpecial = lenEpisodes - _this._season.getNbEpisodesSpecial();
         if (Base.debug)
             console.log('changeStatus', { elt: $elt, status: newStatus, update: update });
         if (newStatus === 'seen') {
@@ -2657,8 +2782,8 @@ class Episode extends Base {
             $elt.addClass('seen'); // On ajoute la classe 'seen'
             $elt.attr('title', Base.trans("member_shows.remove"));
             // On supprime le voile masquant sur la vignette pour voir l'image de l'épisode
-            $elt.parent('div.slide__image').find('img').removeAttr('style');
-            $elt.parents('div.slide_flex').removeClass('slide--notSeen');
+            $elt.parents('div.slide__image').first().find('img').removeAttr('style');
+            $elt.parents('div.slide_flex').first().removeClass('slide--notSeen');
             const moveSeason = function () {
                 const slideCurrent = jQuery('#seasons div.slide--current');
                 // On check la saison
@@ -2675,11 +2800,10 @@ class Episode extends Base {
                     slideCurrent.next().trigger('click');
                     let seasonNumber = _this.show.currentSeason.number + 1;
                     _this.show.setCurrentSeason(seasonNumber);
-                    slideCurrent
-                        .removeClass('slide--current');
+                    slideCurrent.removeClass('slide--current');
                 }
             };
-            const lenSeen = jQuery('#episodes .seen').length;
+            const lenSeen = _this._season.getNbEpisodesSeen();
             //if (Base.debug) console.log('Episode.updateRender', {lenEpisodes: lenEpisodes, lenNotSpecial: lenNotSpecial, lenSeen: lenSeen});
             // Si tous les épisodes de la saison ont été vus
             if (lenSeen === lenEpisodes) {
@@ -2703,14 +2827,15 @@ class Episode extends Base {
             $elt.removeClass('seen'); // On supprime la classe 'seen'
             $elt.attr('title', Base.trans("member_shows.markas"));
             // On remet le voile masquant sur la vignette de l'épisode
-            $elt.parent('div.slide__image')
+            $elt.parents('div.slide__image').first()
                 .find('img')
                 .attr('style', 'filter: blur(5px);');
-            const contVignette = $elt.parents('div.slide_flex');
+            const contVignette = $elt.parents('div.slide_flex').first();
             if (!contVignette.hasClass('slide--notSeen')) {
                 contVignette.addClass('slide--notSeen');
             }
-            if (jQuery('#episodes .seen').length < lenEpisodes) {
+            const lenSeen = _this._season.getNbEpisodesSeen();
+            if (lenSeen < lenEpisodes) {
                 const $seasonCurrent = jQuery('#seasons div.slide--current');
                 $seasonCurrent.find('.checkSeen').remove();
                 $seasonCurrent
@@ -2731,7 +2856,7 @@ class Episode extends Base {
         return this;
     }
     /**
-     * Affiche/masque le spinner de modification des épisodes
+     * Affiche/masque le spinner de modification de l'épisode
      *
      * @param  {boolean}  display  Le flag indiquant si afficher ou masquer
      * @return {Episode}
@@ -2739,17 +2864,15 @@ class Episode extends Base {
     toggleSpinner(display) {
         if (!display) {
             jQuery('.spinner').remove();
-            if (Base.debug)
-                console.log('toggleSpinner');
+            // if (Base.debug) console.log('toggleSpinner');
             if (Base.debug)
                 console.groupEnd();
         }
         else {
             if (Base.debug)
                 console.groupCollapsed('episode checkSeen');
-            if (Base.debug)
-                console.log('toggleSpinner');
-            this.elt.find('.slide__image').prepend(`
+            // if (Base.debug) console.log('toggleSpinner');
+            this.elt.find('.slide__image').first().prepend(`
                 <div class="spinner">
                     <div class="spinner-item"></div>
                     <div class="spinner-item"></div>
