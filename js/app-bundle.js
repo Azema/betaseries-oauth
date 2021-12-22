@@ -1059,7 +1059,7 @@ class Base {
      */
     addListener(name, fn) {
         // On vérifie que le type d'event est pris en charge
-        if (Base.EventTypes.indexOf(name) < 0) {
+        if (this.constructor.EventTypes.indexOf(name) < 0) {
             throw new Error(`${name} ne fait pas partit des events gérés par cette classe`);
         }
         if (this._listeners[name] === undefined) {
