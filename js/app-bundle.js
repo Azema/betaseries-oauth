@@ -1564,8 +1564,6 @@ class Show extends Media {
      * @returns {Show}
      */
     _init() {
-        if (Base.debug)
-            console.log('Show._init', { in_account: this.in_account, _in_account: this._in_account });
         // On gère l'ajout et la suppression de la série dans le compte utilisateur
         if (this.in_account) {
             this.deleteShowClick();
@@ -1588,8 +1586,6 @@ class Show extends Media {
      */
     set in_account(i) {
         this._in_account = !!i;
-        if (Base.debug)
-            console.log('set in_account', { id: this.id });
         if (this.id !== null && this.id !== undefined) {
             if (this._in_account) {
                 this.deleteShowClick();
@@ -1901,8 +1897,6 @@ class Show extends Media {
      * @returns {void}
      */
     addShowClick(trigEpisode = false) {
-        if (Base.debug)
-            console.log('addShowClick', { in_account: this.in_account });
         const _this = this;
         const vignettes = $('#episodes .slide__image');
         // Vérifier si le membre a ajouter la série à son compte
@@ -2062,8 +2056,6 @@ class Show extends Media {
      * @returns {void}
      */
     deleteShowClick() {
-        if (Base.debug)
-            console.log('deleteShowClick', { in_account: this.in_account });
         const _this = this;
         let $optionsLinks = $('#dropdownOptions').siblings('.dropdown-menu').children('a.header-navigation-item');
         // Le menu Options est au complet
