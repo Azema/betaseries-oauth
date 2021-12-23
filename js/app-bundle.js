@@ -2281,7 +2281,7 @@ class Similar extends Media {
             .attr('data-type', this.mediaType.singular);
         return this;
     }
-    wrench() {
+    wrench(dialog) {
         const $title = this.elt.find('.slide__title'), _this = this;
         $title.html($title.html() +
             `<i class="fa fa-wrench popover-wrench"
@@ -2307,14 +2307,9 @@ class Similar extends Media {
                     .css('overflow', 'none');
             };
             this.fetch().then(function (data) {
-                $dataRes.empty().append(renderjson.set_show_to_level(2)(data[_this.mediaType.singular]));
-                jQuery('#dialog-resource-title span.counter').empty().text('(' + Base.counter + ' appels API)');
-                jQuery('#dialog-resource').show(400, onShow);
-                jQuery('#dialog-resource .close').click((e) => {
-                    e.stopPropagation();
-                    e.preventDefault();
-                    jQuery('#dialog-resource').hide(400, onHide);
-                });
+                dialog.setContent(renderjson.set_show_to_level(2)(data[_this.mediaType.singular]));
+                dialog.setCounter(Base.counter.toString());
+                dialog.show();
             });
         });
         return this;
