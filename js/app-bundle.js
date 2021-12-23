@@ -2650,8 +2650,11 @@ class UpdateAuto {
                     _this.stop();
                     return;
                 }
-                if (Base.debug)
-                    console.log('update episode list');
+                if (Base.debug) {
+                    const now = new Date();
+                    const prefix = moment(now).format('DD/MM/YY HH:mm');
+                    console.log('[%s]: update episode list', prefix);
+                }
                 const btnUpEpisodeList = $('.updateEpisodes');
                 if (btnUpEpisodeList.length > 0) {
                     btnUpEpisodeList.trigger('click');
