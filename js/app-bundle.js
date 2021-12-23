@@ -2654,7 +2654,7 @@ class UpdateAuto {
                     let prefix = '';
                     if (typeof moment !== 'undefined') {
                         const now = new Date();
-                        prefix = moment(now).format('[DD/MM/YY HH:mm]: ');
+                        prefix = '[' + moment(now).format('DD/MM/YY HH:mm') + ']: ';
                     }
                     console.log('%supdate episode list', prefix);
                 }
