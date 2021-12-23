@@ -2651,9 +2651,12 @@ class UpdateAuto {
                     return;
                 }
                 if (Base.debug) {
-                    const now = new Date();
-                    const prefix = moment(now).format('DD/MM/YY HH:mm');
-                    console.log('[%s]: update episode list', prefix);
+                    let prefix = '';
+                    if (typeof moment !== 'undefined') {
+                        const now = new Date();
+                        prefix = moment(now).format('[DD/MM/YY HH:mm]: ');
+                    }
+                    console.log('%supdate episode list', prefix);
                 }
                 const btnUpEpisodeList = $('.updateEpisodes');
                 if (btnUpEpisodeList.length > 0) {
