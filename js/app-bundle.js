@@ -1,4 +1,10 @@
+/*! betaseries_userscript - v1.1.2 - 2021-12-23
+ * https://github.com/Azema/betaseries
+ * Copyright (c) 2021 Azema;
+ * Licensed Apache-2.0 License
+ */
 "use strict";
+
 var DataTypesCache;
 (function (DataTypesCache) {
     DataTypesCache["shows"] = "shows";
@@ -7,18 +13,11 @@ var DataTypesCache;
     DataTypesCache["members"] = "members";
     DataTypesCache["updates"] = "updateAuto";
 })(DataTypesCache = DataTypesCache || (DataTypesCache = {}));
-/**
- * @class Gestion du Cache pour le script
- */
 class CacheUS {
     _data;
     constructor() {
         return this._init();
     }
-    /**
-     * Initialize le cache pour chaque type
-     * @returns this
-     */
     _init() {
         this._data = {};
         this._data[DataTypesCache.shows] = {};
@@ -27,83 +26,40 @@ class CacheUS {
         this._data[DataTypesCache.members] = {};
         return this;
     }
-    /**
-     * Returns an Array of all currently set keys.
-     * @returns {Array} cache keys
-     */
     keys(type = null) {
         if (!type)
             return Object.keys(this._data);
         return Object.keys(this._data[type]);
     }
-    /**
-     * Checks if a key is currently set in the cache.
-     * @param {DataTypesCache}  type Le type de ressource
-     * @param {String|number}   key  the key to look for
-     * @returns {boolean} true if set, false otherwise
-     */
     has(type, key) {
         return (this._data[type] !== undefined && this._data[type][key] !== undefined);
     }
-    /**
-     * Clears all cache entries.
-     * @param   {DataTypesCache} [type=null] Le type de ressource à nettoyer
-     * @returns this
-     */
     clear(type = null) {
-        // On nettoie juste un type de ressource
         if (type && this._data[type] !== undefined) {
             for (let key in this._data[type]) {
                 delete this._data[type][key];
             }
         }
-        // On nettoie l'ensemble du cache
         else {
             this._init();
         }
         return this;
     }
-    /**
-     * Gets the cache entry for the given key.
-     * @param {DataTypesCache}  type Le type de ressource
-     * @param {String|number}   key  the cache key
-     * @returns {*} the cache entry if set, or undefined otherwise
-     */
     get(type, key) {
         if (this.has(type, key)) {
             return this._data[type][key];
         }
         return null;
     }
-    /**
-     * Returns the cache entry if set, or a default value otherwise.
-     * @param {DataTypesCache}  type Le type de ressource
-     * @param {String|number}   key  the key to retrieve
-     * @param {*}               def  the default value to return if unset
-     * @returns {*} the cache entry if set, or the default value provided.
-     */
     getOrDefault(type, key, def) {
         return this.has(type, key) ? this.get(type, key) : def;
     }
-    /**
-     * Sets a cache entry with the provided key and value.
-     * @param {DataTypesCache}  type  Le type de ressource
-     * @param {String|number}   key   the key to set
-     * @param {*}               value the value to set
-     * @returns this
-     */
     set(type, key, value) {
         if (this._data[type] !== undefined) {
             this._data[type][key] = value;
         }
         return this;
     }
-    /**
-     * Removes the cache entry for the given key.
-     * @param {DataTypesCache}  type  Le type de ressource
-     * @param {String|number}   key the key to remove
-     * @returns this
-     */
     remove(type, key) {
         if (this.has(type, key)) {
             delete this._data[type][key];
@@ -111,6 +67,7 @@ class CacheUS {
         return this;
     }
 }
+
 class Character {
     constructor(data) {
         this.actor = data.actor || '';
@@ -133,84 +90,27 @@ class Character {
     show_id;
     movie_id;
 }
+
 class CommentBS {
     id;
-    /**
-     * Référence du média, pour créer l'URL (type.titleUrl)
-     */
     reference;
-    /**
-     * Type de média
-     */
     type;
-    /**
-     * Identifiant du média
-     */
     ref_id;
-    /**
-     * Identifiant du membre du commentaire
-     */
     user_id;
-    /**
-     * Login du membre du commentaire
-     */
     login;
-    /**
-     * URL de l'avatar du membre du commentaire
-     */
     avatar;
-    /**
-     * Date de création du commentaire
-     */
     date;
-    /**
-     * Contenu du commentaire
-     */
     text;
-    /**
-     * Index du commentaire dans la liste des commentaires du média
-     */
     inner_id;
-    /**
-     * Index du commentaire dont celui-ci est une réponse
-     */
     in_reply_to;
-    /**
-     * Identifiant du commentaire dont celui-ci est une réponse
-     */
     in_reply_id;
-    /**
-     * Informations sur le membre du commentaire original
-     */
     in_reply_user;
-    /**
-     * Note du membre pour le média
-     */
     user_note;
-    /**
-     * Votes pour ce commentaire
-     */
     thumbs;
-    /**
-     * ???
-     */
     thumbed;
-    /**
-     * Nombre de réponse à ce commentaires
-     */
     nbReplies;
-    /**
-     * Les réponses au commentaire
-     * @type {Array<CommentBS>}
-     */
     replies;
-    /**
-     * Message de l'administration
-     */
     from_admin;
-    /**
-     * ???
-     */
     user_rank;
     first;
     last;
@@ -240,17 +140,12 @@ class CommentBS {
         this.first = !!data.first;
         this.last = !!data.last;
     }
-    /**
-     * Affiche le commentaire sur la page Web
-     */
     display() {
-        // La popup et ses éléments
         const _this = this, $popup = jQuery('#popin-dialog'), $contentHtmlElement = $popup.find(".popin-content-html"), $contentReact = $popup.find('.popin-content-reactmodule'), $title = $contentHtmlElement.find(".title"), $text = $popup.find("p"), $closeButtons = $popup.find("#popin-showClose"), hidePopup = () => {
             $popup.attr('aria-hidden', 'true');
             $popup.find("#popupalertyes").show();
             $popup.find("#popupalertno").show();
             $contentHtmlElement.hide();
-            // On désactive les events
             $popup.find('.comments .comment .btnThumb').off('click');
             $popup.find('.btnToggleOptions').off('click');
         }, showPopup = () => {
@@ -261,14 +156,7 @@ class CommentBS {
             $closeButtons.show();
             $popup.attr('aria-hidden', 'false');
         };
-        // On vérifie que la popup est masquée
         hidePopup();
-        /**
-         * Permet d'afficher une note avec des étoiles
-         * @param  {Number} note      La note à afficher
-         * @param  {Object} container DOMElement contenant la note à afficher
-         * @return {string}
-         */
         function renderNote(note) {
             let typeSvg, template = '';
             Array.from({
@@ -380,9 +268,7 @@ class CommentBS {
                 template += templateComment(this.replies[r]);
             }
         }
-        // On attend les réponses du commentaire
         promise.then(() => {
-            // On vide la popup et on ajoute le commentaire
             $popup.attr('data-popin-type', 'comments');
             $title.empty().append('Commentaires <i class="fa fa-chevron-circle-left prev-comment" aria-hidden="true"></i> <i class="fa fa-chevron-circle-right next-comment" aria-hidden="true"></i>');
             $text.empty().append(template + '</div>');
@@ -398,16 +284,13 @@ class CommentBS {
                 $prevCmt.click((e) => {
                     e.stopPropagation();
                     e.preventDefault();
-                    // Il faut tout nettoyer, comme pour la fermeture
                     $popup.find('.comments .comment .btnThumb').off('click');
                     $popup.find('.btnToggleOptions').off('click');
                     $popup.find('i.fa').off('click');
-                    // Il faut demander au parent d'afficher le commentaire précédent
                     _this._parent.getPrevComment(_this.id).display();
                 });
             }
             const $nextCmt = $title.find('.next-comment');
-            // TODO: Je ne suis pas très sur de ce test
             if (this.last) {
                 $nextCmt.css('color', 'grey').css('cursor', 'initial');
             }
@@ -415,11 +298,9 @@ class CommentBS {
                 $nextCmt.click((e) => {
                     e.stopPropagation();
                     e.preventDefault();
-                    // Il faut tout nettoyer, comme pour la fermeture
                     $popup.find('.comments .comment .btnThumb').off('click');
                     $popup.find('.btnToggleOptions').off('click');
                     $popup.find('i.fa').off('click');
-                    // Il faut demander au parent d'afficher le commentaire précédent
                     _this._parent.getNextComment(_this.id).display();
                 });
             }
@@ -432,20 +313,12 @@ class CommentBS {
                     $(e.currentTarget).fadeOut();
                 });
             }
-            /*
-            * Ajoutons les events:
-            *  - btnUpVote: Voter pour ce commentaire
-            *  - btnDownVote: Voter contre ce commentaire
-            *  - btnToggleOptions: Switcher les options
-            */
             $popup.find('.comments .comment .btnThumb').click((e) => {
                 e.stopPropagation();
                 e.preventDefault();
-                // Ajouter un flag pour indiquer qu'un vote a déjà eu lieu
                 const $btn = jQuery(e.currentTarget);
                 const commentId = parseInt($btn.parent().data('commentId'), 10);
                 let params = { id: commentId, type: 1, switch: false };
-                // On a déjà voté
                 if ($btn.data('thumbed') == '1') {
                     params.switch = true;
                 }
@@ -458,10 +331,8 @@ class CommentBS {
                         _this.thumbs = data.comment.thumbs;
                     }
                     else {
-                        // Demander au parent d'incrémenter les thumbs du commentaire
                         _this._parent.changeThumbsComment(commentId, data.comment.thumbs);
                     }
-                    // On ajoute le flag pour indiquer que l'on a déjà voté
                     $btn.attr('data-thumbed', '1');
                 });
             });
@@ -483,6 +354,7 @@ class CommentBS {
         });
     }
 }
+
 var StarTypes;
 (function (StarTypes) {
     StarTypes["EMPTY"] = "empty";
@@ -501,41 +373,23 @@ class Note {
     mean;
     user;
     _parent;
-    /**
-     * Retourne la note moyenne sous forme de pourcentage
-     * @returns {number} La note sous forme de pourcentage
-     */
     getPercentage() {
         return Math.round(((this.mean / 5) * 100) / 10) * 10;
     }
-    /**
-     * Retourne l'objet Note sous forme de chaine
-     * @returns {string}
-     */
     toString() {
-        const votes = 'vote' + (this.total > 1 ? 's' : ''), 
-        // On met en forme le nombre de votes
-        total = new Intl.NumberFormat('fr-FR', { style: 'decimal', useGrouping: true }).format(this.total), 
-        // On limite le nombre de chiffre après la virgule
-        note = this.mean.toFixed(1);
+        const votes = 'vote' + (this.total > 1 ? 's' : ''), total = new Intl.NumberFormat('fr-FR', { style: 'decimal', useGrouping: true }).format(this.total), note = this.mean.toFixed(1);
         let toString = `${total} ${votes} : ${note} / 5`;
-        // On ajoute la note du membre connecté, si il a voté
         if (this.user > 0) {
             toString += `, votre note: ${this.user}`;
         }
         return toString;
     }
-    /**
-     * Crée une popup avec 5 étoiles pour noter le média
-     */
     createPopupForVote() {
-        // La popup et ses éléments
         const _this = this, $popup = jQuery('#popin-dialog'), $contentHtmlElement = $popup.find(".popin-content-html"), $contentReact = $popup.find('.popin-content-reactmodule'), $title = $contentHtmlElement.find(".title"), $text = $popup.find("p"), $closeButtons = $popup.find("#popin-showClose"), hidePopup = () => {
             $popup.attr('aria-hidden', 'true');
             $popup.find("#popupalertyes").show();
             $popup.find("#popupalertno").show();
             $contentHtmlElement.hide();
-            // On désactive les events
             $text.find('.star-svg').off('mouseenter').off('mouseleave').off('click');
         }, showPopup = () => {
             $popup.find("#popupalertyes").hide();
@@ -545,9 +399,7 @@ class Note {
             $closeButtons.show();
             $popup.attr('aria-hidden', 'false');
         };
-        // On vérifie que la popup est masquée
         hidePopup();
-        // Ajouter les étoiles
         let template = '<div style="display: flex; justify-content: center; margin-bottom: 15px;"><div role="button" tabindex="0" class="stars btn-reset">', className;
         for (let i = 1; i <= 5; i++) {
             className = this.user <= i - 1 ? StarTypes.EMPTY : StarTypes.FULL;
@@ -556,7 +408,6 @@ class Note {
                     <use xlink:href="#icon-starblue-${className}"></use>
                 </svg>`;
         }
-        // On vide la popup et on ajoute les étoiles
         $text.empty().append(template + '</div></div>');
         let title = 'Noter ';
         switch (this._parent.mediaType.singular) {
@@ -577,7 +428,6 @@ class Note {
             hidePopup();
             $popup.removeAttr('data-popin-type');
         });
-        // On ajoute les events sur les étoiles
         const updateStars = function (evt, note) {
             const $stars = jQuery(evt.currentTarget).parent().find('.star-svg use');
             let className;
@@ -595,13 +445,11 @@ class Note {
         });
         $text.find('.star-svg').click((e) => {
             const note = parseInt(jQuery(e.currentTarget).data('number'), 10), $stars = jQuery(e.currentTarget).parent().find('.star-svg');
-            // On supprime les events
             $stars.off('mouseenter').off('mouseleave');
             _this._parent.addVote(note)
                 .then((result) => {
                 hidePopup();
                 if (result) {
-                    // TODO: Mettre à jour la note du média
                     _this._parent.changeTitleNote(true);
                 }
                 else {
@@ -610,12 +458,8 @@ class Note {
             })
                 .catch(() => hidePopup());
         });
-        // On affiche la popup
         showPopup();
     }
-    /**
-     * Met à jour l'affichage de la note
-     */
     renderStars() {
         const $stars = jQuery('.blockInformations__metadatas .js-render-stars .star-svg use');
         const note = Math.round(this.mean);
@@ -626,6 +470,7 @@ class Note {
         }
     }
 }
+
 class Next {
     constructor(data) {
         this.id = (data.id !== undefined) ? parseInt(data.id, 10) : null;
@@ -677,6 +522,7 @@ class User {
     tags;
     twitter;
 }
+
 var MediaType;
 (function (MediaType) {
     MediaType["show"] = "show";
@@ -699,23 +545,8 @@ var HTTP_VERBS;
     HTTP_VERBS["OPTIONS"] = "OPTIONS";
 })(HTTP_VERBS = HTTP_VERBS || (HTTP_VERBS = {}));
 class Base {
-    /*
-                    STATIC
-    */
-    /**
-     * Flag de debug pour le dev
-     * @type {boolean}
-     */
     static debug = false;
-    /**
-     * L'objet cache du script pour stocker les données
-     * @type {CacheUS}
-     */
     static cache = null;
-    /**
-     * Objet contenant les informations de l'API
-     * @type {*}
-     */
     static api = {
         "url": 'https://api.betaseries.com',
         "versions": { "current": '3.0', "last": '3.0' },
@@ -732,73 +563,18 @@ class Base {
             "shows": ['display', 'episodes', 'list', 'search', 'similars']
         }
     };
-    /**
-     * Le token d'authentification de l'API
-     * @type {String}
-     */
     static token = null;
-    /**
-     * La clé d'utilisation de l'API
-     * @type {String}
-     */
     static userKey = null;
-    /**
-     * L'identifiant du membre connecté
-     * @type {Number}
-     */
     static userId = null;
-    /**
-     * Clé pour l'API TheMovieDB
-     * @type {string}
-     */
     static themoviedb_api_user_key = null;
-    /**
-     * Le nombre d'appels à l'API
-     * @type {Number}
-     */
     static counter = 0;
-    /**
-     * L'URL de base du serveur contenant les ressources statiques
-     * @type {String}
-     */
     static serverBaseUrl = '';
-    /**
-     * Fonction de notification sur la page Web
-     * @type {Function}
-     */
     static notification = function () { };
-    /**
-     * Fonction pour vérifier que le membre est connecté
-     * @type {Function}
-     */
     static userIdentified = function () { };
-    /**
-     * Fonction vide
-     * @type {Function}
-     */
     static noop = function () { };
-    /**
-     * Fonction de traduction de chaînes de caractères
-     * @param   {String}  msg     Identifiant de la chaîne à traduire
-     * @param   {*[]}     args    Autres paramètres
-     * @returns {string}
-     */
     static trans = function (msg, ...args) { };
-    /**
-     * Contient les infos sur les différentes classification TV et cinéma
-     * @type {Ratings}
-     */
     static ratings = null;
-    /**
-     * Types d'évenements gérés par cette classe
-     * @type {Array}
-     */
     static EventTypes = new Array(EventTypes.UPDATE, EventTypes.SAVE);
-    /**
-     * Fonction d'authentification sur l'API BetaSeries
-     *
-     * @return {Promise}
-     */
     static authenticate() {
         if (Base.debug)
             console.log('authenticate');
@@ -819,7 +595,6 @@ class Base {
         return new Promise((resolve, reject) => {
             function receiveMessage(event) {
                 const origin = new URL(Base.serverBaseUrl).origin;
-                // if (debug) console.log('receiveMessage', event);
                 if (event.origin !== origin) {
                     if (Base.debug)
                         console.error('receiveMessage {origin: %s}', event.origin, event);
@@ -842,16 +617,6 @@ class Base {
             window.addEventListener("message", receiveMessage, false);
         });
     }
-    /**
-     * Fonction servant à appeler l'API de BetaSeries
-     *
-     * @param  {String}   type              Type de methode d'appel Ajax (GET, POST, PUT, DELETE)
-     * @param  {String}   resource          La ressource de l'API (ex: shows, seasons, episodes...)
-     * @param  {String}   action            L'action à appliquer sur la ressource (ex: search, list...)
-     * @param  {*}        args              Un objet (clef, valeur) à transmettre dans la requête
-     * @param  {bool}     [force=false]     Indique si on doit utiliser le cache ou non (Par défaut: false)
-     * @return {Promise<Obj>}
-     */
     static callApi(type, resource, action, args, force = false) {
         if (Base.api && Base.api.resources.indexOf(resource) === -1) {
             throw new Error(`Ressource (${resource}) inconnue dans l'API.`);
@@ -859,9 +624,7 @@ class Base {
         if (!Base.token || !Base.userKey) {
             throw new Error('Token and userKey are required');
         }
-        let check = false, 
-        // Les en-têtes pour l'API
-        myHeaders = {
+        let check = false, myHeaders = {
             'Accept': 'application/json',
             'X-BetaSeries-Version': Base.api.versions.current,
             'X-BetaSeries-Token': Base.token,
@@ -876,16 +639,12 @@ class Base {
                 force: force
             });
         }
-        // On retourne la ressource en cache si elle y est présente
         if (Base.cache && !force && type === 'GET' && args && 'id' in args &&
             Base.cache.has(resource, args.id)) {
-            //if (debug) console.log('Base.callApi retourne la ressource du cache (%s: %d)', resource, args.id);
             return new Promise((resolve) => {
                 resolve(Base.cache.get(resource, args.id));
             });
         }
-        // On check si on doit vérifier la validité du token
-        // (https://www.betaseries.com/bugs/api/461)
         if (Base.userIdentified() && checkKeys.indexOf(resource) !== -1 &&
             Base.api.check[resource].indexOf(action) !== -1) {
             check = true;
@@ -899,7 +658,6 @@ class Base {
             };
             let uri = `${Base.api.url}/${resource}/${action}`;
             const keys = Object.keys(args);
-            // On crée l'URL de la requête de type GET avec les paramètres
             if (type === 'GET' && keys.length > 0) {
                 let params = [];
                 for (let key of keys) {
@@ -911,14 +669,12 @@ class Base {
                 initFetch.body = new URLSearchParams(args);
             }
             fetch(uri, initFetch).then(response => {
-                Base.counter++; // Incrément du compteur de requêtes à l'API
+                Base.counter++;
                 if (Base.debug)
                     console.log('fetch (%s %s) response status: %d', type, uri, response.status);
-                // On récupère les données et les transforme en objet
                 response.json().then((data) => {
                     if (Base.debug)
                         console.log('fetch (%s %s) data', type, uri, data);
-                    // On gère le retour d'erreurs de l'API
                     if (data.errors !== undefined && data.errors.length > 0) {
                         const code = data.errors[0].code, text = data.errors[0].text;
                         if (code === 2005 ||
@@ -927,7 +683,6 @@ class Base {
                             reject('changeStatus');
                         }
                         else if (code == 2001) {
-                            // Appel de l'authentification pour obtenir un token valide
                             Base.authenticate().then(() => {
                                 Base.callApi(type, resource, action, args, force)
                                     .then(data => resolve(data), err => reject(err));
@@ -940,7 +695,6 @@ class Base {
                         }
                         return;
                     }
-                    // On gère les erreurs réseau
                     if (!response.ok) {
                         console.error('Fetch erreur network', response);
                         reject(response);
@@ -966,11 +720,9 @@ class Base {
                 if (Base.debug)
                     console.info('%ccall /members/is_active', 'color:blue');
                 fetch(`${Base.api.url}/members/is_active`, paramsFetch).then(resp => {
-                    Base.counter++; // Incrément du compteur de requêtes à l'API
+                    Base.counter++;
                     if (!resp.ok) {
-                        // Appel de l'authentification pour obtenir un token valide
                         Base.authenticate().then(() => {
-                            // On met à jour le token pour le prochain appel à l'API
                             myHeaders['X-BetaSeries-Token'] = Base.token;
                             fetchUri(resolve, reject);
                         }).catch(err => reject(err));
@@ -989,9 +741,6 @@ class Base {
             }
         });
     }
-    /*
-                    PROPERTIES
-    */
     description;
     characters;
     comments;
@@ -1003,9 +752,6 @@ class Base {
     mediaType;
     _elt;
     _listeners;
-    /*
-                    METHODS
-    */
     constructor(data) {
         if (!(data instanceof Object)) {
             throw new Error("data is not an object");
@@ -1013,11 +759,6 @@ class Base {
         this._initListeners();
         return this;
     }
-    /**
-     * Remplit l'objet avec les données fournit en paramètre
-     * @param  {Obj} data Les données provenant de l'API
-     * @returns this
-     */
     fill(data) {
         this.id = parseInt(data.id, 10);
         this.characters = [];
@@ -1039,10 +780,6 @@ class Base {
         this.description = data.description;
         return this;
     }
-    /**
-     * Initialize le tableau des écouteurs d'évènements
-     * @returns this
-     */
     _initListeners() {
         this._listeners = {};
         const EvtTypes = this.constructor.EventTypes;
@@ -1051,14 +788,7 @@ class Base {
         }
         return this;
     }
-    /**
-     * Permet d'ajouter un listener sur un type d'évenement
-     * @param  {string}   name Le type d'évenement
-     * @param  {Function} fn   La fonction à appeler
-     * @return {this}          L'instance du média
-     */
     addListener(name, fn) {
-        // On vérifie que le type d'event est pris en charge
         if (this.constructor.EventTypes.indexOf(name) < 0) {
             throw new Error(`${name} ne fait pas partit des events gérés par cette classe`);
         }
@@ -1068,12 +798,6 @@ class Base {
         this._listeners[name].push(fn);
         return this;
     }
-    /**
-     * Permet de supprimer un listener sur un type d'évenement
-     * @param  {string}   name Le type d'évenement
-     * @param  {Function} fn   La fonction qui était appelée
-     * @return {Base}          L'instance du média
-     */
     removeListener(name, fn) {
         if (this._listeners[name] !== undefined) {
             for (let l = 0; l < this._listeners[name].length; l++) {
@@ -1083,11 +807,6 @@ class Base {
         }
         return this;
     }
-    /**
-     * Appel les listeners pour un type d'évenement
-     * @param  {string} name Le type d'évenement
-     * @return {Show}        L'instance Show
-     */
     _callListeners(name) {
         if (this._listeners[name] !== undefined) {
             for (let l = 0; l < this._listeners[name].length; l++) {
@@ -1096,10 +815,6 @@ class Base {
         }
         return this;
     }
-    /**
-     * Sauvegarde l'objet en cache
-     * @return this
-     */
     save() {
         if (Base.cache instanceof CacheUS) {
             Base.cache.set(this.mediaType.plural, this.id, this);
@@ -1107,38 +822,18 @@ class Base {
         }
         return this;
     }
-    /**
-     * Retourne le DOMElement correspondant au média
-     * @returns {JQuery} Le DOMElement jQuery
-     */
     get elt() {
         return this._elt;
     }
-    /**
-     * Définit le DOMElement de référence pour ce média
-     * @param  {JQuery} elt DOMElement auquel est rattaché le média
-     */
     set elt(elt) {
         this._elt = elt;
     }
-    /**
-     * Retourne le nombre d'acteurs référencés dans ce média
-     * @returns {number}
-     */
     get nbCharacters() {
         return this.characters.length;
     }
-    /**
-     * Retourne le nombre de commentaires pour ce média
-     * @returns number
-     */
     get nbComments() {
         return this.comments.length;
     }
-    /**
-     * Décode le titre de la page
-     * @return {Base} This
-     */
     decodeTitle() {
         let $elt = this.elt.find('.blockInformations__title'), title = $elt.text();
         if (/&#/.test(title)) {
@@ -1146,13 +841,6 @@ class Base {
         }
         return this;
     }
-    /**
-     * Ajoute le nombre de votes à la note dans l'attribut title de la balise
-     * contenant la représentation de la note de la ressource
-     *
-     * @param  {Boolean} change  Indique si on doit changer l'attribut title du DOMElement
-     * @return {String}         Le titre modifié de la note
-     */
     changeTitleNote(change = true) {
         const $elt = this.elt.find('.js-render-stars');
         if (this.objNote.mean <= 0 || this.objNote.total <= 0) {
@@ -1160,14 +848,9 @@ class Base {
                 $elt.attr('title', 'Aucun vote');
             return;
         }
-        const votes = 'vote' + (this.objNote.total > 1 ? 's' : ''), 
-        // On met en forme le nombre de votes
-        total = new Intl.NumberFormat('fr-FR', { style: 'decimal', useGrouping: true })
-            .format(this.objNote.total), 
-        // On limite le nombre de chiffre après la virgule
-        note = this.objNote.mean.toFixed(1);
+        const votes = 'vote' + (this.objNote.total > 1 ? 's' : ''), total = new Intl.NumberFormat('fr-FR', { style: 'decimal', useGrouping: true })
+            .format(this.objNote.total), note = this.objNote.mean.toFixed(1);
         let title = `${total} ${votes} : ${note} / 5`;
-        // On ajoute la note du membre connecté, si il a voté
         if (Base.userIdentified() && this.objNote.user > 0) {
             title += `, votre note: ${this.objNote.user}`;
         }
@@ -1176,22 +859,13 @@ class Base {
         }
         return title;
     }
-    /**
-     * Ajoute le nombre de votes à la note de la ressource
-     * @return {Base}
-     */
     addNumberVoters() {
         const _this = this;
-        const votes = $('.stars.js-render-stars'); // ElementHTML ayant pour attribut le titre avec la note de la série
+        const votes = $('.stars.js-render-stars');
         let title = this.changeTitleNote(true);
-        // if (Base.debug) console.log('addNumberVoters - title: %s', title);
-        // On ajoute un observer sur l'attribut title de la note, en cas de changement lors d'un vote
         new MutationObserver((mutationsList) => {
             const changeTitleMutation = () => {
-                // On met à jour le nombre de votants, ainsi que la note du membre connecté
                 const upTitle = _this.changeTitleNote(false);
-                // if (Base.debug) console.log('Observer upTitle: %s', upTitle);
-                // On évite une boucle infinie
                 if (upTitle !== title) {
                     votes.attr('title', upTitle);
                     title = upTitle;
@@ -1199,8 +873,6 @@ class Base {
             };
             let mutation;
             for (mutation of mutationsList) {
-                // On vérifie si le titre a été modifié
-                // @TODO: A tester
                 if (!/vote/.test(mutation.target.nodeValue) && mutation.target.nodeValue != title) {
                     changeTitleMutation();
                 }
@@ -1214,11 +886,6 @@ class Base {
         });
         return this;
     }
-    /**
-     * Ajoute une note au média
-     * @param   {number} note Note du membre connecté pour le média
-     * @returns {Promise<boolean>}
-     */
     addVote(note) {
         const _this = this;
         return new Promise((resolve, reject) => {
@@ -1233,10 +900,6 @@ class Base {
             });
         });
     }
-    /**
-     * Récupère les commentaires du média sur l'API
-     * @returns {Promise<Base>}
-     */
     fetchComments(nbpp = 50, since = 0) {
         const _this = this;
         return new Promise((resolve, reject) => {
@@ -1257,7 +920,6 @@ class Base {
                         _this.comments = new Array();
                     }
                     else {
-                        // On modifie le flag de fin, vu qu'on rajoute des commentaires
                         this.comments[this.comments.length - 1].last = false;
                     }
                     for (let c = 0; c < data.comments.length; c++) {
@@ -1278,11 +940,6 @@ class Base {
             });
         });
     }
-    /**
-     * Retourne le commentaire correspondant à l'ID fournit en paramètre
-     * @param   {number} cId L'identifiant du commentaire
-     * @returns {CommentBS|null}
-     */
     getComment(cId) {
         for (let c = 0; c < this.comments.length; c++) {
             if (this.comments[c].id === cId) {
@@ -1291,11 +948,6 @@ class Base {
         }
         return null;
     }
-    /**
-     * Retourne le commentaire précédent celui fournit en paramètre
-     * @param   {number} cId L'identifiant du commentaire
-     * @returns {CommentBS|null}
-     */
     getPrevComment(cId) {
         for (let c = 0; c < this.comments.length; c++) {
             if (this.comments[c].id === cId && c > 0) {
@@ -1304,26 +956,15 @@ class Base {
         }
         return null;
     }
-    /**
-     * Retourne le commentaire suivant celui fournit en paramètre
-     * @param   {number} cId L'identifiant du commentaire
-     * @returns {CommentBS|null}
-     */
     getNextComment(cId) {
         const len = this.comments.length;
         for (let c = 0; c < this.comments.length; c++) {
-            // TODO: Vérifier que tous les commentaires ont été récupérer
             if (this.comments[c].id === cId && c < len - 1) {
                 return this.comments[c + 1];
             }
         }
         return null;
     }
-    /**
-     * Retourne les réponses d'un commentaire
-     * @param   {number} commentId Identifiant du commentaire original
-     * @returns {Array<CommentBS>}    Tableau des réponses
-     */
     async fetchRepliesOfComment(commentId) {
         const data = await Base.callApi(HTTP_VERBS.GET, 'comments', 'replies', { id: commentId, order: 'desc' });
         const replies = new Array();
@@ -1334,12 +975,6 @@ class Base {
         }
         return replies;
     }
-    /**
-     * Modifie le nombre de votes pour un commentaire
-     * @param   {number} commentId Identifiant du commentaire
-     * @param   {number} thumbs    Nombre de votes
-     * @returns {boolean}
-     */
     changeThumbsComment(commentId, thumbs) {
         for (let c = 0; c < this.comments.length; c++) {
             if (this.comments[c].id === commentId) {
@@ -1350,6 +985,7 @@ class Base {
         return false;
     }
 }
+
 class Media extends Base {
     followers;
     genres;
@@ -1364,11 +1000,6 @@ class Media extends Base {
         super(data);
         return this;
     }
-    /**
-     * Remplit l'objet avec les données fournit en paramètre
-     * @param  {Obj} data Les données provenant de l'API
-     * @returns {Media}
-     */
     fill(data) {
         this.followers = parseInt(data.followers, 10);
         this.imdb_id = data.imdb_id;
@@ -1399,33 +1030,15 @@ class Media extends Base {
         super.fill(data);
         return this;
     }
-    /**
-     * Indique si le média est enregistré sur le compte du membre
-     * @returns {boolean}
-     */
     get in_account() {
         return this._in_account;
     }
-    /**
-     * Définit si le média est enregistré sur le compte du membre
-     * @param {boolean} i Flag
-     */
     set in_account(i) {
         this._in_account = !!i;
     }
-    /**
-     * Retourne les similars associés au media
-     * @return {Promise<Media>}
-     */
     fetchSimilars() {
         return new Promise(resolve => resolve(this));
     }
-    /**
-     * Retourne le similar correspondant à l'identifiant
-     * @abstract
-     * @param  {number} id      L'identifiant du similar
-     * @return {Similar|void}   Le similar ou null
-     */
     getSimilar(id) {
         if (!this.similars)
             return null;
@@ -1437,6 +1050,7 @@ class Media extends Base {
         return null;
     }
 }
+
 class Images {
     constructor(data) {
         this.show = data.show;
@@ -1517,21 +1131,7 @@ class Showrunner {
     picture;
 }
 class Show extends Media {
-    /***************************************************/
-    /*                      STATIC                     */
-    /***************************************************/
-    /**
-     * Types d'évenements gérés par cette classe
-     * @type {Array}
-     */
     static EventTypes = new Array(EventTypes.UPDATE, EventTypes.SAVE, EventTypes.ADD, EventTypes.REMOVE);
-    /**
-     * Methode static servant à retourner un objet show
-     * à partir de son ID
-     * @param  {number} id             L'identifiant de la série
-     * @param  {boolean} [force=false] Indique si on utilise le cache ou non
-     * @return {Promise<Show>}
-     */
     static fetch(id, force = false) {
         return new Promise((resolve, reject) => {
             Base.callApi('GET', 'shows', 'display', { id: id }, force)
@@ -1539,9 +1139,6 @@ class Show extends Media {
                 .catch(err => reject(err));
         });
     }
-    /***************************************************/
-    /*                  PROPERTIES                     */
-    /***************************************************/
     aliases;
     creation;
     country;
@@ -1559,20 +1156,12 @@ class Show extends Media {
     social_links;
     status;
     thetvdb_id;
-    /***************************************************/
-    /*                      METHODS                    */
-    /***************************************************/
     constructor(data, element) {
         super(data);
         this.elt = element;
         return this.fill(data)._init();
     }
-    /**
-     * Initialise l'objet lors de sa construction et après son remplissage
-     * @returns {Show}
-     */
     _init() {
-        // On gère l'ajout et la suppression de la série dans le compte utilisateur
         if (this.in_account) {
             this.deleteShowClick();
         }
@@ -1581,63 +1170,18 @@ class Show extends Media {
         }
         return this;
     }
-    /**
-     * Indique si le média est enregistré sur le compte du membre
-     * @returns {boolean}
-     */
-    get in_account() {
-        return this._in_account;
-    }
-    /**
-     * Définit si le média est enregistré sur le compte du membre
-     * @param {boolean} i Flag
-     */
-    set in_account(i) {
-        this._in_account = !!i;
-        /*if (this.id !== null && this.id !== undefined) {
-            if (this._in_account) {
-                this.deleteShowClick();
-            } else {
-                this.addShowClick(true);
-            }
-        }*/
-    }
-    /**
-     * Récupère les données de la série sur l'API
-     * @param  {boolean} [force=true]   Indique si on utilise les données en cache
-     * @return {Promise<*>}             Les données de la série
-     */
     fetch(force = true) {
         return Base.callApi('GET', 'shows', 'display', { id: this.id }, force);
     }
-    /**
-     * isEnded - Indique si la série est terminée
-     *
-     * @return {boolean}  Terminée ou non
-     */
     isEnded() {
         return (this.status.toLowerCase() === 'ended') ? true : false;
     }
-    /**
-     * isArchived - Indique si la série est archivée
-     *
-     * @return {boolean}  Archivée ou non
-     */
     isArchived() {
         return this.user.archived;
     }
-    /**
-     * isFavorite - Indique si la série est dans les favoris
-     *
-     * @returns {boolean}
-     */
     isFavorite() {
         return this.user.favorited;
     }
-    /**
-     * addToAccount - Ajout la série sur le compte du membre connecté
-     * @return {Promise<Show>} Promise of show
-     */
     addToAccount() {
         const _this = this;
         if (this.in_account)
@@ -1654,10 +1198,6 @@ class Show extends Media {
             });
         });
     }
-    /**
-     * Remove Show from account member
-     * @return {Promise<Show>} Promise of show
-     */
     removeFromAccount() {
         const _this = this;
         if (!this.in_account)
@@ -1674,10 +1214,6 @@ class Show extends Media {
             });
         });
     }
-    /**
-     * Archive la série
-     * @return {Promise<Show>} Promise of show
-     */
     archive() {
         const _this = this;
         return new Promise((resolve, reject) => {
@@ -1691,10 +1227,6 @@ class Show extends Media {
             });
         });
     }
-    /**
-     * Désarchive la série
-     * @return {Promise<Show>} Promise of show
-     */
     unarchive() {
         const _this = this;
         return new Promise((resolve, reject) => {
@@ -1708,10 +1240,6 @@ class Show extends Media {
             });
         });
     }
-    /**
-     * Ajoute la série aux favoris
-     * @return {Promise<Show>} Promise of show
-     */
     favorite() {
         const _this = this;
         return new Promise((resolve, reject) => {
@@ -1725,10 +1253,6 @@ class Show extends Media {
             });
         });
     }
-    /**
-     * Supprime la série des favoris
-     * @return {Promise<Show>} Promise of show
-     */
     unfavorite() {
         const _this = this;
         return new Promise((resolve, reject) => {
@@ -1742,12 +1266,6 @@ class Show extends Media {
             });
         });
     }
-    /**
-     * Met à jour les données de la série
-     * @param  {Boolean}  [force=false] Forcer la récupération des données sur l'API
-     * @param  {Function} [cb=noop]     Fonction de callback
-     * @return {Promise<Show>}          Promesse (Show)
-     */
     update(force = false, cb = Base.noop) {
         const _this = this;
         return new Promise((resolve, reject) => {
@@ -1766,12 +1284,6 @@ class Show extends Media {
             });
         });
     }
-    /**
-     * Met à jour le rendu de la barre de progression
-     * et du prochain épisode
-     * @param  {Function} cb Fonction de callback
-     * @return {void}
-     */
     updateRender(cb = Base.noop) {
         this.updateProgressBar();
         this.updateNextEpisode();
@@ -1784,10 +1296,8 @@ class Show extends Media {
                 note_user: note.user
             });
         }
-        // Si il n'y a plus d'épisodes à regarder
         if (this.user.remaining === 0 && this.in_account) {
             let promise = new Promise(resolve => { return resolve(void 0); });
-            // On propose d'archiver si la série n'est plus en production
             if (this.in_account && this.isEnded() && !this.isArchived()) {
                 if (Base.debug)
                     console.log('Série terminée, popup confirmation archivage');
@@ -1806,7 +1316,6 @@ class Show extends Media {
                     });
                 });
             }
-            // On propose de noter la série
             if (note.user === 0) {
                 if (Base.debug)
                     console.log('Proposition de voter pour la série');
@@ -1830,21 +1339,11 @@ class Show extends Media {
             cb();
         }
     }
-    /**
-     * Met à jour la barre de progression de visionnage de la série
-     * @return {void}
-     */
     updateProgressBar() {
         if (Base.debug)
             console.log('updateProgressBar');
-        // On met à jour la barre de progression
         jQuery('.progressBarShow').css('width', this.user.status.toFixed(1) + '%');
     }
-    /**
-     * Met à jour le bloc du prochain épisode à voir
-     * @param   {Function} [cb=noop] Fonction de callback
-     * @returns {void}
-     */
     updateNextEpisode(cb = Base.noop) {
         if (Base.debug)
             console.log('updateNextEpisode');
@@ -1852,15 +1351,11 @@ class Show extends Media {
         if ($nextEpisode.length > 0 && this.user.next && !isNaN(this.user.next.id)) {
             if (Base.debug)
                 console.log('nextEpisode et show.user.next OK', this.user);
-            // Modifier l'image
             const $img = $nextEpisode.find('img'), $remaining = $nextEpisode.find('.remaining div'), $parent = $img.parent('div'), height = $img.attr('height'), width = $img.attr('width'), next = this.user.next, src = `${Base.api.url}/pictures/episodes?key=${Base.userKey}&id=${next.id}&width=${width}&height=${height}`;
             $img.remove();
             $parent.append(`<img src="${src}" height="${height}" width="${width}" />`);
-            // Modifier le titre
             $nextEpisode.find('.titleEpisode').text(`${next.code.toUpperCase()} - ${next.title}`);
-            // Modifier le lien
             $nextEpisode.attr('href', $nextEpisode.attr('href').replace(/s\d{2}e\d{2}/, next.code.toLowerCase()));
-            // Modifier le nombre d'épisodes restants
             $remaining.text($remaining.text().trim().replace(/^\d+/, this.user.remaining.toString()));
         }
         else if ($nextEpisode.length <= 0 && this.user.next && !isNaN(this.user.next.id)) {
@@ -1872,11 +1367,6 @@ class Show extends Media {
             $nextEpisode.remove();
         }
         cb();
-        /**
-         * Construit une vignette pour le prochain épisode à voir
-         * @param  {Show} res  Objet API show
-         * @return {void}
-         */
         function buildNextEpisode(res) {
             const height = 70, width = 124, src = `${Base.api.url}/pictures/episodes?key=${Base.userKey}&id=${res.user.next.id}&width=${width}&height=${height}`, serieTitle = res.resource_url.split('/').pop();
             jQuery('.blockInformations__actions').after(`<a href="/episode/${serieTitle}/${res.user.next.code.toLowerCase()}" class="blockNextEpisode media">
@@ -1899,18 +1389,10 @@ class Show extends Media {
                 </a>`);
         }
     }
-    /**
-     * On gère l'ajout de la série dans le compte utilisateur
-     *
-     * @param   {boolean} trigEpisode Flag indiquant si l'appel vient d'un episode vu ou du bouton
-     * @returns {void}
-     */
     addShowClick(trigEpisode = false) {
         const _this = this;
         const vignettes = $('#episodes .slide__image');
-        // Vérifier si le membre a ajouter la série à son compte
         if (!this.in_account) {
-            // Remplacer le DOMElement supprime l'eventHandler
             jQuery('#reactjs-show-actions').html(`
                 <div class="blockInformations__action">
                     <button class="btn-reset btn-transparent" type="button">
@@ -1922,16 +1404,13 @@ class Show extends Media {
                     </button>
                     <div class="label">Ajouter</div>
                 </div>`);
-            // On ajoute un event click pour masquer les vignettes
             jQuery('#reactjs-show-actions > div > button').off('click').one('click', (e) => {
                 e.stopPropagation();
                 e.preventDefault();
                 if (Base.debug)
                     console.groupCollapsed('AddShow');
                 const done = function () {
-                    // On met à jour les boutons Archiver et Favori
                     changeBtnAdd(_this);
-                    // On met à jour le bloc du prochain épisode à voir
                     _this.updateNextEpisode(function () {
                         if (Base.debug)
                             console.groupEnd();
@@ -1949,13 +1428,6 @@ class Show extends Media {
                 });
             });
         }
-        /**
-         * Ajoute les items du menu Options, ainsi que les boutons Archiver et Favoris
-         * et on ajoute un voile sur les images des épisodes non-vu
-         *
-         * @param  {Show} show L'objet de type Show
-         * @return {void}
-         */
         function changeBtnAdd(show) {
             let $optionsLinks = $('#dropdownOptions').siblings('.dropdown-menu').children('a.header-navigation-item');
             if ($optionsLinks.length <= 2) {
@@ -1992,12 +1464,10 @@ class Show extends Media {
                 jQuery('#dropdownOptions').siblings('.dropdown-menu.header-navigation')
                     .append(templateOpts);
             }
-            // On remplace le bouton Ajouter par les boutons Archiver et Favoris
             const divs = jQuery('#reactjs-show-actions > div');
             if (divs.length === 1) {
                 jQuery('#reactjs-show-actions').remove();
                 let $container = jQuery('.blockInformations__actions'), method = 'prepend';
-                // Si le bouton VOD est présent, on place les boutons après
                 if ($('#dropdownWatchOn').length > 0) {
                     $container = jQuery('#dropdownWatchOn').parent();
                     method = 'after';
@@ -2032,7 +1502,6 @@ class Show extends Media {
                             </div>
                         </div>`);
                 show.elt = jQuery('reactjs-show-actions');
-                // On ofusque l'image des épisodes non-vu
                 let vignette;
                 for (let v = 0; v < vignettes.length; v++) {
                     vignette = $(vignettes.get(v));
@@ -2040,7 +1509,6 @@ class Show extends Media {
                         vignette.find('img.js-lazy-image').attr('style', 'filter: blur(5px);');
                     }
                 }
-                // On doit ajouter le bouton pour noter le média
                 const $stars = jQuery('.blockInformations__metadatas .js-render-stars');
                 $stars.replaceWith(`
                     <button type="button" class="btn-reset fontSize0">
@@ -2060,23 +1528,16 @@ class Show extends Media {
             });
         }
     }
-    /**
-     * Gère la suppression de la série du compte utilisateur
-     * @returns {void}
-     */
     deleteShowClick() {
         const _this = this;
         let $optionsLinks = $('#dropdownOptions').siblings('.dropdown-menu').children('a.header-navigation-item');
-        // Le menu Options est au complet
         if (this.in_account && $optionsLinks.length > 2) {
             this.addEventBtnsArchiveAndFavoris();
-            // Gestion de la suppression de la série du compte utilisateur
             $optionsLinks.last().removeAttr('onclick').off('click').on('click', (e) => {
                 e.stopPropagation();
                 e.preventDefault();
                 const done = function () {
                     const afterNotif = function () {
-                        // On nettoie les propriétés servant à l'update de l'affichage
                         _this.user.status = 0;
                         _this.user.archived = false;
                         _this.user.favorited = false;
@@ -2084,7 +1545,6 @@ class Show extends Media {
                         _this.user.last = "S00E00";
                         _this.user.next.id = NaN;
                         _this.save();
-                        // On remet le bouton Ajouter
                         jQuery('#reactjs-show-actions').html(`
                             <div class="blockInformations__action">
                                 <button class="btn-reset btn-transparent btn-add" type="button">
@@ -2096,11 +1556,9 @@ class Show extends Media {
                                 </button>
                                 <div class="label">${Base.trans('show.button.add.label')}</div>
                             </div>`);
-                        // On supprime les items du menu Options
                         $optionsLinks.first().siblings().each((i, e) => { $(e).remove(); });
-                        // Nettoyage de l'affichage des épisodes
                         const checks = jQuery('#episodes .slide_flex');
-                        let promise, update = false; // Flag pour l'update de l'affichage
+                        let promise, update = false;
                         if (_this.currentSeason.episodes && _this.currentSeason.episodes.length > 0) {
                             promise = new Promise(resolve => resolve(_this.currentSeason));
                         }
@@ -2118,16 +1576,15 @@ class Show extends Media {
                                     console.log('clean episode %d', e, update);
                                 season.episodes[e].updateRender('notSeen', update);
                             }
-                            _this.addShowClick();
                         });
-                        // On doit supprimer le bouton pour noter le média
                         const $stars = jQuery('.blockInformations__metadatas .js-render-stars');
                         $stars.parent().replaceWith(`
-                            <span class="stars js-render-stars">
-                                ${$stars.html()}
-                            </span>`);
+                        <span class="stars js-render-stars">
+                        ${$stars.html()}
+                        </span>`);
                         _this.elt = $('.blockInformations');
                         _this.addNumberVoters();
+                        _this.addShowClick();
                     };
                     new PopupAlert({
                         title: Base.trans("popup.delete_show_success.title"),
@@ -2136,18 +1593,23 @@ class Show extends Media {
                         callback_yes: afterNotif
                     });
                 };
-                // Supprimer la série du compte utilisateur
                 new PopupAlert({
                     title: Base.trans("popup.delete_show.title", { "%title%": _this.title }),
                     text: Base.trans("popup.delete_show.text", { "%title%": _this.title }),
                     callback_yes: function () {
+                        if (Base.debug)
+                            console.groupCollapsed('delete show');
                         _this.removeFromAccount()
                             .then(() => done(), err => {
                             if (err && err.code !== undefined && err.code === 2004) {
                                 done();
+                                if (Base.debug)
+                                    console.groupEnd();
                                 return;
                             }
                             Media.notification('Erreur de suppression de la série', err);
+                            if (Base.debug)
+                                console.groupEnd();
                         });
                     },
                     callback_no: function () { }
@@ -2155,10 +1617,6 @@ class Show extends Media {
             });
         }
     }
-    /**
-     * Ajoute un eventHandler sur les boutons Archiver et Favoris
-     * @returns {void}
-     */
     addEventBtnsArchiveAndFavoris() {
         const _this = this;
         let $btnArchive = jQuery('#reactjs-show-actions button.btn-archive'), $btnFavoris = jQuery('#reactjs-show-actions button.btn-favoris');
@@ -2168,13 +1626,11 @@ class Show extends Media {
             $('#reactjs-show-actions button:last').addClass('btn-favoris');
             $btnFavoris = jQuery('#reactjs-show-actions button.btn-favoris');
         }
-        // Event bouton Archiver
         $btnArchive.off('click').click((e) => {
             e.stopPropagation();
             e.preventDefault();
             if (Base.debug)
                 console.groupCollapsed('show-archive');
-            // Met à jour le bouton d'archivage de la série
             function updateBtnArchive(promise, transform, label, notif) {
                 promise.then(() => {
                     const $parent = $(e.currentTarget).parent();
@@ -2195,7 +1651,6 @@ class Show extends Media {
                 updateBtnArchive(_this.unarchive(), 'rotate(0deg)', 'show.button.archive.label', 'Erreur désarchivage de la série');
             }
         });
-        // Event bouton Favoris
         $btnFavoris.off('click').click((e) => {
             e.stopPropagation();
             e.preventDefault();
@@ -2237,16 +1692,12 @@ class Show extends Media {
             }
         });
     }
-    /**
-     * Ajoute la classification dans les détails de la ressource
-     */
     addRating() {
         if (Base.debug)
             console.log('addRating');
         if (this.rating) {
             let rating = Base.ratings[this.rating] !== undefined ? Base.ratings[this.rating] : null;
             if (rating !== null) {
-                // On ajoute la classification
                 jQuery('.blockInformations__details')
                     .append(`<li id="rating"><strong>Classification</strong>
                         <img src="${rating.img}" title="${rating.title}"/>
@@ -2254,12 +1705,6 @@ class Show extends Media {
             }
         }
     }
-    /**
-     * Définit la saison courante
-     * @param   {number} seasonNumber Le numéro de la saison courante (commence à 1)
-     * @returns {Show}  L'instance de la série
-     * @throws  {Error} if seasonNumber is out of range of seasons
-     */
     setCurrentSeason(seasonNumber) {
         if (seasonNumber <= 0 || seasonNumber > this.seasons.length) {
             throw new Error("seasonNumber is out of range of seasons");
@@ -2268,6 +1713,7 @@ class Show extends Media {
         return this;
     }
 }
+
 var MovieStatus;
 (function (MovieStatus) {
     MovieStatus[MovieStatus["TOSEE"] = 0] = "TOSEE";
@@ -2275,16 +1721,6 @@ var MovieStatus;
     MovieStatus[MovieStatus["DONTWANTTOSEE"] = 2] = "DONTWANTTOSEE";
 })(MovieStatus = MovieStatus || (MovieStatus = {}));
 class Movie extends Media {
-    /***************************************************/
-    /*                      STATIC                     */
-    /***************************************************/
-    /**
-     * Methode static servant à retourner un objet show
-     * à partir de son ID
-     * @param  {number} id             L'identifiant de la série
-     * @param  {boolean} [force=false] Indique si on utilise le cache ou non
-     * @return {Promise<Movie>}
-     */
     static fetch(id, force = false) {
         return new Promise((resolve, reject) => {
             Base.callApi('GET', 'movies', 'movie', { id: id }, force)
@@ -2292,9 +1728,6 @@ class Movie extends Media {
                 .catch(err => reject(err));
         });
     }
-    /***************************************************/
-    /*                  PROPERTIES                     */
-    /***************************************************/
     backdrop;
     director;
     original_release_date;
@@ -2308,9 +1741,6 @@ class Movie extends Media {
     tmdb_id;
     trailer;
     url;
-    /***************************************************/
-    /*                      METHODS                    */
-    /***************************************************/
     constructor(data, element) {
         if (data.user.in_account !== undefined) {
             data.in_account = data.user.in_account;
@@ -2320,11 +1750,6 @@ class Movie extends Media {
         this.elt = element;
         return this.fill(data);
     }
-    /**
-     * Remplit l'objet avec les données fournit en paramètre
-     * @param  {any} data Les données provenant de l'API
-     * @returns {Movie}
-     */
     fill(data) {
         if (data.user.in_account !== undefined) {
             data.in_account = data.user.in_account;
@@ -2347,37 +1772,15 @@ class Movie extends Media {
         super.fill(data);
         return this.save();
     }
-    /*
-    Bouton Vu: $(`.blockInformations__action .label:contains("${Base.trans('film.button.watched.label')}")`).siblings('button')
-    Bouton A voir: $(`.blockInformations__action .label:contains("${Base.trans('film.button.to_watch.label')}")`).siblings('button')
-    Bouton Favori: $(`.blockInformations__action .label:contains("${Base.trans('film.button.favorite.label')}")`).siblings('button')
-    */
-    /**
-     * Définit le film, sur le compte du membre connecté, comme "vu"
-     * @returns {Promise<Movie>}
-     */
     markAsView() {
         return this.changeStatus(MovieStatus.SEEN);
     }
-    /**
-     * Définit le film, sur le compte du membre connecté, comme "à voir"
-     * @returns {Promise<Movie>}
-     */
     markToSee() {
         return this.changeStatus(MovieStatus.TOSEE);
     }
-    /**
-     * Définit le film, sur le compte du membre connecté, comme "ne pas voir"
-     * @returns {Promise<Movie>}
-     */
     markDontWantToSee() {
         return this.changeStatus(MovieStatus.DONTWANTTOSEE);
     }
-    /**
-     * Modifie le statut du film sur le compte du membre connecté
-     * @param   {number} state     Le nouveau statut du film
-     * @returns {Promise<Movie>}    L'instance du film
-     */
     changeStatus(state) {
         const _this = this;
         if (!Base.userIdentified() || this.user.status === state) {
@@ -2397,6 +1800,7 @@ class Movie extends Media {
         });
     }
 }
+
 class Subtitle {
     constructor(data) {
         this.id = parseInt(data.id, 10);
@@ -2415,25 +1819,11 @@ class Subtitle {
     url;
     date;
 }
+
 class Season {
-    /**
-     * @type {number} Numéro de la saison dans la série
-     */
     number;
-    /**
-     * @type {Array<Episode>} Tableau des épisodes de la saison
-     */
     episodes;
-    /**
-     * @type {Show} L'objet Show auquel est rattaché la saison
-     */
     _show;
-    /**
-     * Constructeur de la classe Season
-     * @param   {Obj}   data    Les données provenant de l'API
-     * @param   {Show}  show    L'objet Show contenant la saison
-     * @returns {Season}
-     */
     constructor(data, show) {
         this.number = parseInt(data.number, 10);
         this._show = show;
@@ -2442,10 +1832,6 @@ class Season {
         }
         return this;
     }
-    /**
-     * Récupère les épisodes de la saison sur l'API
-     * @returns {Promise<Season>}
-     */
     fetchEpisodes() {
         if (!this.number || this.number <= 0) {
             throw new Error('season number incorrect');
@@ -2464,11 +1850,6 @@ class Season {
             });
         });
     }
-    /**
-     * Retourne l'épisode correspondant à l'identifiant fournit
-     * @param  {number} id
-     * @returns {Episode}
-     */
     getEpisode(id) {
         for (let e = 0; e < this.episodes.length; e++) {
             if (this.episodes[e].id === id) {
@@ -2477,10 +1858,6 @@ class Season {
         }
         return null;
     }
-    /**
-     * Retourne le nombre d'épisodes vus
-     * @returns {number} Le nombre d'épisodes vus dans la saison
-     */
     getNbEpisodesSeen() {
         let nbEpisodesSeen = 0;
         for (let e = 0; e < this.episodes.length; e++) {
@@ -2489,10 +1866,6 @@ class Season {
         }
         return nbEpisodesSeen;
     }
-    /**
-     * Retourne le nombre d'épisodes spéciaux
-     * @returns {number} Le nombre d'épisodes spéciaux
-     */
     getNbEpisodesSpecial() {
         let nbEpisodesSpecial = 0;
         for (let e = 0; e < this.episodes.length; e++) {
@@ -2503,92 +1876,29 @@ class Season {
     }
 }
 class Episode extends Base {
-    /**
-     * @type {Season} L'objet Season contenant l'épisode
-     */
     _season;
-    /**
-     * @type {string} Le code de l'épisode SXXEXX
-     */
     code;
-    /**
-     * @type {Date} La date de sortie de l'épisode
-     */
     date;
-    /**
-     * @type {string}
-     */
     director;
-    /**
-     * @type {number} Le numéro de l'épisode dans la saison
-     */
     episode;
-    /**
-     * @type {number} Le numéro de l'épisode dans la série
-     */
     global;
-    /**
-     * @type {number} Le numéro de la saison
-     */
     numSeason;
-    /**
-     * @type {Array<Platform_link>} Les plateformes de diffusion
-     */
     platform_links;
-    /**
-     * @type {ReleasesSvod}
-     */
     releasesSvod;
-    /**
-     * @type {number} Nombre de membres de BS à avoir vu l'épisode
-     */
     seen_total;
-    /**
-     * @type {Show} L'objet Show contenant l'épisode
-     */
     show;
-    /**
-     * @type {boolean} Indique si il s'agit d'un épisode spécial
-     */
     special;
-    /**
-     * @type {Array<Subtitle>} Tableau des sous-titres dispo sur BS
-     */
     subtitles;
-    /**
-     * @type {number} Identifiant de l'épisode sur thetvdb.com
-     */
     thetvdb_id;
-    /**
-     * @type {Array<WatchedBy>} Tableau des amis ayant vu l'épisode
-     */
     watched_by;
-    /**
-     * @type {Array<string>} Tableau des scénaristes de l'épisode
-     */
     writers;
-    /**
-     * @type {string} Identifiant de la vidéo sur Youtube
-     */
     youtube_id;
-    /**
-     * Constructeur de la classe Episode
-     * @param   {Obj}       data    Les données provenant de l'API
-     * @param   {Show}      show    L'objet Show
-     * @param   {Season}    season  L'objet Season contenant l'épisode
-     * @returns {Episode}
-     */
     constructor(data, show, season) {
         super(data);
         this.show = show;
         this._season = season;
         return this.fill(data);
     }
-    /**
-     * Remplit l'objet avec les données fournit en paramètre
-     * @param  {any} data Les données provenant de l'API
-     * @returns {Episode}
-     */
     fill(data) {
         this.code = data.code;
         this.date = new Date(data.date);
@@ -2614,29 +1924,14 @@ class Episode extends Base {
         super.fill(data);
         return this.save();
     }
-    /**
-     * Ajoute le titre de l'épisode à l'attribut Title
-     * du DOMElement correspondant au titre de l'épisode
-     * sur la page Web
-     *
-     * @return {Episode} L'épisode
-     */
     addAttrTitle() {
-        // Ajout de l'attribut title pour obtenir le nom complet de l'épisode, lorsqu'il est tronqué
         if (this.elt)
             this.elt.find('.slide__title').attr('title', this.title);
         return this;
     }
-    /**
-     * Met à jour le DOMElement .checkSeen avec les
-     * données de l'épisode (id, pos, special)
-     * @param  {number} pos  La position de l'épisode dans la liste
-     * @return {Episode}
-     */
     initCheckSeen(pos) {
         const $checkbox = this.elt.find('.checkSeen');
         if ($checkbox.length > 0 && this.user.seen) {
-            // On ajoute l'attribut ID et la classe 'seen' à la case 'checkSeen' de l'épisode déjà vu
             $checkbox.attr('id', 'episode-' + this.id);
             $checkbox.attr('data-id', this.id);
             $checkbox.attr('data-pos', pos);
@@ -2645,7 +1940,6 @@ class Episode extends Base {
             $checkbox.addClass('seen');
         }
         else if ($checkbox.length <= 0 && !this.user.seen && !this.user.hidden) {
-            // On ajoute la case à cocher pour permettre d'indiquer l'épisode comme vu
             this.elt.find('.slide__image')
                 .append(`<div id="episode-${this.id}"
                                 class="checkSeen"
@@ -2661,32 +1955,23 @@ class Episode extends Base {
         }
         return this;
     }
-    /**
-     * Met à jour les infos de la vignette et appelle la fonction d'update du rendu
-     * @param  {number} pos La position de l'épisode dans la liste
-     * @return {boolean}    Indique si il y a eu un changement
-     */
     updateCheckSeen(pos) {
         const $checkSeen = this.elt.find('.checkSeen');
         let changed = false;
         if ($checkSeen.length > 0 && $checkSeen.attr('id') === undefined) {
             if (Base.debug)
                 console.log('ajout de l\'attribut ID à l\'élément "checkSeen"');
-            // On ajoute l'attribut ID
             $checkSeen.attr('id', 'episode-' + this.id);
             $checkSeen.data('id', this.id);
             $checkSeen.data('pos', pos);
             $checkSeen.data('special', this.special ? '1' : '0');
         }
-        // if (Base.debug) console.log('updateCheckSeen', {seen: this.user.seen, elt: this.elt, checkSeen: $checkSeen.length, classSeen: $checkSeen.hasClass('seen'), pos: pos, Episode: this});
-        // Si le membre a vu l'épisode et qu'il n'est pas indiqué, on change le statut
         if (this.user.seen && $checkSeen.length > 0 && !$checkSeen.hasClass('seen')) {
             if (Base.debug)
                 console.log('Changement du statut (seen) de l\'épisode %s', this.code);
             this.updateRender('seen', false);
             changed = true;
         }
-        // Si le membre n'a pas vu l'épisode et qu'il n'est pas indiqué, on change le statut
         else if (!this.user.seen && $checkSeen.length > 0 && $checkSeen.hasClass('seen')) {
             if (Base.debug)
                 console.log('Changement du statut (notSeen) de l\'épisode %s', this.code);
@@ -2699,20 +1984,9 @@ class Episode extends Base {
         }
         return changed;
     }
-    /**
-     * Retourne le code HTML du titre de la popup
-     * pour l'affichage de la description
-     * @return {string}
-     */
     getTitlePopup() {
         return `<span style="color: var(--link_color);">Synopsis épisode ${this.code}</span>`;
     }
-    /**
-     * Modifie le statut d'un épisode sur l'API
-     * @param  {String} status    Le nouveau statut de l'épisode
-     * @param  {String} method    Verbe HTTP utilisé pour la requête à l'API
-     * @return {void}
-     */
     updateStatus(status, method) {
         const _this = this;
         const pos = this.elt.find('.checkSeen').data('pos');
@@ -2734,7 +2008,6 @@ class Episode extends Base {
                 });
             };
             const $vignettes = jQuery('#episodes .checkSeen');
-            // On verifie si les épisodes précédents ont bien été indiqués comme vu
             for (let v = 0; v < pos; v++) {
                 if (!$($vignettes.get(v)).hasClass('seen')) {
                     promise = createPromise();
@@ -2744,7 +2017,7 @@ class Episode extends Base {
         }
         promise.then((response) => {
             if (method === HTTP_VERBS.POST && !response) {
-                args.bulk = false; // Flag pour ne pas mettre les épisodes précédents comme vus automatiquement
+                args.bulk = false;
             }
             Base.callApi(method, 'episodes', 'watched', args).then((data) => {
                 if (Base.debug)
@@ -2752,13 +2025,10 @@ class Episode extends Base {
                 if (!(_this.show instanceof Show) && Base.cache.has(DataTypesCache.shows, data.show.id)) {
                     _this.show = Base.cache.get(DataTypesCache.shows, data.show.id);
                 }
-                // Si un épisode est vu et que la série n'a pas été ajoutée
-                // au compte du membre connecté
                 if (!_this.show.in_account && data.episode.show.in_account) {
                     _this.show.in_account = true;
                     _this.show.save();
                 }
-                // On met à jour l'objet Episode
                 if (method === HTTP_VERBS.POST && response && pos) {
                     const $vignettes = jQuery('#episodes .slide_flex');
                     let episode = null;
@@ -2796,12 +2066,6 @@ class Episode extends Base {
             });
         });
     }
-    /**
-     * Change le statut visuel de la vignette sur le site
-     * @param  {String} newStatus     Le nouveau statut de l'épisode
-     * @param  {bool}   [update=true] Mise à jour de la ressource en cache et des éléments d'affichage
-     * @return {Episode}
-     */
     updateRender(newStatus, update = true) {
         const _this = this;
         const $elt = this.elt.find('.checkSeen');
@@ -2810,22 +2074,19 @@ class Episode extends Base {
         if (Base.debug)
             console.log('changeStatus', { elt: $elt, status: newStatus, update: update });
         if (newStatus === 'seen') {
-            $elt.css('background', ''); // On ajoute le check dans la case à cocher
-            $elt.addClass('seen'); // On ajoute la classe 'seen'
+            $elt.css('background', '');
+            $elt.addClass('seen');
             $elt.attr('title', Base.trans("member_shows.remove"));
-            // On supprime le voile masquant sur la vignette pour voir l'image de l'épisode
             $elt.parents('div.slide__image').first().find('img').removeAttr('style');
             $elt.parents('div.slide_flex').first().removeClass('slide--notSeen');
             const moveSeason = function () {
                 const slideCurrent = jQuery('#seasons div.slide--current');
-                // On check la saison
                 slideCurrent.find('.slide__image').prepend('<div class="checkSeen"></div>');
                 slideCurrent
                     .removeClass('slide--notSeen')
                     .addClass('slide--seen');
                 if (Base.debug)
                     console.log('Tous les épisodes de la saison ont été vus', slideCurrent);
-                // Si il y a une saison suivante, on la sélectionne
                 if (slideCurrent.next().length > 0) {
                     if (Base.debug)
                         console.log('Il y a une autre saison');
@@ -2836,8 +2097,6 @@ class Episode extends Base {
                 }
             };
             const lenSeen = _this._season.getNbEpisodesSeen();
-            //if (Base.debug) console.log('Episode.updateRender', {lenEpisodes: lenEpisodes, lenNotSpecial: lenNotSpecial, lenSeen: lenSeen});
-            // Si tous les épisodes de la saison ont été vus
             if (lenSeen === lenEpisodes) {
                 moveSeason();
             }
@@ -2855,10 +2114,9 @@ class Episode extends Base {
             }
         }
         else {
-            $elt.css('background', 'rgba(13,21,28,.2)'); // On enlève le check dans la case à cocher
-            $elt.removeClass('seen'); // On supprime la classe 'seen'
+            $elt.css('background', 'rgba(13,21,28,.2)');
+            $elt.removeClass('seen');
             $elt.attr('title', Base.trans("member_shows.markas"));
-            // On remet le voile masquant sur la vignette de l'épisode
             $elt.parents('div.slide__image').first()
                 .find('img')
                 .attr('style', 'filter: blur(5px);');
@@ -2887,23 +2145,15 @@ class Episode extends Base {
         }
         return this;
     }
-    /**
-     * Affiche/masque le spinner de modification de l'épisode
-     *
-     * @param  {boolean}  display  Le flag indiquant si afficher ou masquer
-     * @return {Episode}
-     */
     toggleSpinner(display) {
         if (!display) {
             jQuery('.spinner').remove();
-            // if (Base.debug) console.log('toggleSpinner');
             if (Base.debug)
                 console.groupEnd();
         }
         else {
             if (Base.debug)
                 console.groupCollapsed('episode checkSeen');
-            // if (Base.debug) console.log('toggleSpinner');
             this.elt.find('.slide__image').first().prepend(`
                 <div class="spinner">
                     <div class="spinner-item"></div>
@@ -2914,8 +2164,8 @@ class Episode extends Base {
         return this;
     }
 }
+
 class Similar extends Media {
-    /* Interface implMovie */
     backdrop;
     director;
     original_release_date;
@@ -2929,7 +2179,6 @@ class Similar extends Media {
     tmdb_id;
     trailer;
     url;
-    /* Interface implShow */
     aliases;
     creation;
     country;
@@ -2958,11 +2207,6 @@ class Similar extends Media {
         this.mediaType = type;
         return this.fill(data);
     }
-    /**
-     * Remplit l'objet avec les données fournit en paramètre
-     * @param  {Obj} data Les données provenant de l'API
-     * @returns {Similar}
-     */
     fill(data) {
         if (this.mediaType.singular === MediaType.show) {
             this.aliases = data.aliases;
@@ -3018,11 +2262,6 @@ class Similar extends Media {
         super.fill(data);
         return this;
     }
-    /**
-     * Récupère les données de la série sur l'API
-     * @param  {boolean} [force=true]   Indique si on utilise les données en cache
-     * @return {Promise<*>}             Les données de la série
-     */
     fetch(force = true) {
         let action = 'display';
         if (this.mediaType.singular === MediaType.movie) {
@@ -3030,30 +2269,18 @@ class Similar extends Media {
         }
         return Base.callApi('GET', this.mediaType.plural, action, { id: this.id }, force);
     }
-    /**
-     * Ajoute le bandeau Viewed sur le poster du similar
-     * @return {Similar}
-     */
     addViewed() {
         const $slideImg = this.elt.find('a.slide__image');
-        // Si la série a été vue ou commencée
         if (this.user.status &&
             ((this.mediaType.singular === MediaType.movie && this.user.status === 1) ||
                 (this.mediaType.singular === MediaType.show && this.user.status > 0))) {
-            // On ajoute le bandeau "Viewed"
             $slideImg.prepend(`<img src="${Base.serverBaseUrl}/img/viewed.png" class="bandViewed"/>`);
         }
-        // On ajoute des infos pour la recherche du similar pour les popups
         $slideImg
             .attr('data-id', this.id)
             .attr('data-type', this.mediaType.singular);
         return this;
     }
-    /**
-     * Ajoute l'icône wrench à côté du titre du similar
-     * pour permettre de visualiser les données du similar
-     * @return {Similar}
-     */
     wrench() {
         const $title = this.elt.find('.slide__title'), _this = this;
         $title.html($title.html() +
@@ -3066,8 +2293,7 @@ class Similar extends Media {
         $title.find('.popover-wrench').click((e) => {
             e.stopPropagation();
             e.preventDefault();
-            const $dataRes = $('#dialog-resource .data-resource'), // DOMElement contenant le rendu JSON de la ressource
-            html = document.documentElement;
+            const $dataRes = $('#dialog-resource .data-resource'), html = document.documentElement;
             const onShow = function () {
                 html.style.overflowY = 'hidden';
                 jQuery('#dialog-resource')
@@ -3080,7 +2306,6 @@ class Similar extends Media {
                     .css('z-index', '0')
                     .css('overflow', 'none');
             };
-            //if (debug) console.log('Popover Wrench', eltId, self);
             this.fetch().then(function (data) {
                 $dataRes.empty().append(renderjson.set_show_to_level(2)(data[_this.mediaType.singular]));
                 jQuery('#dialog-resource-title span.counter').empty().text('(' + Base.counter + ' appels API)');
@@ -3094,14 +2319,8 @@ class Similar extends Media {
         });
         return this;
     }
-    /**
-     * Retourne le contenu HTML pour la popup
-     * de présentation du similar
-     * @return {string}
-     */
     getContentPopup() {
         const _this = this;
-        //if (debug) console.log('similars tempContentPopup', objRes);
         let description = this.description;
         if (description.length > 200) {
             description = description.substring(0, 200) + '…';
@@ -3162,7 +2381,6 @@ class Similar extends Media {
             }
             template += `<p><u>Statut:</u> <strong>${status}</strong>, ${seen}${archived}</p>`;
         }
-        // movie
         else {
             template += '<p>';
             if (this.objNote.total > 0) {
@@ -3175,13 +2393,10 @@ class Similar extends Media {
                 template += 'Aucun vote';
             }
             template += '</p>';
-            // Ajouter une case à cocher pour l'état "Vu"
             template += `<p><label for="seen">Vu</label>
                 <input type="radio" class="movie movieSeen" name="movieState" value="1" data-movie="${this.id}" ${this.user.status === 1 ? 'checked' : ''} style="margin-right:5px;vertical-align:middle;"></input>`;
-            // Ajouter une case à cocher pour l'état "A voir"
             template += `<label for="mustSee">A voir</label>
                 <input type="radio" class="movie movieMustSee" name="movieState" value="0" data-movie="${this.id}" ${this.user.status === 0 ? 'checked' : ''} style="margin-right:5px;vertical-align:middle;"></input>`;
-            // Ajouter une case à cocher pour l'état "Ne pas voir"
             template += `<label for="notSee">Ne pas voir</label>
                 <input type="radio" class="movie movieNotSee" name="movieState" value="2" data-movie="${this.id}"  ${this.user.status === 2 ? 'checked' : ''} style="vertical-align:middle;"></input>`;
             template += `<button class="btn btn-danger reset" style="margin-left:10px;padding:2px 5px;${this.user.status < 0 ? 'display:none;' : ''}">Reset</button></p>`;
@@ -3193,12 +2408,7 @@ class Similar extends Media {
         }
         return template + `<p>${description}</p></div>`;
     }
-    /**
-     * Retourne le contenu HTML du titre de la popup
-     * @return {string}
-     */
     getTitlePopup() {
-        // if (Base.debug) console.log('getTitlePopup', this);
         let title = this.title;
         if (this.objNote.total > 0) {
             title += ' <span style="font-size: 0.8em;color:#000;">' +
@@ -3206,11 +2416,6 @@ class Similar extends Media {
         }
         return title;
     }
-    /**
-     * Met à jour l'attribut title de la note du similar
-     * @param  {Boolean} change Indique si il faut modifier l'attribut
-     * @return {string}         La valeur modifiée de l'attribut title
-     */
     updateTitleNote(change = true) {
         const $elt = this.elt.find('.stars-outer');
         if (this.objNote.mean <= 0 || this.objNote.total <= 0) {
@@ -3224,27 +2429,16 @@ class Similar extends Media {
         }
         return title;
     }
-    /**
-     * Ajoute la note, sous forme d'étoiles, du similar sous son titre
-     * @return {Similar}
-     */
     renderStars() {
-        // On ajoute le code HTML pour le rendu de la note
         this.elt.find('.slide__title').after('<div class="stars-outer"><div class="stars-inner"></div></div>');
         this.updateTitleNote();
         this.elt.find('.stars-inner').width(this.objNote.getPercentage() + '%');
         return this;
     }
-    /**
-     * Vérifie la présence de l'image du similar
-     * et tente d'en trouver une si celle-ci n'est pas présente
-     * @return {Similar}
-     */
     checkImg() {
         const $img = this.elt.find('img.js-lazy-image'), _this = this;
         if ($img.length <= 0) {
             if (this.mediaType.singular === MediaType.show && this.thetvdb_id && this.thetvdb_id > 0) {
-                // On tente de remplacer le block div 404 par une image
                 this.elt.find('div.block404').replaceWith(`
                     <img class="u-opacityBackground fade-in"
                             width="125"
@@ -3274,20 +2468,11 @@ class Similar extends Media {
         }
         return this;
     }
-    /**
-     * Add Show to account member
-     * @return {Promise<Similar>} Promise of show
-     */
     addToAccount(state = 0) {
         if (this.in_account)
             return Promise.resolve(this);
         return this.changeState(state);
     }
-    /**
-     * Modifie le statut du similar
-     * @param   {number} state Le nouveau statut du similar
-     * @returns {Promise<Similar>}
-     */
     changeState(state) {
         if (state < -1 || state > 2) {
             throw new Error("Parameter state is incorrect: " + state.toString());
@@ -3304,7 +2489,6 @@ class Similar extends Media {
         return Base.callApi(verb, this.mediaType.plural, this.mediaType.singular, params)
             .then((data) => {
             _this.fill(data[_this.mediaType.singular]);
-            // En attente de la résolution du bug https://www.betaseries.com/bugs/api/462
             if (verb === HTTP_VERBS.DELETE) {
                 _this.in_account = false;
                 _this.user.status = -1;
@@ -3318,15 +2502,11 @@ class Similar extends Media {
             return _this;
         });
     }
-    /**
-     * Ajoute une note au média
-     * @param   {number} note Note du membre connecté pour le média
-     * @returns {Promise<boolean>}
-     */
     addVote(note) {
         throw new Error('On ne vote pas pour un similar');
     }
 }
+
 class UpdateAuto {
     static getValue = function (name, defaultVal) {
         return Base.cache.getOrDefault(DataTypesCache.updates, 'updateAuto', defaultVal);
@@ -3364,9 +2544,9 @@ class UpdateAuto {
             this._interval = objUpAuto[this._showId].interval;
         }
         else {
-            this._status = false; // Statut de la tâche d'update
-            this._auto = false; // Autorise l'activation de la tâche d'update des épisodes
-            this._interval = 0; // Intervalle de temps entre les mises à jour
+            this._status = false;
+            this._auto = false;
+            this._interval = 0;
         }
         this.changeColorBtn();
         return this;
@@ -3377,12 +2557,6 @@ class UpdateAuto {
         }
         return UpdateAuto.instance;
     }
-    /**
-     * _save - Sauvegarde les options de la tâche d'update
-     * auto dans l'espace de stockage de Tampermonkey
-     *
-     * @return {UpdateAuto} L'instance unique UpdateAuto
-     */
     _save() {
         let objUpAuto = UpdateAuto.getValue('objUpAuto', {});
         let obj = {
@@ -3396,73 +2570,31 @@ class UpdateAuto {
         this.changeColorBtn();
         return this;
     }
-    /**
-     * get status - Retourne le statut de la tâche d'update auto
-     * des épisodes
-     *
-     * @return {boolean}  Le statut
-     */
     get status() {
         return this._status;
     }
-    /**
-     * set status - Modifie le statut de la tâche d'update auto
-     * des épisodes
-     *
-     * @param  {boolean} status Le statut de la tâche
-     */
     set status(status) {
         this._status = status;
         this._save();
     }
-    /**
-     * get auto - Flag indiquant l'autorisation de pouvoir lancer
-     * la tâche d'update auto
-     *
-     * @return {boolean}  Flag d'autorisation
-     */
     get auto() {
         return this._auto;
     }
-    /**
-     * set auto - Modifie l'autorisation de lancer la tâche
-     * d'update auto
-     *
-     * @param  {boolean} auto Le flag
-     */
     set auto(auto) {
         this._auto = auto;
         this._save();
     }
-    /**
-     * get interval - Retourne l'intervalle de temps entre
-     * chaque update auto
-     *
-     * @return {number}  L'intervalle de temps en minutes
-     */
     get interval() {
         return this._interval;
     }
-    /**
-     * set interval - Définit l'intervalle de temps, en minutes,
-     * entre chaque update auto
-     *
-     * @param  {number} val L'intervalle de temps en minutes
-     */
     set interval(val) {
         this._interval = val;
         this._save();
     }
-    /**
-     * changeColorBtn - Modifie la couleur du bouton d'update
-     * des épisodes sur la page Web
-     *
-     * @return {UpdateAuto} L'instance unique UpdateAuto
-     */
     changeColorBtn() {
         let color = '#fff';
         if (!this._exist) {
-            color = '#6c757d'; // grey
+            color = '#6c757d';
         }
         else if (this._status && this._auto) {
             color = 'green';
@@ -3476,13 +2608,6 @@ class UpdateAuto {
         $('.updateEpisodes').css('color', color);
         return this;
     }
-    /**
-     * stop - Permet de stopper la tâche d'update auto et
-     * aussi de modifier le flag et l'intervalle en fonction
-     * de l'état de la série
-     *
-     * @return {UpdateAuto} L'instance unique UpdateAuto
-     */
     stop() {
         if (this._show.user.remaining <= 0 && this._show.isEnded()) {
             this._auto = false;
@@ -3496,12 +2621,6 @@ class UpdateAuto {
         this._timer = null;
         return this;
     }
-    /**
-     * delete - Supprime les options d'update auto
-     * de la série de l'espace de stockage
-     *
-     * @return {UpdateAuto} L'instance unique UpdateAuto
-     */
     delete() {
         this.stop();
         let objUpAuto = UpdateAuto.getValue('objUpAuto', {});
@@ -3511,21 +2630,12 @@ class UpdateAuto {
         }
         return this;
     }
-    /**
-     * launch - Permet de lancer la tâche d'update auto
-     * des épisodes
-     *
-     * @return {UpdateAuto} L'instance unique UpdateAuto
-     */
     launch() {
-        // Si les options sont modifiées pour arrêter la tâche
-        // et que le statut est en cours
         if (this._status && (!this._auto || this._interval <= 0)) {
             if (Base.debug)
                 console.log('close interval updateEpisodeListAuto');
             return this.stop();
         }
-        // Si les options modifiées pour lancer
         else if (this._auto && this._interval > 0) {
             if (this._show.user.remaining <= 0) {
                 this.stop();
@@ -3539,7 +2649,6 @@ class UpdateAuto {
             }
             const _this = this;
             this._timer = setInterval(function () {
-                // if (debug) console.log('UpdateAuto setInterval objShow', Object.assign({}, _this._objShow));
                 if (!_this._auto || _this._show.user.remaining <= 0) {
                     if (Base.debug)
                         console.log('Arrêt de la mise à jour auto des épisodes');
@@ -3560,6 +2669,7 @@ class UpdateAuto {
         return this;
     }
 }
+
 var DaysOfWeek;
 (function (DaysOfWeek) {
     DaysOfWeek["monday"] = "lundi";
@@ -3626,75 +2736,22 @@ class Options {
     }
 }
 class Member {
-    /**
-     * @type {number} Identifiant du membre
-     */
     id;
-    /**
-     * @type {number} Identifiant Facebook ?
-     */
     fb_id;
-    /**
-     * @type {string} Login du membre
-     */
     login;
-    /**
-     * @type {number} Points d'expérience
-     */
     xp;
-    /**
-     * @type {string} Locale utiliser par le membre
-     */
     locale;
-    /**
-     * @type {number} ?
-     */
     cached;
-    /**
-     * @type {string} URL de l'avatar du membre
-     */
     avatar;
-    /**
-     * @type {string} URL de la bannière du membre
-     */
     profile_banner;
-    /**
-     * @type {boolean} ?
-     */
     in_account;
-    /**
-     * @type {boolean} Membre Administrateur ?
-     */
     is_admin;
-    /**
-     * @type {number} Année d'inscription
-     */
     subscription;
-    /**
-     * @type {boolean} Indique si l'adresse mail a été validée
-     */
     valid_email;
-    /**
-     * @type {Array<string>} ?
-     */
     screeners;
-    /**
-     * @type {string} Login Twitter
-     */
     twitterLogin;
-    /**
-     * @type {Stats} Les statistiques du membre
-     */
     stats;
-    /**
-     * @type {Options} Les options de paramétrage du membre
-     */
     options;
-    /**
-     * Constructeur de la classe Membre
-     * @param data Les données provenant de l'API
-     * @returns {Member}
-     */
     constructor(data) {
         this.id = parseInt(data.id, 10);
         this.fb_id = parseInt(data.fb_id, 10);
@@ -3713,10 +2770,6 @@ class Member {
         this.stats = new Stats(data.stats);
         this.options = new Options(data.options);
     }
-    /**
-     * Retourne les infos du membre connecté
-     * @returns {Promise<Member>} Une instance du membre connecté
-     */
     static fetch() {
         let params = {};
         if (Base.userId !== null) {
@@ -3732,11 +2785,7 @@ class Member {
         });
     }
 }
-/**
- * Remplit l'objet avec les données fournit en paramètre
- * @param  {Obj} data Les données provenant de l'API
- * @returns {Show}
- */
+
 Show.prototype.fill = function (data) {
     this.aliases = data.aliases;
     this.creation = data.creation;
@@ -3765,15 +2814,11 @@ Show.prototype.fill = function (data) {
     this.social_links = data.social_links;
     this.status = data.status;
     this.thetvdb_id = parseInt(data.thetvdb_id, 10);
-    this.pictures = new Array();
+    this.pictures = null;
     this.mediaType = { singular: MediaType.show, plural: 'shows', className: Show };
     Media.prototype.fill.call(this, data);
     return this.save();
 };
-/**
- * Retourne les similars associés au media
- * @return {Promise<Media>}
- */
 Media.prototype.fetchSimilars = function () {
     const _this = this;
     this.similars = [];
