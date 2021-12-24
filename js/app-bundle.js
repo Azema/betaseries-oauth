@@ -266,6 +266,7 @@ class CommentBS {
             $title.find('.next-comment').off('click');
             $text.find('.view-spoiler').off('click');
             $popup.find('a.sendComment').off('click');
+            $popup.find('textarea').off('keypress');
         }, showPopup = () => {
             $popup.find("#popupalertyes").hide();
             $popup.find("#popupalertno").hide();
@@ -532,6 +533,15 @@ class CommentBS {
                             $textarea.parents('.writing').siblings('.comments').append(templateComment(comment));
                         }
                     });
+                }
+            });
+            $popup.find('textarea').keypress((e) => {
+                const $textarea = $(e.currentTarget);
+                if ($textarea.val().length > 0) {
+                    $textarea.siblings('button').removeAttr('disabled');
+                }
+                else {
+                    $textarea.siblings('button').attr('disabled', 'true');
                 }
             });
             showPopup();
