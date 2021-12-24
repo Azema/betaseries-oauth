@@ -259,8 +259,13 @@ class CommentBS {
             $popup.find("#popupalertno").show();
             $contentHtmlElement.hide();
             // On désactive les events
+            $popup.find("#popin-showClose").off('click');
             $popup.find('.comments .comment .btnThumb').off('click');
             $popup.find('.btnToggleOptions').off('click');
+            $title.find('.prev-comment').off('click');
+            $title.find('.next-comment').off('click');
+            $text.find('.view-spoiler').off('click');
+            $popup.find('a.sendComment').off('click');
         }, showPopup = () => {
             $popup.find("#popupalertyes").hide();
             $popup.find("#popupalertno").hide();
@@ -370,8 +375,36 @@ class CommentBS {
                 </div>
             `;
         }
-        let template = '<div class="comments overflowYScroll" style="margin-bottom: 0px;">';
-        template += templateComment(this);
+        function templateWriting() {
+            const login = Base.userIdentified() ? currentLogin : '';
+            return `
+                <div class="writing" style="border-top: 0px;">
+                    <div class="media">
+                        <div class="media-left">
+                            <div class="avatar">
+                                <img src="https://api.betaseries.com/pictures/members?key=${Base.userKey}&amp;id=${Base.userId}&amp;width=32&amp;height=32&amp;placeholder=png" width="32" height="32" alt="Profil de ${login}">
+                            </div>
+                        </div>
+                        <div class="media-body">
+                            <form class="gz_g1">
+                                <textarea rows="1" placeholder="Écrivez un commentaire…" class="form-control" style="overflow-x: hidden; overflow-wrap: break-word; height: 32px;"></textarea>
+                                <button class="btn-reset sendComment" disabled="" aria-label="Envoyer mon commentaire" style="transition: opacity 200ms ease 0s; right: 8px; top: 9px;">
+                                    <span class="svgContainer" style="width: 16px; height: 16px;">
+                                        <svg fill="#333" width="15" height="12" xmlns="http://www.w3.org/2000/svg">
+                                            <path d="M.34 12l13.993-6L.34 0 .333 4.667l10 1.333-10 1.333z"></path>
+                                        </svg>
+                                    </span>
+                                </button>
+                            </form>
+                            <p class="mainTime" style="margin-top: 10px; margin-bottom: 0px;">Utilisez la balise [spoiler]…[/spoiler] pour masquer le contenu pouvant spoiler les lecteurs.</p>
+                        </div>
+                    </div>
+                </div>
+            `;
+        }
+        let template = '<div class="comments overflowYScroll" style="margin-bottom: 0px;">' +
+            templateComment(this) + '</div>' +
+            templateWriting();
         let promise = Promise.resolve(true);
         if (this.nbReplies > 0 && this.replies.length <= 0) {
             promise = this._parent.fetchRepliesOfComment(this.id)
@@ -393,7 +426,7 @@ class CommentBS {
             // On vide la popup et on ajoute le commentaire
             $popup.attr('data-popin-type', 'comments');
             $title.empty().append('Commentaires <i class="fa fa-chevron-circle-left prev-comment" aria-hidden="true"></i> <i class="fa fa-chevron-circle-right next-comment" aria-hidden="true"></i>');
-            $text.empty().append(template + '</div>');
+            $text.empty().append(template);
             $closeButtons.click(() => {
                 hidePopup();
                 $popup.removeAttr('data-popin-type');
@@ -487,7 +520,45 @@ class CommentBS {
                     }
                 });
             });
+            $popup.find('a.sendComment').click((e) => {
+                e.stopPropagation();
+                e.preventDefault();
+                const $textarea = $(e.currentTarget).siblings('textarea');
+                if ($textarea.val().length > 0) {
+                    CommentBS.reply(this, $textarea.val())
+                        .then((comment) => {
+                        if (comment) {
+                            $textarea.val('');
+                            $textarea.parents('.writing').siblings('.comments').append(templateComment(comment));
+                        }
+                    });
+                }
+            });
             showPopup();
+        });
+    }
+    /**
+     * Envoie la réponse d'un commentaire à l'API
+     * @param   {CommentBS} refComment  Le commentaire de référence
+     * @param   {string}    text        Le texte de la réponse
+     * @returns {Promise<void | CommentBS>}
+     */
+    static reply(refComment, text) {
+        const params = {
+            type: refComment._parent.mediaType.singular,
+            id: refComment._parent.id,
+            in_reply_to: refComment.inner_id,
+            text: text
+        };
+        return Base.callApi(HTTP_VERBS.POST, 'comments', 'comment', params)
+            .then((data) => {
+            const comment = new CommentBS(data.comment, refComment._parent);
+            comment._parent.comments.push(comment);
+            return comment;
+        })
+            .catch(err => {
+            Base.notification('Commentaire', "Erreur durant l'ajout d'un commentaire");
+            console.error(err);
         });
     }
 }
