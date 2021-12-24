@@ -1,4 +1,4 @@
-/*! betaseries_userscript - v1.1.2 - 2021-12-24
+/*! betaseries_userscript - v1.1.3 - 2021-12-24
  * https://github.com/Azema/betaseries
  * Copyright (c) 2021 Azema;
  * Licensed Apache-2.0 License
@@ -3350,6 +3350,9 @@ class UpdateAuto {
     _interval;
     _timer;
     constructor(show) {
+        if (UpdateAuto.instance) {
+            return UpdateAuto.instance;
+        }
         this._show = show;
         this._showId = show.id;
         let objUpAuto = UpdateAuto.getValue('objUpAuto', {});
