@@ -1,7 +1,7 @@
 /*! betaseries_userscript - v1.1.3 - 2021-12-24
  * https://github.com/Azema/betaseries
  * Copyright (c) 2021 Azema;
- * Licensed Apache-2.0 License
+ * Licensed Apache-2.0
  */
 "use strict";
 
