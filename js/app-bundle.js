@@ -265,7 +265,7 @@ class CommentBS {
             $title.find('.prev-comment').off('click');
             $title.find('.next-comment').off('click');
             $text.find('.view-spoiler').off('click');
-            $popup.find('a.sendComment').off('click');
+            $popup.find('.sendComment').off('click');
             $popup.find('textarea').off('keypress');
             $popup.find('.baliseSpoiler').off('click');
         }, showPopup = () => {
@@ -393,7 +393,7 @@ class CommentBS {
                                 <textarea rows="1" placeholder="${Base.trans("timeline.comment.write")}" class="form-control"></textarea>
                                 <button class="btn-reset sendComment" disabled="" aria-label="${Base.trans("comment.send.label")}">
                                     <span class="svgContainer" style="width: 16px; height: 16px;">
-                                        <svg fill="#fff" width="15" height="12" xmlns="http://www.w3.org/2000/svg">
+                                        <svg fill="${Base.theme === 'dark' ? "#fff" : "#333"}" width="15" height="12" xmlns="http://www.w3.org/2000/svg">
                                             <path d="M.34 12l13.993-6L.34 0 .333 4.667l10 1.333-10 1.333z"></path>
                                         </svg>
                                     </span>
@@ -560,7 +560,7 @@ class CommentBS {
                     }
                 });
             });
-            $popup.find('a.sendComment').click((e) => {
+            $popup.find('.sendComment').click((e) => {
                 e.stopPropagation();
                 e.preventDefault();
                 const $textarea = $(e.currentTarget).siblings('textarea');
@@ -901,6 +901,11 @@ class Base {
      * @type {String}
      */
     static serverBaseUrl = '';
+    /**
+     * Indique le theme d'affichage du site Web (light or dark)
+     * @type {string}
+     */
+    static theme = 'light';
     /**
      * Fonction de notification sur la page Web
      * @type {Function}
