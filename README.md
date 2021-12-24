@@ -10,4 +10,4 @@ Repository servant pour l'authentification OAuth avec l'API de BetaSeries, ainsi
 
 ### JS
 * renderjson.min.js: `sha384-ISyV9OQhfEYzpNqudVhD/IgzIRu75gnAc0wA/AbxJn+vP28z4ym6R7hKZXyqcm6D`
-* app-bundle.js: `sha384-HaoOgBJsrRJX4OKNAkULukR13JOr3xjOa+38T0nhVr31788GiwjgbEDZuK1FwcCI`
+* app-bundle.js: `sha384-uoCl1D4rLQABj5Knkom4OJ1G3CDm/AQ3dmbjv9iTAjuYR0CB/6L1YhqriTajh6CZ`

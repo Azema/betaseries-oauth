@@ -267,6 +267,7 @@ class CommentBS {
             $text.find('.view-spoiler').off('click');
             $popup.find('a.sendComment').off('click');
             $popup.find('textarea').off('keypress');
+            $popup.find('.baliseSpoiler').off('click');
         }, showPopup = () => {
             $popup.find("#popupalertyes").hide();
             $popup.find("#popupalertno").hide();
@@ -397,13 +398,20 @@ class CommentBS {
                                     </span>
                                 </button>
                             </form>
-                            <p class="mainTime" style="margin-top: 10px; margin-bottom: 0px;">Utilisez la balise [spoiler]…[/spoiler] pour masquer le contenu pouvant spoiler les lecteurs.</p>
+                            <p class="mainTime" style="margin-top: 10px; margin-bottom: 0px;">Utilisez la balise <span class="baliseSpoiler" title="Ajouter la balise spoiler à votre commentaire">[spoiler]…[/spoiler]</span> pour masquer le contenu pouvant spoiler les lecteurs.</p>
                         </div>
                     </div>
                 </div>
             `;
         }
-        let template = '<div class="comments overflowYScroll" style="margin-bottom: 0px;">' +
+        let style = `
+            <style type="text/css">
+                .baliseSpoiler {
+                    cursor: pointer;
+                }
+            </style>
+        `;
+        let template = style + '<div class="comments overflowYScroll" style="margin-bottom: 0px;">' +
             templateComment(this) + '</div>' +
             templateWriting();
         let promise = Promise.resolve(true);
@@ -543,6 +551,11 @@ class CommentBS {
                 else {
                     $textarea.siblings('button').attr('disabled', 'true');
                 }
+            });
+            $popup.find('.baliseSpoiler').click((e) => {
+                const $textarea = $popup.find('textarea');
+                const text = '[spoiler]' + $textarea.val() + '[/spoiler]';
+                $textarea.val(text);
             });
             showPopup();
         });
