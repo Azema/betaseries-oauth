@@ -301,14 +301,15 @@ class CommentBS {
             return template;
         }
         function templateComment(comment) {
-            let spoiler = /\[spoiler\]/.test(comment.text);
+            const spoiler = /\[spoiler\]/.test(comment.text);
+            let btnSpoiler = spoiler ? `<button type="button" class="btn-reset mainLink view-spoiler" style="vertical-align: 0px;">${Base.trans("timeline.comments.spoiler")}</button>` : '';
             let className = (comment.in_reply_to !== 0) ? 'iv_i5' : '';
             return `
-                <div class="comment ${className} positionRelative iv_iz" style="animation: 3s ease 0s 1 normal forwards running backgroundFadeOut;">
+                <div class="comment ${className} positionRelative iv_iz">
                     <div class="media">
                         <div class="media-left">
                             <a href="/membre/${comment.login}" class="avatar">
-                                <img src="https://api.betaseries.com/pictures/members?key=${Base.userKey}&amp;id=${comment.user_id}&amp;width=64&amp;height=64&amp;placeholder=png" width="32" height="32" alt="">
+                                <img src="https://api.betaseries.com/pictures/members?key=${Base.userKey}&amp;id=${comment.user_id}&amp;width=64&amp;height=64&amp;placeholder=png" width="32" height="32" alt="Profil de ${comment.login}">
                             </a>
                         </div>
                         <div class="media-body">
@@ -316,8 +317,8 @@ class CommentBS {
                                 <span class="mainLink">${comment.login}</span>&nbsp;
                                 <span class="mainLink mainLink--regular">&nbsp;</span>
                             </a>
-                            <span style="line-height: 15px; word-break: break-word;${spoiler ? 'display:none;' : ''}" class="comment-text">${comment.text}</span>
-                            ${spoiler ? '<button type="button" class="btn-reset mainLink view-spoiler" style="vertical-align: 0px;">Voir le spoiler</button>' : ''}
+                            <span style="${spoiler ? 'display:none;' : ''}" class="comment-text">${comment.text}</span>
+                            ${btnSpoiler}
                             <div class="iv_i3">
                                 <div class="options-main options-comment" data-commentId="${comment.id}">
                                     <button type="button" class="btn-reset btnUpVote btnThumb">
@@ -380,7 +381,7 @@ class CommentBS {
         function templateWriting() {
             const login = Base.userIdentified() ? currentLogin : '';
             return `
-                <div class="writing" style="border-top: 0px;">
+                <div class="writing">
                     <div class="media">
                         <div class="media-left">
                             <div class="avatar">
@@ -389,16 +390,16 @@ class CommentBS {
                         </div>
                         <div class="media-body">
                             <form class="gz_g1">
-                                <textarea rows="1" placeholder="Écrivez un commentaire…" class="form-control" style="overflow-x: hidden; overflow-wrap: break-word; height: 32px;"></textarea>
-                                <button class="btn-reset sendComment" disabled="" aria-label="Envoyer mon commentaire" style="transition: opacity 200ms ease 0s; right: 8px; top: 9px;">
+                                <textarea rows="1" placeholder="${Base.trans("timeline.comment.write")}" class="form-control"></textarea>
+                                <button class="btn-reset sendComment" disabled="" aria-label="${Base.trans("comment.send.label")}">
                                     <span class="svgContainer" style="width: 16px; height: 16px;">
-                                        <svg fill="#333" width="15" height="12" xmlns="http://www.w3.org/2000/svg">
+                                        <svg fill="#fff" width="15" height="12" xmlns="http://www.w3.org/2000/svg">
                                             <path d="M.34 12l13.993-6L.34 0 .333 4.667l10 1.333-10 1.333z"></path>
                                         </svg>
                                     </span>
                                 </button>
                             </form>
-                            <p class="mainTime" style="margin-top: 10px; margin-bottom: 0px;">Utilisez la balise <span class="baliseSpoiler" title="Ajouter la balise spoiler à votre commentaire">[spoiler]…[/spoiler]</span> pour masquer le contenu pouvant spoiler les lecteurs.</p>
+                            <p class="mainTime">Utilisez la balise <span class="baliseSpoiler" title="Ajouter la balise spoiler à votre commentaire">[spoiler]…[/spoiler]</span> pour masquer le contenu pouvant spoiler les lecteurs.</p>
                         </div>
                     </div>
                 </div>
@@ -406,12 +407,42 @@ class CommentBS {
         }
         let style = `
             <style type="text/css">
-                .baliseSpoiler {
+                .comments {
+                    margin-bottom: 0px;
+                }
+                .comments .comment {
+                    animation: 2s ease 0s 1 normal forwards running backgroundFadeOut;
+                }
+                .comments .comment .comment-text {
+                    line-height: 15px; 
+                    word-break: break-word;
+                }
+                .writing {
+                    border-top: 0px;
+                }
+                .writing textarea {
+                    overflow-x: hidden;
+                    overflow-wrap: break-word;
+                    height: 50px;
+                    width: 95%;
+                    display: inline;
+                }
+                .writing .sendComment {
+                    display: inline;
+                    transition: opacity 200ms ease 0s;
+                    vertical-align: middle;
+                }
+                .writing .mainTime {
+                    margin-top: 10px; 
+                    margin-bottom: 0px;
+                }
+                .writing .mainTime .baliseSpoiler {
                     cursor: pointer;
                 }
+                
             </style>
         `;
-        let template = style + '<div class="comments overflowYScroll" style="margin-bottom: 0px;">' +
+        let template = style + '<div class="comments overflowYScroll">' +
             templateComment(this) + '</div>' +
             templateWriting();
         let promise = Promise.resolve(true);
@@ -554,6 +585,9 @@ class CommentBS {
             });
             $popup.find('.baliseSpoiler').click((e) => {
                 const $textarea = $popup.find('textarea');
+                if (/\[spoiler\]/.test($textarea.val())) {
+                    return;
+                }
                 const text = '[spoiler]' + $textarea.val() + '[/spoiler]';
                 $textarea.val(text);
             });
