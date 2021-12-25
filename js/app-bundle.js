@@ -312,7 +312,7 @@ class CommentBS {
                                         </g>
                                     </svg>
                                 </button>
-                                <strong class="mainLink" style="margin-left: 5px;">${comment.nbReplies > 0 ? '+' + comment.nbReplies : (comment.nbReplies < 0) ? '-' + comment.nbReplies : comment.nbReplies}</strong>
+                                <strong class="mainLink" style="margin-left: 5px;">${comment.thumbs > 0 ? '+' + comment.thumbs : (comment.thumbs < 0) ? '-' + comment.thumbs : comment.thumbs}</strong>
                                 <span class="mainLink">&nbsp;∙&nbsp;</span>
                                 <button type="button" class="btn-reset mainLink mainLink--regular btnResponse" style="vertical-align: 0px;">Répondre</button>
                                 <a href="#c_1269819" class="mainTime">
