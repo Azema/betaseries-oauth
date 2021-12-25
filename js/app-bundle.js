@@ -594,7 +594,7 @@ class CommentBS {
                     console.log('btnThumb', $btn);
                 const commentId = parseInt($btn.parents('.comment').data('commentId'), 10);
                 let verb = HTTP_VERBS.POST;
-                const vote = $btn.hasClass('.btnUpVote') ? 1 : -1;
+                const vote = $btn.hasClass('btnUpVote') ? 1 : -1;
                 let params = { id: commentId, type: vote, switch: false };
                 // On a déjà voté
                 if (_this.thumbed == vote) {
