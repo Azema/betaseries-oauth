@@ -1579,7 +1579,7 @@ class Base {
     }
     displayComments() {
         // La popup et ses éléments
-        const _this = this, $popup = jQuery('#popin-dialog'), $contentHtmlElement = $popup.find(".popin-content-html"), $contentReact = $popup.find('.popin-content-reactmodule'), $title = $contentHtmlElement.find(".title"), $text = $popup.find("p"), $closeButtons = $popup.find("#popin-showClose"), cleanEvents = () => {
+        const _this = this, $popup = jQuery('#popin-dialog'), $contentHtmlElement = $popup.find(".popin-content-html"), $contentReact = $popup.find('.popin-content-reactmodule'), $title = $contentHtmlElement.find(".title"), $text = $popup.find(".popin-content-ajax"), $closeButtons = $popup.find("#popin-showClose"), cleanEvents = () => {
             // On désactive les events
             $popup.find("#popin-showClose").off('click');
             $popup.find('.comments .comment .btnThumb').off('click');
@@ -1593,6 +1593,7 @@ class Base {
             $popup.find("#popupalertyes").show();
             $popup.find("#popupalertno").show();
             $contentHtmlElement.hide();
+            $text.empty().append('<p></p>');
             cleanEvents();
         }, showPopup = () => {
             $popup.find("#popupalertyes").hide();
