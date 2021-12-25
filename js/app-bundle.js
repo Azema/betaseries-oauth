@@ -626,13 +626,35 @@ class CommentBS {
             e.preventDefault();
             const $textarea = $(e.currentTarget).siblings('textarea');
             if ($textarea.val().length > 0) {
-                _this.reply($textarea.val())
-                    .then((comment) => {
-                    if (comment) {
-                        $textarea.val('');
-                        $textarea.parents('.writing').siblings('.comments').append(_this.getTemplateComment(comment));
+                const replyId = parseInt($textarea.data('replyTo'), 10);
+                const msg = $textarea.val();
+                if (replyId && replyId == _this.id) {
+                    _this.reply(msg).then(comment => {
+                        if (comment) {
+                            let template = _this.getTemplateComment(comment);
+                            $contentReact.find('.comments').append(template);
+                        }
+                    });
+                }
+                else if (replyId) {
+                    const reply = _this.getReply(replyId);
+                    if (reply) {
+                        reply.reply(msg).then(comment => {
+                            if (comment) {
+                                let template = _this.getTemplateComment(comment);
+                                $contentReact.find(`.comments .comment[data-comment-id="${reply.id}"]`)
+                                    .after(template);
+                            }
+                        });
                     }
-                });
+                    else {
+                        // Allo Houston, on a un problème
+                    }
+                }
+                else {
+                    CommentBS.sendComment(_this._parent, msg);
+                }
+                $textarea.val('');
             }
         });
         /**
@@ -658,6 +680,55 @@ class CommentBS {
             }
             const text = '[spoiler]' + $textarea.val() + '[/spoiler]';
             $textarea.val(text);
+        });
+        $contentReact.find('.comments .toggleReplies').click((e) => {
+            e.stopPropagation();
+            e.preventDefault();
+            const $btn = $(e.currentTarget);
+            const state = $btn.data('toggle'); // 0: Etat masqué, 1: Etat affiché
+            const $comment = $btn.parents('.comment');
+            const inner = $comment.data('commentInner');
+            const $replies = $comment.parents('.comments').find(`.comment[data-comment-reply="${inner}"]`);
+            if (state == '0') {
+                // On affiche
+                $replies.fadeIn('fast');
+                $btn.find('.btnText').text(Base.trans("comment.hide_answers"));
+                $btn.find('svg').attr('style', 'transition: transform 200ms ease 0s; transform: rotate(180deg);');
+                $btn.data('toggle', '1');
+            }
+            else {
+                // On masque
+                $replies.fadeOut('fast');
+                $btn.find('.btnText').text(Base.trans("comment.button.reply", { "%count%": $replies.length.toString() }));
+                $btn.find('svg').attr('style', 'transition: transform 200ms ease 0s;');
+                $btn.data('toggle', '0');
+            }
+        });
+        $contentReact.find('.btnResponse').click((e) => {
+            e.stopPropagation();
+            e.preventDefault();
+            const $btn = $(e.currentTarget);
+            const $comment = $btn.parents('.comment');
+            const commentId = parseInt($comment.data('commentId'), 10);
+            let comment;
+            // Si il s'agit d'une réponse, il nous faut le commentaire parent
+            if ($comment.hasClass('iv_i5') || $comment.hasClass('it_i3')) {
+                const $parent = $comment.siblings('.comment:not(.iv_i5)').first();
+                const parentId = parseInt($parent.data('commentId'), 10);
+                if (commentId == parentId) {
+                    comment = _this._parent.getComment(commentId);
+                }
+                else {
+                    const cmtParent = _this._parent.getComment(parentId);
+                    comment = cmtParent.getReply(commentId);
+                }
+            }
+            else {
+                comment = _this._parent.getComment(commentId);
+            }
+            $contentReact.find('textarea')
+                .val('@' + comment.login)
+                .attr('data-reply-to', comment.id);
         });
         showPopup();
     }
@@ -701,6 +772,9 @@ class CommentBS {
         return Base.callApi(HTTP_VERBS.POST, 'comments', 'comment', params)
             .then((data) => {
             const comment = new CommentBS(data.comment, media);
+            // On change le flag du dernier comment
+            media.comments[media.comments.length - 1].last = false;
+            comment.last = true;
             media.comments.push(comment);
             return comment;
         })
