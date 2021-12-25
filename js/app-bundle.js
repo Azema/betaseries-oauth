@@ -590,12 +590,14 @@ class CommentBS {
                 e.stopPropagation();
                 e.preventDefault();
                 const $btn = jQuery(e.currentTarget);
+                if (Base.debug)
+                    console.log('btnThumb', $btn);
                 const commentId = parseInt($btn.parents('.comment').data('commentId'), 10);
                 let verb = HTTP_VERBS.POST;
                 const vote = $btn.hasClass('.btnUpVote') ? 1 : -1;
                 let params = { id: commentId, type: vote, switch: false };
                 // On a déjà voté
-                if (_this.thumbed == params.type) {
+                if (_this.thumbed == vote) {
                     verb = HTTP_VERBS.DELETE;
                     params = { id: commentId };
                 }
