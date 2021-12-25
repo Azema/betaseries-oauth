@@ -1719,6 +1719,8 @@ class Base {
         showPopup();
         let promise = Promise.resolve(this);
         if (this.comments.length <= 0 && this.nbComments > 0) {
+            if (Base.debug)
+                console.log('Base fetchComments call');
             promise = this.fetchComments();
         }
         let comment, template = `
