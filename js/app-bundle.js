@@ -561,12 +561,12 @@ class CommentBS {
                 const $btn = jQuery(e.currentTarget);
                 const commentId = parseInt($btn.parents('.comment').data('commentId'), 10);
                 let params = { id: commentId, type: 1, switch: false };
-                // On a déjà voté
-                if ($btn.data('thumbed') == '1') {
-                    params.switch = true;
-                }
                 if ($btn.hasClass('btnDownVote')) {
                     params.type = -1;
+                }
+                // On a déjà voté
+                if (_this.thumbed == params.type) {
+                    params.switch = true;
                 }
                 Base.callApi(HTTP_VERBS.POST, 'comments', 'thumb', params)
                     .then((data) => {
