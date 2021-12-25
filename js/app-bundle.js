@@ -448,7 +448,7 @@ class CommentBS {
     /**
      * Affiche le commentaire dans une dialogbox
      */
-    display() {
+    async display() {
         // La popup et ses éléments
         const _this = this, $popup = jQuery('#popin-dialog'), $contentHtml = $popup.find(".popin-content-html"), $contentReact = $popup.find('.popin-content-reactmodule'), $closeButtons = $popup.find("#popin-showClose"), cleanEvents = () => {
             // On désactive les events
@@ -488,19 +488,13 @@ class CommentBS {
         // Récupération des réponses sur l'API
         // On ajoute les réponses, par ordre décroissant à la template
         if (this.nbReplies > 0 && this.replies.length <= 0) {
-            promise = this._parent.fetchRepliesOfComment(this.id)
-                .then((replies) => {
-                _this.replies = replies;
-                for (let r = replies.length - 1; r >= 0; r--) {
-                    template += this.getTemplateComment(replies[r]);
-                }
-                return true;
-            });
-        }
-        else if (this.nbReplies > 0) {
-            for (let r = this.replies.length - 1; r >= 0; r--) {
-                template += this.getTemplateComment(this.replies[r]);
+            const replies = await this._parent.fetchRepliesOfComment(this.id);
+            if (replies && replies.length > 0) {
+                this.replies = replies;
             }
+        }
+        for (let r = this.replies.length - 1; r >= 0; r--) {
+            template += this.getTemplateComment(this.replies[r]);
         }
         // On attend les réponses du commentaire
         promise.then(() => {
