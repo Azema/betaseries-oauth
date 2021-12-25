@@ -388,7 +388,7 @@ class CommentBS {
         const $thumbs = jQuery(`.comments .comment[data-comment-id="${this.id}"] .thumbs`);
         let val = parseInt($thumbs.text(), 10);
         val += vote;
-        let text = val > 0 ? `+${val}` : val < 0 ? `-${val}` : '0';
+        let text = val > 0 ? `+${val}` : val.toString();
         $thumbs.text(text);
         if (vote == 0) {
             // On supprime la couleur de remplissage des icones de vote
