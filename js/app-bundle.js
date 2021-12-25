@@ -200,7 +200,7 @@ class CommentBS {
      */
     thumbs;
     /**
-     * ???
+     * Vote du membre connecté
      */
     thumbed;
     /**
@@ -240,7 +240,7 @@ class CommentBS {
         this.in_reply_user = data.in_reply_user;
         this.user_note = data.user_note ? parseInt(data.user_note, 10) : 0;
         this.thumbs = parseInt(data.thumbs, 10);
-        this.thumbed = !!data.thumbed;
+        this.thumbed = data.thumbed ? parseInt(data.thumbed, 10) : 0;
         this.nbReplies = parseInt(data.replies, 10);
         this.replies = new Array();
         this.from_admin = data.from_admin;
@@ -280,7 +280,7 @@ class CommentBS {
         let btnSpoiler = spoiler ? `<button type="button" class="btn-reset mainLink view-spoiler" style="vertical-align: 0px;">${Base.trans("comment.button.display_spoiler")}</button>` : '';
         let className = (comment.in_reply_to !== 0) ? 'iv_i5' : '';
         return `
-            <div class="comment ${className} positionRelative iv_iz">
+            <div class="comment ${className} positionRelative iv_iz" data-comment-id="${comment.id}">
                 <div class="media">
                     <div class="media-left">
                         <a href="/membre/${comment.login}" class="avatar">
@@ -295,10 +295,10 @@ class CommentBS {
                         <span style="${spoiler ? 'display:none;' : ''}" class="comment-text">${comment.text}</span>
                         ${btnSpoiler}
                         <div class="iv_i3">
-                            <div class="options-main options-comment" data-comment-id="${comment.id}">
+                            <div class="options-main options-comment">
                                 <button type="button" class="btn-reset btnUpVote btnThumb">
                                     <svg data-disabled="false" class="SvgLike" fill="#fff" width="16" height="14" viewBox="0 0 16 14" xmlns="http://www.w3.org/2000/svg">
-                                        <g fill="inherit" fill-rule="nonzero">
+                                        <g fill="${comment.thumbed > 0 ? '#FFAC3B' : 'inherit'}" fill-rule="nonzero">
                                             <path fill="#fff" fill-rule="evenodd" d="M.67 6h2.73v8h-2.73v-8zm14.909.67c0-.733-.614-1.333-1.364-1.333h-4.302l.648-3.047.02-.213c0-.273-.116-.527-.3-.707l-.723-.7-4.486 4.393c-.252.24-.402.573-.402.94v6.667c0 .733.614 1.333 1.364 1.333h6.136c.566 0 1.05-.333 1.255-.813l2.059-4.7c.061-.153.095-.313.095-.487v-1.273l-.007-.007.007-.053z"></path>
                                             <path class="SvgLikeStroke" stroke="#54709D" d="M1.17 6.5v7h1.73v-7h-1.73zm13.909.142c-.016-.442-.397-.805-.863-.805h-4.92l.128-.604.639-2.99.018-.166c0-.13-.055-.257-.148-.348l-.373-.361-4.144 4.058c-.158.151-.247.355-.247.578v6.667c0 .455.387.833.864.833h6.136c.355 0 .664-.204.797-.514l2.053-4.685c.04-.1.06-.198.06-.301v-1.063l-.034-.034.034-.265z"></path>
                                         </g>
@@ -306,13 +306,13 @@ class CommentBS {
                                 </button>
                                 <button type="button" class="btn-reset btnDownVote btnThumb">
                                     <svg data-disabled="false" class="SvgLike" fill="#fff" width="16" height="14" viewBox="0 0 16 14" xmlns="http://www.w3.org/2000/svg" style="transform: rotate(180deg) scaleX(-1); margin-left: 4px; vertical-align: -4px;">
-                                        <g fill="inherit" fill-rule="nonzero">
+                                        <g fill="${comment.thumbed < 0 ? '#FFAC3B' : 'inherit'}" fill-rule="nonzero">
                                             <path fill="#fff" fill-rule="evenodd" d="M.67 6h2.73v8h-2.73v-8zm14.909.67c0-.733-.614-1.333-1.364-1.333h-4.302l.648-3.047.02-.213c0-.273-.116-.527-.3-.707l-.723-.7-4.486 4.393c-.252.24-.402.573-.402.94v6.667c0 .733.614 1.333 1.364 1.333h6.136c.566 0 1.05-.333 1.255-.813l2.059-4.7c.061-.153.095-.313.095-.487v-1.273l-.007-.007.007-.053z"></path>
                                             <path class="SvgLikeStroke" stroke="#54709D" d="M1.17 6.5v7h1.73v-7h-1.73zm13.909.142c-.016-.442-.397-.805-.863-.805h-4.92l.128-.604.639-2.99.018-.166c0-.13-.055-.257-.148-.348l-.373-.361-4.144 4.058c-.158.151-.247.355-.247.578v6.667c0 .455.387.833.864.833h6.136c.355 0 .664-.204.797-.514l2.053-4.685c.04-.1.06-.198.06-.301v-1.063l-.034-.034.034-.265z"></path>
                                         </g>
                                     </svg>
                                 </button>
-                                <strong class="mainLink" style="margin-left: 5px;">${comment.thumbs > 0 ? '+' + comment.thumbs : (comment.thumbs < 0) ? '-' + comment.thumbs : comment.thumbs}</strong>
+                                <strong class="mainLink thumbs" style="margin-left: 5px;">${comment.thumbs > 0 ? '+' + comment.thumbs : (comment.thumbs < 0) ? '-' + comment.thumbs : comment.thumbs}</strong>
                                 <span class="mainLink">&nbsp;∙&nbsp;</span>
                                 <button type="button" class="btn-reset mainLink mainLink--regular btnResponse" style="vertical-align: 0px;">Répondre</button>
                                 <a href="#c_1269819" class="mainTime">
@@ -383,6 +383,21 @@ class CommentBS {
                 </div>
             </div>
         `;
+    }
+    _renderThumbs(vote) {
+        const $thumbs = jQuery(`.comments .comment[data-comment-id="${this.id}"] .thumbs`);
+        let val = parseInt($thumbs.text(), 10);
+        val += vote;
+        let text = val > 0 ? `+${val}` : val < 0 ? `-${val}` : '0';
+        $thumbs.text(text);
+        if (vote == 0) {
+            // On supprime la couleur de remplissage des icones de vote
+            $thumbs.siblings('.btnThumb').find('g').attr('fill', 'inherited');
+            return;
+        }
+        // On affiche le votre en remplissant l'icone correspondant d'une couleur jaune
+        const $btnVote = vote > 0 ? $thumbs.siblings('.btnThumb.btnUpVote') : $thumbs.siblings('.btnThumb.btnDownVote');
+        $btnVote.find('g').attr('fill', '#FFAC3B');
     }
     /**
      * Affiche le commentaire dans une dialogbox
@@ -544,7 +559,7 @@ class CommentBS {
                 e.preventDefault();
                 // Ajouter un flag pour indiquer qu'un vote a déjà eu lieu
                 const $btn = jQuery(e.currentTarget);
-                const commentId = parseInt($btn.parents('.options-main').data('commentId'), 10);
+                const commentId = parseInt($btn.parents('.comment').data('commentId'), 10);
                 let params = { id: commentId, type: 1, switch: false };
                 // On a déjà voté
                 if ($btn.data('thumbed') == '1') {
@@ -557,13 +572,15 @@ class CommentBS {
                     .then((data) => {
                     if (commentId == _this.id) {
                         _this.thumbs = data.comment.thumbs;
+                        _this._renderThumbs(params.type);
                     }
                     else {
                         // Demander au parent d'incrémenter les thumbs du commentaire
                         _this._parent.changeThumbsComment(commentId, data.comment.thumbs);
                     }
                     // On ajoute le flag pour indiquer que l'on a déjà voté
-                    $btn.attr('data-thumbed', '1');
+                    $btn.attr('data-thumbed', params.type);
+                    // Mettre à jour le nombre de votes
                 });
             });
             /**
