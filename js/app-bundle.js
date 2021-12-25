@@ -392,7 +392,7 @@ class CommentBS {
     renderThumbs(vote = 0) {
         const $thumbs = jQuery(`.comments .comment[data-comment-id="${this.id}"] .thumbs`);
         let val = parseInt($thumbs.text(), 10);
-        val += vote;
+        val = (vote == this.thumbed) ? val + vote : val - vote;
         const text = val > 0 ? `+${val.toString()}` : val.toString();
         $thumbs.text(text);
         if (this.thumbed == 0) {
