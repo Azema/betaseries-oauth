@@ -455,7 +455,7 @@ class CommentBS {
         const _this = this, $popup = jQuery('#popin-dialog'), $contentHtml = $popup.find(".popin-content-html"), $contentReact = $popup.find('.popin-content-reactmodule'), $closeButtons = $popup.find("#popin-showClose");
         // On affiche le titre de la popup
         // avec des boutons pour naviguer
-        $contentReact.prepend(`<div class="title" id="dialog-title" tabindex="0"></div>`);
+        $contentReact.empty().append(`<div class="title" id="dialog-title" tabindex="0"></div>`);
         const $title = $contentReact.find('#dialog-title');
         $title.empty().append(Base.trans("blog.title.comments") + ' <i class="fa fa-chevron-circle-left prev-comment" aria-hidden="true"></i> <i class="fa fa-chevron-circle-right next-comment" aria-hidden="true"></i>');
         const cleanEvents = () => {
@@ -516,7 +516,7 @@ class CommentBS {
             $popup.attr('data-popin-type', 'comments');
             // On ajoute les templates HTML du commentaire,
             // des réponses et du formulaire de d'écriture
-            $contentReact.empty().append(template + CommentBS.getTemplateWriting());
+            $contentReact.append(template + CommentBS.getTemplateWriting());
             // On active le bouton de fermeture de la popup
             $closeButtons.click(() => {
                 hidePopup();
