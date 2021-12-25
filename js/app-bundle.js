@@ -452,14 +452,18 @@ class CommentBS {
      */
     display() {
         // La popup et ses éléments
-        const _this = this, $popup = jQuery('#popin-dialog'), $contentHtml = $popup.find(".popin-content-html"), $contentReact = $popup.find('.popin-content-reactmodule'), $title = $contentHtml.find(".title"), $text = $popup.find("popin-content-ajax"), $closeButtons = $popup.find("#popin-showClose"), cleanEvents = () => {
+        let $title;
+        const _this = this, $popup = jQuery('#popin-dialog'), $contentHtml = $popup.find(".popin-content-html"), $contentReact = $popup.find('.popin-content-reactmodule'), 
+        //   $title = $contentHtml.find(".title"),
+        //   $text = $popup.find("popin-content-ajax"),
+        $closeButtons = $popup.find("#popin-showClose"), cleanEvents = () => {
             // On désactive les events
             $popup.find("#popin-showClose").off('click');
             $popup.find('.comments .comment .btnThumb').off('click');
             $popup.find('.btnToggleOptions').off('click');
             $title.find('.prev-comment').off('click');
             $title.find('.next-comment').off('click');
-            $text.find('.view-spoiler').off('click');
+            $contentReact.find('.view-spoiler').off('click');
             $popup.find('.sendComment').off('click');
             $popup.find('textarea').off('keypress');
             $popup.find('.baliseSpoiler').off('click');
@@ -467,14 +471,14 @@ class CommentBS {
             $popup.attr('aria-hidden', 'true');
             $popup.find("#popupalertyes").show();
             $popup.find("#popupalertno").show();
-            $text.empty().append('<p></p>');
+            $contentReact.empty().append('<p></p>');
             $contentHtml.hide();
             cleanEvents();
         }, showPopup = () => {
             $popup.find("#popupalertyes").hide();
             $popup.find("#popupalertno").hide();
-            $contentHtml.show();
-            $contentReact.hide();
+            $contentHtml.hide();
+            $contentReact.show();
             $closeButtons.show();
             $popup.attr('aria-hidden', 'false');
         };
@@ -506,10 +510,12 @@ class CommentBS {
             $popup.attr('data-popin-type', 'comments');
             // On affiche le titre de la popup
             // avec des boutons pour naviguer
+            $contentReact.append(`<div class="title" id="dialog-title" tabindex="0"></div>`);
+            $title = $contentReact.find('#dialog-title');
             $title.empty().append(Base.trans("blog.title.comments") + ' <i class="fa fa-chevron-circle-left prev-comment" aria-hidden="true"></i> <i class="fa fa-chevron-circle-right next-comment" aria-hidden="true"></i>');
             // On ajoute les templates HTML du commentaire,
             // des réponses et du formulaire de d'écriture
-            $text.empty().append(template + CommentBS.getTemplateWriting());
+            $contentReact.empty().append(template + CommentBS.getTemplateWriting());
             // On active le bouton de fermeture de la popup
             $closeButtons.click(() => {
                 hidePopup();
@@ -551,7 +557,7 @@ class CommentBS {
                 });
             }
             // On active le lien pour afficher le spoiler
-            const $btnSpoiler = $text.find('.view-spoiler');
+            const $btnSpoiler = $contentReact.find('.view-spoiler');
             if ($btnSpoiler.length > 0) {
                 $btnSpoiler.click((e) => {
                     e.stopPropagation();
@@ -1658,7 +1664,7 @@ class Base {
             // On affiche le titre de la popup
             // avec des boutons pour naviguer
             $contentReact.append(`<div class="title" id="dialog-title" tabindex="0"></div>`);
-            const $title = $contentReact.find('textarea.title');
+            const $title = $contentReact.find('#dialog-title');
             $title.empty().append(Base.trans("blog.title.comments"));
             // On ajoute les templates HTML du commentaire,
             // des réponses et du formulaire de d'écriture
