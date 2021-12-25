@@ -1,4 +1,4 @@
-/*! betaseries_userscript - v1.1.3 - 2021-12-25
+/*! betaseries_userscript - v1.1.4 - 2021-12-25
  * https://github.com/Azema/betaseries
  * Copyright (c) 2021 Azema;
  * Licensed Apache-2.0
@@ -389,13 +389,12 @@ class CommentBS {
      * @param   {number} vote Le vote
      * @returns {void}
      */
-    renderThumbs(vote = 0) {
+    updateRenderThumbs(vote = 0) {
         const $thumbs = jQuery(`.comments .comment[data-comment-id="${this.id}"] .thumbs`);
         const val = parseInt($thumbs.text(), 10);
         const result = (vote == this.thumbed) ? val + vote : val - vote;
         const text = result > 0 ? `+${result}` : result.toString();
-        if (Base.debug)
-            console.log('renderThumbs: ', { val, vote, result, text });
+        // if (Base.debug) console.log('renderThumbs: ', {val, vote, result, text});
         $thumbs.text(text);
         if (this.thumbed == 0) {
             // On supprime la couleur de remplissage des icones de vote
@@ -592,8 +591,6 @@ class CommentBS {
                 e.stopPropagation();
                 e.preventDefault();
                 const $btn = jQuery(e.currentTarget);
-                if (Base.debug)
-                    console.log('btnThumb', $btn);
                 const commentId = parseInt($btn.parents('.comment').data('commentId'), 10);
                 let verb = HTTP_VERBS.POST;
                 const vote = $btn.hasClass('btnUpVote') ? 1 : -1;
@@ -612,13 +609,13 @@ class CommentBS {
                     if (commentId == _this.id) {
                         _this.thumbs = parseInt(data.comment.thumbs, 10);
                         _this.thumbed = data.comment.thumbed ? parseInt(data.comment.thumbed, 10) : 0;
-                        _this.renderThumbs(vote);
+                        _this.updateRenderThumbs(vote);
                     }
                     else if (_this.isReply(commentId)) {
                         const reply = _this.getReply(commentId);
                         reply.thumbs = parseInt(data.comment.thumbs, 10);
                         reply.thumbed = data.comment.thumbed ? parseInt(data.comment.thumbed, 10) : 0;
-                        reply.renderThumbs(vote);
+                        reply.updateRenderThumbs(vote);
                     }
                     else {
                         // Demander au parent d'incrémenter les thumbs du commentaire
