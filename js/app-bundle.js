@@ -327,10 +327,10 @@ class CommentBS {
                                 </button>
                                 <strong class="mainLink thumbs" style="margin-left: 5px;">${comment.thumbs > 0 ? '+' + comment.thumbs : (comment.thumbs < 0) ? '-' + comment.thumbs : comment.thumbs}</strong>
                                 <span class="mainLink">&nbsp;∙&nbsp;</span>
-                                <button type="button" class="btn-reset mainLink mainLink--regular btnResponse" style="vertical-align: 0px;">Répondre</button>
+                                <button type="button" class="btn-reset mainLink mainLink--regular btnResponse" style="vertical-align: 0px;">${Base.trans("timeline.comment.reply")}</button>
                                 <a href="#c_1269819" class="mainTime">
                                     <span class="mainLink">&nbsp;∙&nbsp;</span>
-                                    Le ${ /* eslint-disable-line no-undef */typeof moment !== 'undefined' ? moment(comment.date).format('D MM YYYY HH:mm') : comment.date.toString()}
+                                    Le ${ /* eslint-disable-line no-undef */typeof moment !== 'undefined' ? moment(comment.date).format('DD/MM/YYYY HH:mm') : comment.date.toString()}
                                 </a>
                                 <span class="stars" title="${comment.user_note} / 5">
                                     ${this._renderNote(comment.user_note)}
@@ -697,7 +697,7 @@ class CommentBS {
      * @param   {string} text        Le texte de la réponse
      * @returns {Promise<void | CommentBS>}
      */
-    static reply(media, text) {
+    static sendComment(media, text) {
         const _this = this;
         const params = {
             type: media.mediaType.singular,
@@ -1688,10 +1688,10 @@ class Base {
                 e.preventDefault();
                 const $btn = jQuery(e.currentTarget);
                 const $comment = $btn.parents('.comment');
-                const commentId = parseInt($btn.parents('.comment').data('commentId'), 10);
+                const commentId = parseInt($comment.data('commentId'), 10);
                 let comment;
                 // Si il s'agit d'une réponse, il nous faut le commentaire parent
-                if ($comment.hasClass('iv_i5')) {
+                if ($comment.hasClass('iv_i5') || $comment.hasClass('it_i3')) {
                     const $parent = $comment.siblings('.comment:not(.iv_i5)').first();
                     const parentId = parseInt($parent.data('commentId'), 10);
                     if (commentId == parentId) {
@@ -1753,13 +1753,20 @@ class Base {
                 e.preventDefault();
                 const $textarea = $(e.currentTarget).siblings('textarea');
                 if ($textarea.val().length > 0) {
-                    CommentBS.reply(_this, $textarea.val())
-                        .then((comment) => {
-                        if (comment) {
-                            $textarea.val('');
-                            $textarea.parents('.writing').siblings('.comments').append(comment.getTemplateComment(comment));
-                        }
-                    });
+                    let comment;
+                    if ($textarea.data('replyTo')) {
+                        comment = _this.getComment(parseInt($textarea.data('replyTo'), 10));
+                        comment.reply($textarea.val());
+                    }
+                    else {
+                        CommentBS.sendComment(_this, $textarea.val())
+                            .then((comment) => {
+                            if (comment) {
+                                $textarea.val('');
+                                $textarea.parents('.writing').siblings('.comments').append(comment.getTemplateComment(comment));
+                            }
+                        });
+                    }
                 }
             });
             /**
@@ -1808,6 +1815,32 @@ class Base {
                     $btn.find('svg').attr('style', 'transition: transform 200ms ease 0s;');
                     $btn.data('toggle', '0');
                 }
+            });
+            $contentReact.find('.btnResponse').click((e) => {
+                e.stopPropagation();
+                e.preventDefault();
+                const $btn = $(e.currentTarget);
+                const $comment = $btn.parents('.comment');
+                const commentId = parseInt($comment.data('commentId'), 10);
+                let comment;
+                // Si il s'agit d'une réponse, il nous faut le commentaire parent
+                if ($comment.hasClass('iv_i5') || $comment.hasClass('it_i3')) {
+                    const $parent = $comment.siblings('.comment:not(.iv_i5)').first();
+                    const parentId = parseInt($parent.data('commentId'), 10);
+                    if (commentId == parentId) {
+                        comment = this.getComment(commentId);
+                    }
+                    else {
+                        const cmtParent = this.getComment(parentId);
+                        comment = cmtParent.getReply(commentId);
+                    }
+                }
+                else {
+                    comment = this.getComment(commentId);
+                }
+                $contentReact.find('textarea')
+                    .val('@' + comment.login)
+                    .attr('data-reply-to', comment.id);
             });
             showPopup();
         });
