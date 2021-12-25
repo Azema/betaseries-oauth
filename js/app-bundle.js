@@ -275,12 +275,24 @@ class CommentBS {
      * @param   {CommentBS} comment Le commentaire à afficher
      * @returns {string}
      */
-    getTemplateComment(comment) {
+    getTemplateComment(comment, all = false) {
         const spoiler = /\[spoiler\]/.test(comment.text);
         let btnSpoiler = spoiler ? `<button type="button" class="btn-reset mainLink view-spoiler" style="vertical-align: 0px;">${Base.trans("comment.button.display_spoiler")}</button>` : '';
-        let className = (comment.in_reply_to !== 0) ? 'iv_i5' : '';
+        let classNames = { reply: 'iv_i5', actions: 'iv_i3', comment: 'iv_iz' };
+        if (all) {
+            classNames = { reply: 'it_i3', actions: 'it_i1', comment: 'it_ix' };
+        }
+        let className = (comment.in_reply_to >= 0) ? classNames.reply : '';
+        let btnToggleReplies = comment.nbReplies > 0 ? `
+        <button type="button" class="btn-reset mainLink mainLink--regular toggleReplies" style="margin-top: 2px; margin-bottom: -3px;" data-toggle="1">
+            <span class="svgContainer" style="display: inline-flex; height: 16px; width: 16px;">
+                <svg width="8" height="6" xmlns="http://www.w3.org/2000/svg" style="transition: transform 200ms ease 0s; transform: rotate(180deg);">
+                    <path d="M4 5.667l4-4-.94-.94L4 3.78.94.727l-.94.94z" fill="#54709D" fill-rule="nonzero"></path>
+                </svg>
+            </span>&nbsp;<span class="btnText">${Base.trans("comment.hide_answers")}</span>
+        </button>` : '';
         return `
-            <div class="comment ${className} positionRelative iv_iz" data-comment-id="${comment.id}">
+            <div class="comment ${className} positionRelative ${classNames.comment}" data-comment-id="${comment.id}" ${comment.in_reply_to >= 0 ? 'data-comment-reply="' + comment.in_reply_to + '"' : ''} data-comment-inner="${comment.inner_id}">
                 <div class="media">
                     <div class="media-left">
                         <a href="/membre/${comment.login}" class="avatar">
@@ -294,7 +306,7 @@ class CommentBS {
                         </a>
                         <span style="${spoiler ? 'display:none;' : ''}" class="comment-text">${comment.text}</span>
                         ${btnSpoiler}
-                        <div class="iv_i3">
+                        <div class="${classNames.actions}">
                             <div class="options-main options-comment">
                                 <button type="button" class="btn-reset btnUpVote btnThumb">
                                     <svg data-disabled="false" class="SvgLike" fill="#fff" width="16" height="14" viewBox="0 0 16 14" xmlns="http://www.w3.org/2000/svg">
@@ -348,6 +360,7 @@ class CommentBS {
                                 </button>
                             </div>
                         </div>
+                        ${btnToggleReplies}
                     </div>
                 </div>
             </div>
@@ -1613,16 +1626,38 @@ class Base {
         promise.then(async () => {
             for (let c = 0; c < _this.comments.length; c++) {
                 comment = this.comments[c];
-                template += comment.getTemplateComment(comment);
+                template += comment.getTemplateComment(comment, true);
                 // Si le commentaires à des réponses et qu'elles ne sont pas chargées
                 if (comment.nbReplies > 0 && comment.replies.length <= 0) {
                     // On récupère les réponses
                     comment.replies = await _this.fetchRepliesOfComment(comment.id);
+                    // On ajoute un boutton pour afficher/masquer les réponses
                 }
                 for (let r = 0; r < comment.replies.length; r++) {
-                    template += comment.replies[r].getTemplateComment(comment.replies[r]);
+                    template += comment.replies[r].getTemplateComment(comment.replies[r], true);
                 }
             }
+            $text.find('.comments .toggleReplies').click((e) => {
+                e.stopPropagation();
+                e.preventDefault();
+                const $btn = $(e.currentTarget);
+                const state = $btn.data('toggle'); // 0: Etat masqué, 1: Etat affiché
+                const $comment = $btn.parents('.comment');
+                const inner = $comment.data('commentInner');
+                const $replies = $comment.parents('.comments').find(`.comment[data-comment-reply="${inner}"]`);
+                if (state == '0') {
+                    // On affiche
+                    $replies.fadeIn('fast');
+                    $btn.find('.btnText').text(Base.trans("comment.hide_answers"));
+                    $btn.find('svg').attr('style', 'transition: transform 200ms ease 0s; transform: rotate(180deg);');
+                }
+                else {
+                    // On masque
+                    $replies.fadeOut('fast');
+                    $btn.find('.btnText').text(Base.trans("comment.button.reply", $replies.length.toString()));
+                    $btn.find('svg').attr('style', 'transition: transform 200ms ease 0s;');
+                }
+            });
             template += '</div>';
             // On définit le type d'affichage de la popup
             $popup.attr('data-popin-type', 'comments');
