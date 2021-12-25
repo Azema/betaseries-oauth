@@ -282,7 +282,7 @@ class CommentBS {
         if (all) {
             classNames = { reply: 'it_i3', actions: 'it_i1', comment: 'it_ix' };
         }
-        let className = (comment.in_reply_to >= 0) ? classNames.reply : '';
+        let className = (comment.in_reply_to > 0) ? classNames.reply : '';
         let btnToggleReplies = comment.nbReplies > 0 ? `
         <button type="button" class="btn-reset mainLink mainLink--regular toggleReplies" style="margin-top: 2px; margin-bottom: -3px;" data-toggle="1">
             <span class="svgContainer" style="display: inline-flex; height: 16px; width: 16px;">
@@ -292,7 +292,7 @@ class CommentBS {
             </span>&nbsp;<span class="btnText">${Base.trans("comment.hide_answers")}</span>
         </button>` : '';
         return `
-            <div class="comment ${className} positionRelative ${classNames.comment}" data-comment-id="${comment.id}" ${comment.in_reply_to >= 0 ? 'data-comment-reply="' + comment.in_reply_to + '"' : ''} data-comment-inner="${comment.inner_id}">
+            <div class="comment ${className} positionRelative ${classNames.comment}" data-comment-id="${comment.id}" ${comment.in_reply_to > 0 ? 'data-comment-reply="' + comment.in_reply_to + '"' : ''} data-comment-inner="${comment.inner_id}">
                 <div class="media">
                     <div class="media-left">
                         <a href="/membre/${comment.login}" class="avatar">
