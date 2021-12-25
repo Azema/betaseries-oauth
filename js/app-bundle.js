@@ -1714,7 +1714,7 @@ class Base {
             `;
         }
         templateLoader += '</div>';
-        $contentReact.empty().append(templateLoader);
+        $contentReact.append(templateLoader);
         showPopup();
         let promise = Promise.resolve(this);
         if (this.comments.length <= 0 && this.nbComments > 0) {
