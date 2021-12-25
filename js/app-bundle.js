@@ -1864,7 +1864,7 @@ class Base {
                 $contentReact.find('.btnToggleOptions').click((e) => {
                     e.stopPropagation();
                     e.preventDefault();
-                    jQuery(e.currentTarget).parents('.iv_i3').first()
+                    jQuery(e.currentTarget).parents('.it_i1').first()
                         .find('.options-comment').each((_index, elt) => {
                         const $elt = jQuery(elt);
                         if ($elt.is(':visible')) {
