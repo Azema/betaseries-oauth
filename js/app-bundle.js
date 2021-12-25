@@ -1661,6 +1661,8 @@ class Base {
         return false;
     }
     displayComments() {
+        if (Base.debug)
+            console.log('Base displayComments');
         // La popup et ses éléments
         const _this = this, $popup = jQuery('#popin-dialog'), $contentHtmlElement = $popup.find(".popin-content-html"), $contentReact = $popup.find('.popin-content-reactmodule'), 
         //   $title = $contentHtmlElement.find(".title"),
@@ -1718,6 +1720,8 @@ class Base {
         $contentReact.append(templateLoader);
         showPopup();
         let promise = Promise.resolve(this);
+        if (Base.debug)
+            console.log('Base ', { length: this.comments.length, nbComments: this.nbComments });
         if (this.comments.length <= 0 && this.nbComments > 0) {
             if (Base.debug)
                 console.log('Base fetchComments call');
