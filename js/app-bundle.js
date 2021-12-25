@@ -1695,7 +1695,27 @@ class Base {
             $popup.attr('aria-hidden', 'false');
         };
         // On vérifie que la popup est masquée
-        hidePopup();
+        // hidePopup();
+        $contentReact.empty().append(`<div class="title" id="dialog-title" tabindex="0">${Base.trans("blog.title.comments")}</div>`);
+        const $title = $contentReact.find('.title');
+        let templateLoader = `
+            <div class="loaderCmt">
+                <svg class="sr-only">
+                    <defs>
+                        <clipPath id="placeholder">
+                            <path d="M50 25h160v8H50v-8zm0-18h420v8H50V7zM20 40C8.954 40 0 31.046 0 20S8.954 0 20 0s20 8.954 20 20-8.954 20-20 20z"></path>
+                        </clipPath>
+                    </defs>
+                </svg>
+        `;
+        for (let l = 0; l < 4; l++) {
+            templateLoader += `
+                <div class="er_ex null"><div class="ComponentPlaceholder er_et " style="height: 40px;"></div></div>
+            `;
+        }
+        templateLoader += '</div>';
+        $contentReact.empty().append(templateLoader);
+        showPopup();
         let promise = Promise.resolve(this);
         if (this.comments.length <= 0 && this.nbComments > 0) {
             promise = this.fetchComments();
@@ -1725,191 +1745,195 @@ class Base {
             $popup.attr('data-popin-type', 'comments');
             // On affiche le titre de la popup
             // avec des boutons pour naviguer
-            $contentReact.empty().append(`<div class="title" id="dialog-title" tabindex="0">${Base.trans("blog.title.comments")}</div>`);
-            const $title = $contentReact.find('.title');
-            // On ajoute les templates HTML du commentaire,
-            // des réponses et du formulaire de d'écriture
-            $contentReact.append(template + CommentBS.getTemplateWriting() + '</div>');
-            // On active le bouton de fermeture de la popup
-            $closeButtons.click(() => {
-                hidePopup();
-                $popup.removeAttr('data-popin-type');
+            $contentReact.hide('fast', () => {
+                $contentReact.find('.loaderCmt').remove();
+                $contentReact.append(template + CommentBS.getTemplateWriting() + '</div>');
+                $contentReact.fadeIn();
+                loadEvents();
             });
-            // On active le lien pour afficher le spoiler
-            const $btnSpoiler = $contentReact.find('.view-spoiler');
-            if ($btnSpoiler.length > 0) {
-                $btnSpoiler.click((e) => {
+            function loadEvents() {
+                // On ajoute les templates HTML du commentaire,
+                // des réponses et du formulaire de d'écriture
+                // On active le bouton de fermeture de la popup
+                $closeButtons.click(() => {
+                    hidePopup();
+                    $popup.removeAttr('data-popin-type');
+                });
+                // On active le lien pour afficher le spoiler
+                const $btnSpoiler = $contentReact.find('.view-spoiler');
+                if ($btnSpoiler.length > 0) {
+                    $btnSpoiler.click((e) => {
+                        e.stopPropagation();
+                        e.preventDefault();
+                        $(e.currentTarget).prev('span.comment-text').fadeIn();
+                        $(e.currentTarget).fadeOut();
+                    });
+                }
+                /**
+                 * Ajoutons les events pour:
+                 *  - btnUpVote: Voter pour ce commentaire
+                 *  - btnDownVote: Voter contre ce commentaire
+                 */
+                $contentReact.find('.comments .comment .btnThumb').click((e) => {
                     e.stopPropagation();
                     e.preventDefault();
-                    $(e.currentTarget).prev('span.comment-text').fadeIn();
-                    $(e.currentTarget).fadeOut();
+                    const $btn = jQuery(e.currentTarget);
+                    const $comment = $btn.parents('.comment');
+                    const commentId = parseInt($comment.data('commentId'), 10);
+                    let comment;
+                    // Si il s'agit d'une réponse, il nous faut le commentaire parent
+                    if ($comment.hasClass('iv_i5') || $comment.hasClass('it_i3')) {
+                        const $parent = $comment.siblings('.comment:not(.iv_i5)').first();
+                        const parentId = parseInt($parent.data('commentId'), 10);
+                        if (commentId == parentId) {
+                            comment = this.getComment(commentId);
+                        }
+                        else {
+                            const cmtParent = this.getComment(parentId);
+                            comment = cmtParent.getReply(commentId);
+                        }
+                    }
+                    else {
+                        comment = this.getComment(commentId);
+                    }
+                    let verb = HTTP_VERBS.POST;
+                    const vote = $btn.hasClass('btnUpVote') ? 1 : -1;
+                    let params = { id: commentId, type: vote, switch: false };
+                    // On a déjà voté
+                    if (comment.thumbed == vote) {
+                        verb = HTTP_VERBS.DELETE;
+                        params = { id: commentId };
+                    }
+                    else if (comment.thumbed != 0) {
+                        console.warn("Le vote est impossible. Annuler votre vote et recommencer");
+                        return;
+                    }
+                    Base.callApi(verb, 'comments', 'thumb', params)
+                        .then((data) => {
+                        comment.thumbs = parseInt(data.comment.thumbs, 10);
+                        comment.thumbed = data.comment.thumbed ? parseInt(data.comment.thumbed, 10) : 0;
+                        comment.updateRenderThumbs(vote);
+                    })
+                        .catch(err => {
+                        const msg = err.text !== undefined ? err.text : err;
+                        Base.notification('Thumb commentaire', "Une erreur est apparue durant le vote: " + msg);
+                    });
+                });
+                /**
+                 * On affiche/masque les options du commentaire
+                 */
+                $contentReact.find('.btnToggleOptions').click((e) => {
+                    e.stopPropagation();
+                    e.preventDefault();
+                    jQuery(e.currentTarget).parents('.iv_i3').first()
+                        .find('.options-comment').each((_index, elt) => {
+                        const $elt = jQuery(elt);
+                        if ($elt.is(':visible')) {
+                            $elt.hide();
+                        }
+                        else {
+                            $elt.show();
+                        }
+                    });
+                });
+                /**
+                 * On envoie la réponse à ce commentaire à l'API
+                 */
+                $contentReact.find('.sendComment').click((e) => {
+                    e.stopPropagation();
+                    e.preventDefault();
+                    const $textarea = $(e.currentTarget).siblings('textarea');
+                    if ($textarea.val().length > 0) {
+                        let comment;
+                        if ($textarea.data('replyTo')) {
+                            comment = _this.getComment(parseInt($textarea.data('replyTo'), 10));
+                            comment.reply($textarea.val());
+                        }
+                        else {
+                            CommentBS.sendComment(_this, $textarea.val())
+                                .then((comment) => {
+                                if (comment) {
+                                    $textarea.val('');
+                                    $textarea.parents('.writing').siblings('.comments').append(comment.getTemplateComment(comment));
+                                }
+                            });
+                        }
+                    }
+                });
+                /**
+                 * On active / desactive le bouton d'envoi du commentaire
+                 * en fonction du contenu du textarea
+                 */
+                $contentReact.find('textarea').keypress((e) => {
+                    const $textarea = $(e.currentTarget);
+                    if ($textarea.val().length > 0) {
+                        $textarea.siblings('button').removeAttr('disabled');
+                    }
+                    else {
+                        $textarea.siblings('button').attr('disabled', 'true');
+                    }
+                });
+                /**
+                 * On ajoute les balises SPOILER au message dans le textarea
+                 */
+                $contentReact.find('.baliseSpoiler').click((e) => {
+                    const $textarea = $popup.find('textarea');
+                    if (/\[spoiler\]/.test($textarea.val())) {
+                        return;
+                    }
+                    const text = '[spoiler]' + $textarea.val() + '[/spoiler]';
+                    $textarea.val(text);
+                });
+                $contentReact.find('.comments .toggleReplies').click((e) => {
+                    e.stopPropagation();
+                    e.preventDefault();
+                    const $btn = $(e.currentTarget);
+                    const state = $btn.data('toggle'); // 0: Etat masqué, 1: Etat affiché
+                    const $comment = $btn.parents('.comment');
+                    const inner = $comment.data('commentInner');
+                    const $replies = $comment.parents('.comments').find(`.comment[data-comment-reply="${inner}"]`);
+                    if (state == '0') {
+                        // On affiche
+                        $replies.fadeIn('fast');
+                        $btn.find('.btnText').text(Base.trans("comment.hide_answers"));
+                        $btn.find('svg').attr('style', 'transition: transform 200ms ease 0s; transform: rotate(180deg);');
+                        $btn.data('toggle', '1');
+                    }
+                    else {
+                        // On masque
+                        $replies.fadeOut('fast');
+                        $btn.find('.btnText').text(Base.trans("comment.button.reply", { "%count%": $replies.length.toString() }));
+                        $btn.find('svg').attr('style', 'transition: transform 200ms ease 0s;');
+                        $btn.data('toggle', '0');
+                    }
+                });
+                $contentReact.find('.btnResponse').click((e) => {
+                    e.stopPropagation();
+                    e.preventDefault();
+                    const $btn = $(e.currentTarget);
+                    const $comment = $btn.parents('.comment');
+                    const commentId = parseInt($comment.data('commentId'), 10);
+                    let comment;
+                    // Si il s'agit d'une réponse, il nous faut le commentaire parent
+                    if ($comment.hasClass('iv_i5') || $comment.hasClass('it_i3')) {
+                        const $parent = $comment.siblings('.comment:not(.iv_i5)').first();
+                        const parentId = parseInt($parent.data('commentId'), 10);
+                        if (commentId == parentId) {
+                            comment = this.getComment(commentId);
+                        }
+                        else {
+                            const cmtParent = this.getComment(parentId);
+                            comment = cmtParent.getReply(commentId);
+                        }
+                    }
+                    else {
+                        comment = this.getComment(commentId);
+                    }
+                    $contentReact.find('textarea')
+                        .val('@' + comment.login)
+                        .attr('data-reply-to', comment.id);
                 });
             }
-            /**
-             * Ajoutons les events pour:
-             *  - btnUpVote: Voter pour ce commentaire
-             *  - btnDownVote: Voter contre ce commentaire
-             */
-            $contentReact.find('.comments .comment .btnThumb').click((e) => {
-                e.stopPropagation();
-                e.preventDefault();
-                const $btn = jQuery(e.currentTarget);
-                const $comment = $btn.parents('.comment');
-                const commentId = parseInt($comment.data('commentId'), 10);
-                let comment;
-                // Si il s'agit d'une réponse, il nous faut le commentaire parent
-                if ($comment.hasClass('iv_i5') || $comment.hasClass('it_i3')) {
-                    const $parent = $comment.siblings('.comment:not(.iv_i5)').first();
-                    const parentId = parseInt($parent.data('commentId'), 10);
-                    if (commentId == parentId) {
-                        comment = this.getComment(commentId);
-                    }
-                    else {
-                        const cmtParent = this.getComment(parentId);
-                        comment = cmtParent.getReply(commentId);
-                    }
-                }
-                else {
-                    comment = this.getComment(commentId);
-                }
-                let verb = HTTP_VERBS.POST;
-                const vote = $btn.hasClass('btnUpVote') ? 1 : -1;
-                let params = { id: commentId, type: vote, switch: false };
-                // On a déjà voté
-                if (comment.thumbed == vote) {
-                    verb = HTTP_VERBS.DELETE;
-                    params = { id: commentId };
-                }
-                else if (comment.thumbed != 0) {
-                    console.warn("Le vote est impossible. Annuler votre vote et recommencer");
-                    return;
-                }
-                Base.callApi(verb, 'comments', 'thumb', params)
-                    .then((data) => {
-                    comment.thumbs = parseInt(data.comment.thumbs, 10);
-                    comment.thumbed = data.comment.thumbed ? parseInt(data.comment.thumbed, 10) : 0;
-                    comment.updateRenderThumbs(vote);
-                })
-                    .catch(err => {
-                    const msg = err.text !== undefined ? err.text : err;
-                    Base.notification('Thumb commentaire', "Une erreur est apparue durant le vote: " + msg);
-                });
-            });
-            /**
-             * On affiche/masque les options du commentaire
-             */
-            $contentReact.find('.btnToggleOptions').click((e) => {
-                e.stopPropagation();
-                e.preventDefault();
-                jQuery(e.currentTarget).parents('.iv_i3').first()
-                    .find('.options-comment').each((_index, elt) => {
-                    const $elt = jQuery(elt);
-                    if ($elt.is(':visible')) {
-                        $elt.hide();
-                    }
-                    else {
-                        $elt.show();
-                    }
-                });
-            });
-            /**
-             * On envoie la réponse à ce commentaire à l'API
-             */
-            $contentReact.find('.sendComment').click((e) => {
-                e.stopPropagation();
-                e.preventDefault();
-                const $textarea = $(e.currentTarget).siblings('textarea');
-                if ($textarea.val().length > 0) {
-                    let comment;
-                    if ($textarea.data('replyTo')) {
-                        comment = _this.getComment(parseInt($textarea.data('replyTo'), 10));
-                        comment.reply($textarea.val());
-                    }
-                    else {
-                        CommentBS.sendComment(_this, $textarea.val())
-                            .then((comment) => {
-                            if (comment) {
-                                $textarea.val('');
-                                $textarea.parents('.writing').siblings('.comments').append(comment.getTemplateComment(comment));
-                            }
-                        });
-                    }
-                }
-            });
-            /**
-             * On active / desactive le bouton d'envoi du commentaire
-             * en fonction du contenu du textarea
-             */
-            $contentReact.find('textarea').keypress((e) => {
-                const $textarea = $(e.currentTarget);
-                if ($textarea.val().length > 0) {
-                    $textarea.siblings('button').removeAttr('disabled');
-                }
-                else {
-                    $textarea.siblings('button').attr('disabled', 'true');
-                }
-            });
-            /**
-             * On ajoute les balises SPOILER au message dans le textarea
-             */
-            $contentReact.find('.baliseSpoiler').click((e) => {
-                const $textarea = $popup.find('textarea');
-                if (/\[spoiler\]/.test($textarea.val())) {
-                    return;
-                }
-                const text = '[spoiler]' + $textarea.val() + '[/spoiler]';
-                $textarea.val(text);
-            });
-            $contentReact.find('.comments .toggleReplies').click((e) => {
-                e.stopPropagation();
-                e.preventDefault();
-                const $btn = $(e.currentTarget);
-                const state = $btn.data('toggle'); // 0: Etat masqué, 1: Etat affiché
-                const $comment = $btn.parents('.comment');
-                const inner = $comment.data('commentInner');
-                const $replies = $comment.parents('.comments').find(`.comment[data-comment-reply="${inner}"]`);
-                if (state == '0') {
-                    // On affiche
-                    $replies.fadeIn('fast');
-                    $btn.find('.btnText').text(Base.trans("comment.hide_answers"));
-                    $btn.find('svg').attr('style', 'transition: transform 200ms ease 0s; transform: rotate(180deg);');
-                    $btn.data('toggle', '1');
-                }
-                else {
-                    // On masque
-                    $replies.fadeOut('fast');
-                    $btn.find('.btnText').text(Base.trans("comment.button.reply", { "%count%": $replies.length.toString() }));
-                    $btn.find('svg').attr('style', 'transition: transform 200ms ease 0s;');
-                    $btn.data('toggle', '0');
-                }
-            });
-            $contentReact.find('.btnResponse').click((e) => {
-                e.stopPropagation();
-                e.preventDefault();
-                const $btn = $(e.currentTarget);
-                const $comment = $btn.parents('.comment');
-                const commentId = parseInt($comment.data('commentId'), 10);
-                let comment;
-                // Si il s'agit d'une réponse, il nous faut le commentaire parent
-                if ($comment.hasClass('iv_i5') || $comment.hasClass('it_i3')) {
-                    const $parent = $comment.siblings('.comment:not(.iv_i5)').first();
-                    const parentId = parseInt($parent.data('commentId'), 10);
-                    if (commentId == parentId) {
-                        comment = this.getComment(commentId);
-                    }
-                    else {
-                        const cmtParent = this.getComment(parentId);
-                        comment = cmtParent.getReply(commentId);
-                    }
-                }
-                else {
-                    comment = this.getComment(commentId);
-                }
-                $contentReact.find('textarea')
-                    .val('@' + comment.login)
-                    .attr('data-reply-to', comment.id);
-            });
-            showPopup();
         });
     }
 }
