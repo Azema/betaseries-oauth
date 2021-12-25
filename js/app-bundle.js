@@ -603,6 +603,10 @@ class CommentBS {
                     verb = HTTP_VERBS.DELETE;
                     params = { id: commentId };
                 }
+                else if (_this.thumbed != 0) {
+                    console.warn("Le vote est impossible. Annuler votre vote et recommencer");
+                    return;
+                }
                 Base.callApi(verb, 'comments', 'thumb', params)
                     .then((data) => {
                     if (commentId == _this.id) {
@@ -620,6 +624,10 @@ class CommentBS {
                         // Demander au parent d'incrémenter les thumbs du commentaire
                         _this._parent.changeThumbsComment(commentId, data.comment.thumbs);
                     }
+                })
+                    .catch(err => {
+                    const msg = err.text !== undefined ? err.text : err;
+                    Base.notification('Vote commentaire', "Une erreur est apparue durant le vote: " + msg);
                 });
             });
             /**
