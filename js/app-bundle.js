@@ -276,7 +276,8 @@ class CommentBS {
      * @returns {string}
      */
     getTemplateComment(comment, all = false) {
-        const spoiler = /\[spoiler\]/.test(comment.text);
+        const text = new Option(comment.text).innerHTML;
+        const spoiler = /\[spoiler\]/.test(text);
         let btnSpoiler = spoiler ? `<button type="button" class="btn-reset mainLink view-spoiler" style="vertical-align: 0px;">${Base.trans("comment.button.display_spoiler")}</button>` : '';
         let classNames = { reply: 'iv_i5', actions: 'iv_i3', comment: 'iv_iz' };
         if (all) {
@@ -304,7 +305,7 @@ class CommentBS {
                             <span class="mainLink">${comment.login}</span>&nbsp;
                             <span class="mainLink mainLink--regular">&nbsp;</span>
                         </a>
-                        <span style="${spoiler ? 'display:none;' : ''}" class="comment-text">${comment.text}</span>
+                        <span style="${spoiler ? 'display:none;' : ''}" class="comment-text">${text}</span>
                         ${btnSpoiler}
                         <div class="${classNames.actions}">
                             <div class="options-main options-comment">
@@ -334,7 +335,7 @@ class CommentBS {
                                 <span class="stars" title="${comment.user_note} / 5">
                                     ${this._renderNote(comment.user_note)}
                                 </span>
-                                <div class="iv_ix">
+                                <div class="it_iv">
                                     <button type="button" class="btn-reset btnToggleOptions">
                                         <span class="svgContainer">
                                             <svg width="4" height="16" xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" style="transform: rotate(90deg);">
@@ -451,7 +452,7 @@ class CommentBS {
      */
     display() {
         // La popup et ses éléments
-        const _this = this, $popup = jQuery('#popin-dialog'), $contentHtmlElement = $popup.find(".popin-content-html"), $contentReact = $popup.find('.popin-content-reactmodule'), $title = $contentHtmlElement.find(".title"), $text = $popup.find("p"), $closeButtons = $popup.find("#popin-showClose"), cleanEvents = () => {
+        const _this = this, $popup = jQuery('#popin-dialog'), $contentHtml = $popup.find(".popin-content-html"), $contentReact = $popup.find('.popin-content-reactmodule'), $title = $contentHtml.find(".title"), $text = $popup.find("popin-content-ajax"), $closeButtons = $popup.find("#popin-showClose"), cleanEvents = () => {
             // On désactive les events
             $popup.find("#popin-showClose").off('click');
             $popup.find('.comments .comment .btnThumb').off('click');
@@ -466,12 +467,13 @@ class CommentBS {
             $popup.attr('aria-hidden', 'true');
             $popup.find("#popupalertyes").show();
             $popup.find("#popupalertno").show();
-            $contentHtmlElement.hide();
+            $text.empty().append('<p></p>');
+            $contentHtml.hide();
             cleanEvents();
         }, showPopup = () => {
             $popup.find("#popupalertyes").hide();
             $popup.find("#popupalertno").hide();
-            $contentHtmlElement.show();
+            $contentHtml.show();
             $contentReact.hide();
             $closeButtons.show();
             $popup.attr('aria-hidden', 'false');
@@ -1592,28 +1594,35 @@ class Base {
     }
     displayComments() {
         // La popup et ses éléments
-        const _this = this, $popup = jQuery('#popin-dialog'), $contentHtmlElement = $popup.find(".popin-content-html"), $contentReact = $popup.find('.popin-content-reactmodule'), $title = $contentHtmlElement.find(".title"), $text = $popup.find(".popin-content-ajax"), $closeButtons = $popup.find("#popin-showClose"), cleanEvents = () => {
+        const _this = this, $popup = jQuery('#popin-dialog'), $contentHtmlElement = $popup.find(".popin-content-html"), $contentReact = $popup.find('.popin-content-reactmodule'), 
+        //   $title = $contentHtmlElement.find(".title"),
+        //   $text = $popup.find(".popin-content-ajax"),
+        $closeButtons = $popup.find("#popin-showClose"), cleanEvents = () => {
             // On désactive les events
             $popup.find("#popin-showClose").off('click');
             $popup.find('.comments .comment .btnThumb').off('click');
             $popup.find('.btnToggleOptions').off('click');
-            $text.find('.view-spoiler').off('click');
+            $contentReact.find('.view-spoiler').off('click');
             $popup.find('.sendComment').off('click');
             $popup.find('textarea').off('keypress');
             $popup.find('.baliseSpoiler').off('click');
-            $text.find('.comments .toggleReplies').off('click');
+            $contentReact.find('.comments .toggleReplies').off('click');
         }, hidePopup = () => {
+            document.body.style.overflow = "visible";
+            document.body.style.paddingRight = "";
             $popup.attr('aria-hidden', 'true');
             $popup.find("#popupalertyes").show();
             $popup.find("#popupalertno").show();
             $contentHtmlElement.hide();
-            $text.empty().append('<p></p>');
+            $contentReact.empty();
             cleanEvents();
         }, showPopup = () => {
+            document.body.style.overflow = "hidden";
+            document.body.style.paddingRight = getScrollbarWidth() + "px";
             $popup.find("#popupalertyes").hide();
             $popup.find("#popupalertno").hide();
-            $contentHtmlElement.show();
-            $contentReact.hide();
+            $contentHtmlElement.hide();
+            $contentReact.show();
             $closeButtons.show();
             $popup.attr('aria-hidden', 'false');
         };
@@ -1648,17 +1657,19 @@ class Base {
             $popup.attr('data-popin-type', 'comments');
             // On affiche le titre de la popup
             // avec des boutons pour naviguer
+            $contentReact.append(`<div class="title" id="dialog-title" tabindex="0"></div>`);
+            const $title = $contentReact.find('textarea.title');
             $title.empty().append(Base.trans("blog.title.comments"));
             // On ajoute les templates HTML du commentaire,
             // des réponses et du formulaire de d'écriture
-            $text.empty().append(template + CommentBS.getTemplateWriting() + '</div>');
+            $contentReact.empty().append(template + CommentBS.getTemplateWriting() + '</div>');
             // On active le bouton de fermeture de la popup
             $closeButtons.click(() => {
                 hidePopup();
                 $popup.removeAttr('data-popin-type');
             });
             // On active le lien pour afficher le spoiler
-            const $btnSpoiler = $text.find('.view-spoiler');
+            const $btnSpoiler = $contentReact.find('.view-spoiler');
             if ($btnSpoiler.length > 0) {
                 $btnSpoiler.click((e) => {
                     e.stopPropagation();
@@ -1672,7 +1683,7 @@ class Base {
              *  - btnUpVote: Voter pour ce commentaire
              *  - btnDownVote: Voter contre ce commentaire
              */
-            $text.find('.comments .comment .btnThumb').click((e) => {
+            $contentReact.find('.comments .comment .btnThumb').click((e) => {
                 e.stopPropagation();
                 e.preventDefault();
                 const $btn = jQuery(e.currentTarget);
@@ -1720,7 +1731,7 @@ class Base {
             /**
              * On affiche/masque les options du commentaire
              */
-            $text.find('.btnToggleOptions').click((e) => {
+            $contentReact.find('.btnToggleOptions').click((e) => {
                 e.stopPropagation();
                 e.preventDefault();
                 jQuery(e.currentTarget).parents('.iv_i3').first()
@@ -1737,7 +1748,7 @@ class Base {
             /**
              * On envoie la réponse à ce commentaire à l'API
              */
-            $text.find('.sendComment').click((e) => {
+            $contentReact.find('.sendComment').click((e) => {
                 e.stopPropagation();
                 e.preventDefault();
                 const $textarea = $(e.currentTarget).siblings('textarea');
@@ -1755,7 +1766,7 @@ class Base {
              * On active / desactive le bouton d'envoi du commentaire
              * en fonction du contenu du textarea
              */
-            $text.find('textarea').keypress((e) => {
+            $contentReact.find('textarea').keypress((e) => {
                 const $textarea = $(e.currentTarget);
                 if ($textarea.val().length > 0) {
                     $textarea.siblings('button').removeAttr('disabled');
@@ -1767,7 +1778,7 @@ class Base {
             /**
              * On ajoute les balises SPOILER au message dans le textarea
              */
-            $text.find('.baliseSpoiler').click((e) => {
+            $contentReact.find('.baliseSpoiler').click((e) => {
                 const $textarea = $popup.find('textarea');
                 if (/\[spoiler\]/.test($textarea.val())) {
                     return;
@@ -1775,7 +1786,7 @@ class Base {
                 const text = '[spoiler]' + $textarea.val() + '[/spoiler]';
                 $textarea.val(text);
             });
-            $text.find('.comments .toggleReplies').click((e) => {
+            $contentReact.find('.comments .toggleReplies').click((e) => {
                 e.stopPropagation();
                 e.preventDefault();
                 const $btn = $(e.currentTarget);
