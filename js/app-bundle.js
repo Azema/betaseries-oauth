@@ -1,4 +1,4 @@
-/*! betaseries_userscript - v1.1.3 - 2021-12-24
+/*! betaseries_userscript - v1.1.3 - 2021-12-25
  * https://github.com/Azema/betaseries
  * Copyright (c) 2021 Azema;
  * Licensed Apache-2.0
@@ -238,9 +238,9 @@ class CommentBS {
         this.in_reply_to = parseInt(data.in_reply_to, 10);
         this.in_reply_id = parseInt(data.in_reply_id, 10);
         this.in_reply_user = data.in_reply_user;
-        this.user_note = parseInt(data.user_note, 10);
+        this.user_note = data.user_note ? parseInt(data.user_note, 10) : 0;
         this.thumbs = parseInt(data.thumbs, 10);
-        this.thumbed = data.thumbed;
+        this.thumbed = !!data.thumbed;
         this.nbReplies = parseInt(data.replies, 10);
         this.replies = new Array();
         this.from_admin = data.from_admin;
@@ -255,6 +255,7 @@ class CommentBS {
      */
     _renderNote(note) {
         let typeSvg, template = '';
+        note = note || 0;
         Array.from({
             length: 5
         }, (_index, number) => {
@@ -456,18 +457,19 @@ class CommentBS {
             this._templateComment(this) + '</div>';
         let promise = Promise.resolve(true);
         // Récupération des réponses sur l'API
+        // On ajoute les réponses, par ordre décroissant à la template
         if (this.nbReplies > 0 && this.replies.length <= 0) {
             promise = this._parent.fetchRepliesOfComment(this.id)
                 .then((replies) => {
                 _this.replies = replies;
-                for (let r = 0; r < replies.length; r++) {
+                for (let r = replies.length - 1; r >= 0; r--) {
                     template += this._templateComment(replies[r]);
                 }
                 return true;
             });
         }
         else if (this.nbReplies > 0) {
-            for (let r = 0; r < this.replies.length; r++) {
+            for (let r = this.replies.length - 1; r >= 0; r--) {
                 template += this._templateComment(this.replies[r]);
             }
         }
