@@ -1305,6 +1305,7 @@ class Base {
     description;
     characters;
     comments;
+    nbComments;
     id;
     objNote;
     resource_url;
@@ -1336,12 +1337,8 @@ class Base {
                 this.characters.push(new Character(data.characters[c]));
             }
         }
+        this.nbComments = parseInt(data.comments, 10);
         this.comments = [];
-        if (data.comments && data.comments instanceof Array) {
-            for (let c = 0; c < data.comments.length; c++) {
-                this.comments.push(new CommentBS(data.comments[c], this));
-            }
-        }
         this.objNote = (data.note) ? new Note(data.note, this) : new Note(data.notes, this);
         this.resource_url = data.resource_url;
         this.title = data.title;
@@ -1437,13 +1434,6 @@ class Base {
      */
     get nbCharacters() {
         return this.characters.length;
-    }
-    /**
-     * Retourne le nombre de commentaires pour ce média
-     * @returns number
-     */
-    get nbComments() {
-        return this.comments.length;
     }
     /**
      * Décode le titre de la page
