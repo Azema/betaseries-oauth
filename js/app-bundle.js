@@ -384,20 +384,48 @@ class CommentBS {
             </div>
         `;
     }
-    _renderThumbs(vote) {
+    renderThumbs() {
         const $thumbs = jQuery(`.comments .comment[data-comment-id="${this.id}"] .thumbs`);
         let val = parseInt($thumbs.text(), 10);
-        val += vote;
-        let text = val > 0 ? `+${val}` : val.toString();
+        val += this.thumbed;
+        const text = val > 0 ? `+${val.toString()}` : val.toString();
         $thumbs.text(text);
-        if (vote == 0) {
+        if (this.thumbed == 0) {
             // On supprime la couleur de remplissage des icones de vote
             $thumbs.siblings('.btnThumb').find('g').attr('fill', 'inherited');
             return;
         }
-        // On affiche le votre en remplissant l'icone correspondant d'une couleur jaune
-        const $btnVote = vote > 0 ? $thumbs.siblings('.btnThumb.btnUpVote') : $thumbs.siblings('.btnThumb.btnDownVote');
+        // On affiche le vote en remplissant l'icone correspondant d'une couleur jaune
+        const $btnVote = this.thumbed > 0 ? $thumbs.siblings('.btnThumb.btnUpVote') : $thumbs.siblings('.btnThumb.btnDownVote');
         $btnVote.find('g').attr('fill', '#FFAC3B');
+    }
+    /**
+     * Indique si le comment fournit en paramètre fait parti des réponses
+     * @param   {number} commentId L'identifiant de la réponse
+     * @returns {boolean}
+     */
+    isReply(commentId) {
+        if (this.replies.length <= 0)
+            return false;
+        for (let r = 0; r < this.replies.length; r++) {
+            if (this.replies[r].id == commentId) {
+                return true;
+            }
+        }
+        return false;
+    }
+    /**
+     * Retourne la réponse correspondant à l'identifiant fournit
+     * @param   {number} commentId L'identifiant de la réponse
+     * @returns {CommentBS} La réponse
+     */
+    getReply(commentId) {
+        for (let r = 0; r < this.replies.length; r++) {
+            if (this.replies[r].id == commentId) {
+                return this.replies[r];
+            }
+        }
+        return null;
     }
     /**
      * Affiche le commentaire dans une dialogbox
@@ -552,35 +580,37 @@ class CommentBS {
              * Ajoutons les events pour:
              *  - btnUpVote: Voter pour ce commentaire
              *  - btnDownVote: Voter contre ce commentaire
-             *  - btnToggleOptions: Switcher les options
              */
             $popup.find('.comments .comment .btnThumb').click((e) => {
                 e.stopPropagation();
                 e.preventDefault();
-                // Ajouter un flag pour indiquer qu'un vote a déjà eu lieu
                 const $btn = jQuery(e.currentTarget);
                 const commentId = parseInt($btn.parents('.comment').data('commentId'), 10);
-                let params = { id: commentId, type: 1, switch: false };
-                if ($btn.hasClass('btnDownVote')) {
-                    params.type = -1;
-                }
+                let verb = HTTP_VERBS.POST;
+                const vote = $btn.hasClass('.btnUpVote') ? 1 : -1;
+                let params = { id: commentId, type: vote, switch: false };
                 // On a déjà voté
                 if (_this.thumbed == params.type) {
-                    params.switch = true;
+                    verb = HTTP_VERBS.DELETE;
+                    params = { id: commentId };
                 }
-                Base.callApi(HTTP_VERBS.POST, 'comments', 'thumb', params)
+                Base.callApi(verb, 'comments', 'thumb', params)
                     .then((data) => {
                     if (commentId == _this.id) {
-                        _this.thumbs = data.comment.thumbs;
-                        _this._renderThumbs(params.type);
+                        _this.thumbs = parseInt(data.comment.thumbs, 10);
+                        _this.thumbed = parseInt(data.comment.thumbed, 10);
+                        _this.renderThumbs();
+                    }
+                    else if (_this.isReply(commentId)) {
+                        const reply = _this.getReply(commentId);
+                        reply.thumbs = parseInt(data.comment.thumbs, 10);
+                        reply.thumbed = parseInt(data.comment.thumbed, 10);
+                        reply.renderThumbs();
                     }
                     else {
                         // Demander au parent d'incrémenter les thumbs du commentaire
                         _this._parent.changeThumbsComment(commentId, data.comment.thumbs);
                     }
-                    // On ajoute le flag pour indiquer que l'on a déjà voté
-                    $btn.attr('data-thumbed', params.type);
-                    // Mettre à jour le nombre de votes
                 });
             });
             /**
