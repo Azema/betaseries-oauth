@@ -279,10 +279,8 @@ class CommentBS {
         const text = new Option(comment.text).innerHTML;
         const spoiler = /\[spoiler\]/.test(text);
         let btnSpoiler = spoiler ? `<button type="button" class="btn-reset mainLink view-spoiler" style="vertical-align: 0px;">${Base.trans("comment.button.display_spoiler")}</button>` : '';
-        let classNames = { reply: 'iv_i5', actions: 'iv_i3', comment: 'iv_iz' };
-        if (all) {
-            classNames = { reply: 'it_i3', actions: 'it_i1', comment: 'it_ix' };
-        }
+        // let classNames = {reply: 'iv_i5', actions: 'iv_i3', comment: 'iv_iz'};
+        let classNames = { reply: 'it_i3', actions: 'it_i1', comment: 'it_ix' };
         let className = (comment.in_reply_to > 0) ? classNames.reply : '';
         let btnToggleReplies = comment.nbReplies > 0 ? `
         <button type="button" class="btn-reset mainLink mainLink--regular toggleReplies" style="margin-top: 2px; margin-bottom: -3px;" data-toggle="1">
@@ -469,7 +467,7 @@ class CommentBS {
             $popup.attr('aria-hidden', 'true');
             $popup.find("#popupalertyes").show();
             $popup.find("#popupalertno").show();
-            //   $contentReact.empty().append('<p></p>');
+            $contentReact.empty();
             $contentHtml.hide();
             cleanEvents();
         }, showPopup = () => {
