@@ -383,7 +383,7 @@ class CommentBS {
                     </div>
                     <div class="media-body">
                         <form class="gz_g1">
-                            <textarea rows="1" placeholder="${Base.trans("timeline.comment.write")}" class="form-control"></textarea>
+                            <textarea rows="2" placeholder="${Base.trans("timeline.comment.write")}" class="form-control"></textarea>
                             <button class="btn-reset sendComment" disabled="" aria-label="${Base.trans("comment.send.label")}">
                                 <span class="svgContainer" style="width: 16px; height: 16px;">
                                     <svg fill="${Base.theme === 'dark' ? "#fff" : "#333"}" width="15" height="12" xmlns="http://www.w3.org/2000/svg">
@@ -455,7 +455,7 @@ class CommentBS {
         const _this = this, $popup = jQuery('#popin-dialog'), $contentHtml = $popup.find(".popin-content-html"), $contentReact = $popup.find('.popin-content-reactmodule'), $closeButtons = $popup.find("#popin-showClose");
         // On affiche le titre de la popup
         // avec des boutons pour naviguer
-        $contentReact.append(`<div class="title" id="dialog-title" tabindex="0"></div>`);
+        $contentReact.prepend(`<div class="title" id="dialog-title" tabindex="0"></div>`);
         const $title = $contentReact.find('#dialog-title');
         $title.empty().append(Base.trans("blog.title.comments") + ' <i class="fa fa-chevron-circle-left prev-comment" aria-hidden="true"></i> <i class="fa fa-chevron-circle-right next-comment" aria-hidden="true"></i>');
         const cleanEvents = () => {
@@ -470,6 +470,8 @@ class CommentBS {
             $popup.find('textarea').off('keypress');
             $popup.find('.baliseSpoiler').off('click');
         }, hidePopup = () => {
+            document.body.style.overflow = "visible";
+            document.body.style.paddingRight = "";
             $popup.attr('aria-hidden', 'true');
             $popup.find("#popupalertyes").show();
             $popup.find("#popupalertno").show();
@@ -477,6 +479,8 @@ class CommentBS {
             $contentHtml.hide();
             cleanEvents();
         }, showPopup = () => {
+            document.body.style.overflow = "hidden";
+            document.body.style.paddingRight = getScrollbarWidth() + "px";
             $popup.find("#popupalertyes").hide();
             $popup.find("#popupalertno").hide();
             $contentHtml.hide();
