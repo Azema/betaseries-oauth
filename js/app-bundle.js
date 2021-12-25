@@ -1608,11 +1608,10 @@ class Base {
         if (this.comments.length <= 0 && this.nbComments > 0) {
             promise = this.fetchComments();
         }
-        let comment, template = '<div class="commentsContainer overflowYScroll">';
+        let comment, template = '<div class="comments overflowYScroll">';
         promise.then(async () => {
             for (let c = 0; c < _this.comments.length; c++) {
                 comment = this.comments[c];
-                template += `<div class="comments" data-comment-parent="${comment.id}">`;
                 template += comment.getTemplateComment(comment);
                 // Si le commentaires à des réponses et qu'elles ne sont pas chargées
                 if (comment.nbReplies > 0 && comment.replies.length <= 0) {
@@ -1622,7 +1621,6 @@ class Base {
                 for (let r = 0; r < comment.replies.length; r++) {
                     template += comment.replies[r].getTemplateComment(comment.replies[r]);
                 }
-                template += '</div>';
             }
             template += '</div>';
             // On définit le type d'affichage de la popup
@@ -1653,19 +1651,27 @@ class Base {
              *  - btnUpVote: Voter pour ce commentaire
              *  - btnDownVote: Voter contre ce commentaire
              */
-            $popup.find('.commentsContainer .comments .comment .btnThumb').click((e) => {
+            $popup.find('.comments .comment .btnThumb').click((e) => {
                 e.stopPropagation();
                 e.preventDefault();
                 const $btn = jQuery(e.currentTarget);
+                const $comment = $btn.parents('.comment');
                 const commentId = parseInt($btn.parents('.comment').data('commentId'), 10);
-                const parentId = parseInt($btn.parents('.comments').data('commentParent'), 10);
                 let comment;
-                if (commentId == parentId) {
-                    comment = this.getComment(commentId);
+                // Si il s'agit d'une réponse, il nous faut le commentaire parent
+                if ($comment.hasClass('iv_i5')) {
+                    const $parent = $comment.siblings('.comment:not(.iv_i5)').first();
+                    const parentId = parseInt($parent.data('commentId'), 10);
+                    if (commentId == parentId) {
+                        comment = this.getComment(commentId);
+                    }
+                    else {
+                        const cmtParent = this.getComment(parentId);
+                        comment = cmtParent.getReply(commentId);
+                    }
                 }
                 else {
-                    const cmtParent = this.getComment(parentId);
-                    comment = cmtParent.getReply(commentId);
+                    comment = this.getComment(commentId);
                 }
                 let verb = HTTP_VERBS.POST;
                 const vote = $btn.hasClass('btnUpVote') ? 1 : -1;
