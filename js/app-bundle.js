@@ -1757,7 +1757,7 @@ class Base {
                 $contentReact.find('.loaderCmt').remove();
                 $contentReact.append(template + CommentBS.getTemplateWriting() + '</div>');
                 $contentReact.fadeIn();
-                subscribeToggle($contentReact.find('.btnSubscribe').get(0), _this.mediaType.singular, _this.id);
+                // subscribeToggle($contentReact.find('.btnSubscribe').get(0), _this.mediaType.singular, _this.id);
                 loadEvents();
             });
             function loadEvents() {
