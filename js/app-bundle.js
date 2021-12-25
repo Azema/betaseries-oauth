@@ -1623,7 +1623,12 @@ class Base {
         if (this.comments.length <= 0 && this.nbComments > 0) {
             promise = this.fetchComments();
         }
-        let comment, template = '<div class="comments overflowYScroll">';
+        let comment, template = `
+                <div data-media-type="${this.mediaType.singular}"
+                     data-media-id="${this.id}"
+                     class="displayFlex flexDirectionColumn"
+                     style="margin-top: 2px; min-height: 0">
+                    <div class="comments overflowYScroll">`;
         promise.then(async () => {
             for (let c = 0; c < _this.comments.length; c++) {
                 comment = this.comments[c];
@@ -1646,7 +1651,7 @@ class Base {
             $title.empty().append(Base.trans("blog.title.comments"));
             // On ajoute les templates HTML du commentaire,
             // des réponses et du formulaire de d'écriture
-            $text.empty().append(template + CommentBS.getTemplateWriting());
+            $text.empty().append(template + CommentBS.getTemplateWriting() + '</div>');
             // On active le bouton de fermeture de la popup
             $closeButtons.click(() => {
                 hidePopup();
