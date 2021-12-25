@@ -598,13 +598,13 @@ class CommentBS {
                     .then((data) => {
                     if (commentId == _this.id) {
                         _this.thumbs = parseInt(data.comment.thumbs, 10);
-                        _this.thumbed = parseInt(data.comment.thumbed, 10);
+                        _this.thumbed = data.comment.thumbed ? parseInt(data.comment.thumbed, 10) : 0;
                         _this.renderThumbs();
                     }
                     else if (_this.isReply(commentId)) {
                         const reply = _this.getReply(commentId);
                         reply.thumbs = parseInt(data.comment.thumbs, 10);
-                        reply.thumbed = parseInt(data.comment.thumbed, 10);
+                        reply.thumbed = data.comment.thumbed ? parseInt(data.comment.thumbed, 10) : 0;
                         reply.renderThumbs();
                     }
                     else {
