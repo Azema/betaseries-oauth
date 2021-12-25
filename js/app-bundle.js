@@ -384,10 +384,15 @@ class CommentBS {
             </div>
         `;
     }
-    renderThumbs() {
+    /**
+     * Met à jour le rendu des votes de ce commentaire
+     * @param   {number} vote Le vote
+     * @returns {void}
+     */
+    renderThumbs(vote = 0) {
         const $thumbs = jQuery(`.comments .comment[data-comment-id="${this.id}"] .thumbs`);
         let val = parseInt($thumbs.text(), 10);
-        val += this.thumbed;
+        val += vote;
         const text = val > 0 ? `+${val.toString()}` : val.toString();
         $thumbs.text(text);
         if (this.thumbed == 0) {
@@ -599,13 +604,13 @@ class CommentBS {
                     if (commentId == _this.id) {
                         _this.thumbs = parseInt(data.comment.thumbs, 10);
                         _this.thumbed = data.comment.thumbed ? parseInt(data.comment.thumbed, 10) : 0;
-                        _this.renderThumbs();
+                        _this.renderThumbs(vote);
                     }
                     else if (_this.isReply(commentId)) {
                         const reply = _this.getReply(commentId);
                         reply.thumbs = parseInt(data.comment.thumbs, 10);
                         reply.thumbed = data.comment.thumbed ? parseInt(data.comment.thumbed, 10) : 0;
-                        reply.renderThumbs();
+                        reply.renderThumbs(vote);
                     }
                     else {
                         // Demander au parent d'incrémenter les thumbs du commentaire
