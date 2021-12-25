@@ -452,19 +452,13 @@ class CommentBS {
      */
     display() {
         // La popup et ses éléments
-        const _this = this, $popup = jQuery('#popin-dialog'), $contentHtml = $popup.find(".popin-content-html"), $contentReact = $popup.find('.popin-content-reactmodule'), $closeButtons = $popup.find("#popin-showClose");
-        // On affiche le titre de la popup
-        // avec des boutons pour naviguer
-        $contentReact.empty().append(`<div class="title" id="dialog-title" tabindex="0"></div>`);
-        const $title = $contentReact.find('.title');
-        $title.append(Base.trans("blog.title.comments") + ' <i class="fa fa-chevron-circle-left prev-comment" aria-hidden="true"></i> <i class="fa fa-chevron-circle-right next-comment" aria-hidden="true"></i>');
-        const cleanEvents = () => {
+        const _this = this, $popup = jQuery('#popin-dialog'), $contentHtml = $popup.find(".popin-content-html"), $contentReact = $popup.find('.popin-content-reactmodule'), $closeButtons = $popup.find("#popin-showClose"), cleanEvents = () => {
             // On désactive les events
             $popup.find("#popin-showClose").off('click');
             $popup.find('.comments .comment .btnThumb').off('click');
             $popup.find('.btnToggleOptions').off('click');
-            $title.find('.prev-comment').off('click');
-            $title.find('.next-comment').off('click');
+            $contentReact.find('.prev-comment').off('click');
+            $contentReact.find('.next-comment').off('click');
             $contentReact.find('.view-spoiler').off('click');
             $popup.find('.sendComment').off('click');
             $popup.find('textarea').off('keypress');
@@ -475,7 +469,7 @@ class CommentBS {
             $popup.attr('aria-hidden', 'true');
             $popup.find("#popupalertyes").show();
             $popup.find("#popupalertno").show();
-            $contentReact.empty().append('<p></p>');
+            //   $contentReact.empty().append('<p></p>');
             $contentHtml.hide();
             cleanEvents();
         }, showPopup = () => {
@@ -514,6 +508,11 @@ class CommentBS {
         promise.then(() => {
             // On définit le type d'affichage de la popup
             $popup.attr('data-popin-type', 'comments');
+            // On affiche le titre de la popup
+            // avec des boutons pour naviguer
+            $contentReact.empty().append(`<div class="title" id="dialog-title" tabindex="0"></div>`);
+            const $title = $contentReact.find('.title');
+            $title.append(Base.trans("blog.title.comments") + ' <i class="fa fa-chevron-circle-left prev-comment" aria-hidden="true"></i> <i class="fa fa-chevron-circle-right next-comment" aria-hidden="true"></i>');
             // On ajoute les templates HTML du commentaire,
             // des réponses et du formulaire de d'écriture
             $contentReact.append(template + CommentBS.getTemplateWriting());
