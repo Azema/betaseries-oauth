@@ -391,9 +391,11 @@ class CommentBS {
      */
     renderThumbs(vote = 0) {
         const $thumbs = jQuery(`.comments .comment[data-comment-id="${this.id}"] .thumbs`);
-        let val = parseInt($thumbs.text(), 10);
-        val = (vote == this.thumbed) ? val + vote : val - vote;
-        const text = val > 0 ? `+${val.toString()}` : val.toString();
+        const val = parseInt($thumbs.text(), 10);
+        const result = (vote == this.thumbed) ? val + vote : val - vote;
+        const text = result > 0 ? `+${result}` : result.toString();
+        if (Base.debug)
+            console.log('renderThumbs: ', { val, vote, result, text });
         $thumbs.text(text);
         if (this.thumbed == 0) {
             // On supprime la couleur de remplissage des icones de vote
