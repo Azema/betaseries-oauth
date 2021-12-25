@@ -295,7 +295,7 @@ class CommentBS {
                         <span style="${spoiler ? 'display:none;' : ''}" class="comment-text">${comment.text}</span>
                         ${btnSpoiler}
                         <div class="iv_i3">
-                            <div class="options-main options-comment" data-commentId="${comment.id}">
+                            <div class="options-main options-comment" data-comment-id="${comment.id}">
                                 <button type="button" class="btn-reset btnUpVote btnThumb">
                                     <svg data-disabled="false" class="SvgLike" fill="#fff" width="16" height="14" viewBox="0 0 16 14" xmlns="http://www.w3.org/2000/svg">
                                         <g fill="inherit" fill-rule="nonzero">
@@ -544,7 +544,7 @@ class CommentBS {
                 e.preventDefault();
                 // Ajouter un flag pour indiquer qu'un vote a déjà eu lieu
                 const $btn = jQuery(e.currentTarget);
-                const commentId = parseInt($btn.parent().data('commentId'), 10);
+                const commentId = parseInt($btn.parents('.options-main').data('commentId'), 10);
                 let params = { id: commentId, type: 1, switch: false };
                 // On a déjà voté
                 if ($btn.data('thumbed') == '1') {
