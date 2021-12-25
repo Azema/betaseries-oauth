@@ -1601,6 +1601,7 @@ class Base {
             $popup.find('.sendComment').off('click');
             $popup.find('textarea').off('keypress');
             $popup.find('.baliseSpoiler').off('click');
+            $text.find('.comments .toggleReplies').off('click');
         }, hidePopup = () => {
             $popup.attr('aria-hidden', 'true');
             $popup.find("#popupalertyes").show();
@@ -1637,27 +1638,6 @@ class Base {
                     template += comment.replies[r].getTemplateComment(comment.replies[r], true);
                 }
             }
-            $text.find('.comments .toggleReplies').click((e) => {
-                e.stopPropagation();
-                e.preventDefault();
-                const $btn = $(e.currentTarget);
-                const state = $btn.data('toggle'); // 0: Etat masqué, 1: Etat affiché
-                const $comment = $btn.parents('.comment');
-                const inner = $comment.data('commentInner');
-                const $replies = $comment.parents('.comments').find(`.comment[data-comment-reply="${inner}"]`);
-                if (state == '0') {
-                    // On affiche
-                    $replies.fadeIn('fast');
-                    $btn.find('.btnText').text(Base.trans("comment.hide_answers"));
-                    $btn.find('svg').attr('style', 'transition: transform 200ms ease 0s; transform: rotate(180deg);');
-                }
-                else {
-                    // On masque
-                    $replies.fadeOut('fast');
-                    $btn.find('.btnText').text(Base.trans("comment.button.reply", $replies.length.toString()));
-                    $btn.find('svg').attr('style', 'transition: transform 200ms ease 0s;');
-                }
-            });
             template += '</div>';
             // On définit le type d'affichage de la popup
             $popup.attr('data-popin-type', 'comments');
@@ -1687,7 +1667,7 @@ class Base {
              *  - btnUpVote: Voter pour ce commentaire
              *  - btnDownVote: Voter contre ce commentaire
              */
-            $popup.find('.comments .comment .btnThumb').click((e) => {
+            $text.find('.comments .comment .btnThumb').click((e) => {
                 e.stopPropagation();
                 e.preventDefault();
                 const $btn = jQuery(e.currentTarget);
@@ -1735,7 +1715,7 @@ class Base {
             /**
              * On affiche/masque les options du commentaire
              */
-            $popup.find('.btnToggleOptions').click((e) => {
+            $text.find('.btnToggleOptions').click((e) => {
                 e.stopPropagation();
                 e.preventDefault();
                 jQuery(e.currentTarget).parents('.iv_i3').first()
@@ -1752,7 +1732,7 @@ class Base {
             /**
              * On envoie la réponse à ce commentaire à l'API
              */
-            $popup.find('.sendComment').click((e) => {
+            $text.find('.sendComment').click((e) => {
                 e.stopPropagation();
                 e.preventDefault();
                 const $textarea = $(e.currentTarget).siblings('textarea');
@@ -1770,7 +1750,7 @@ class Base {
              * On active / desactive le bouton d'envoi du commentaire
              * en fonction du contenu du textarea
              */
-            $popup.find('textarea').keypress((e) => {
+            $text.find('textarea').keypress((e) => {
                 const $textarea = $(e.currentTarget);
                 if ($textarea.val().length > 0) {
                     $textarea.siblings('button').removeAttr('disabled');
@@ -1782,13 +1762,34 @@ class Base {
             /**
              * On ajoute les balises SPOILER au message dans le textarea
              */
-            $popup.find('.baliseSpoiler').click((e) => {
+            $text.find('.baliseSpoiler').click((e) => {
                 const $textarea = $popup.find('textarea');
                 if (/\[spoiler\]/.test($textarea.val())) {
                     return;
                 }
                 const text = '[spoiler]' + $textarea.val() + '[/spoiler]';
                 $textarea.val(text);
+            });
+            $text.find('.comments .toggleReplies').click((e) => {
+                e.stopPropagation();
+                e.preventDefault();
+                const $btn = $(e.currentTarget);
+                const state = $btn.data('toggle'); // 0: Etat masqué, 1: Etat affiché
+                const $comment = $btn.parents('.comment');
+                const inner = $comment.data('commentInner');
+                const $replies = $comment.parents('.comments').find(`.comment[data-comment-reply="${inner}"]`);
+                if (state == '0') {
+                    // On affiche
+                    $replies.fadeIn('fast');
+                    $btn.find('.btnText').text(Base.trans("comment.hide_answers"));
+                    $btn.find('svg').attr('style', 'transition: transform 200ms ease 0s; transform: rotate(180deg);');
+                }
+                else {
+                    // On masque
+                    $replies.fadeOut('fast');
+                    $btn.find('.btnText').text(Base.trans("comment.button.reply", $replies.length.toString()));
+                    $btn.find('svg').attr('style', 'transition: transform 200ms ease 0s;');
+                }
             });
             showPopup();
         });
