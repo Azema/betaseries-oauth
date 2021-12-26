@@ -141,6 +141,682 @@ class Character {
     movie_id;
 }
 
+var MediaStatusComments;
+(function (MediaStatusComments) {
+    MediaStatusComments["OPEN"] = "open";
+    MediaStatusComments["CLOSED"] = "close";
+})(MediaStatusComments = MediaStatusComments || (MediaStatusComments = {}));
+class CommentsBS {
+    /*************************************************/
+    /*                  STATIC                       */
+    /*************************************************/
+    /**
+     * Envoie une réponse de ce commentaire à l'API
+     * @param   {Base} media - Le média correspondant à la collection
+     * @param   {string} text - Le texte de la réponse
+     * @returns {Promise<void | CommentBS>}
+     */
+    static sendComment(media, text) {
+        const _this = this;
+        const params = {
+            type: media.mediaType.singular,
+            id: media.id,
+            text: text
+        };
+        return Base.callApi(HTTP_VERBS.POST, 'comments', 'comment', params)
+            .then((data) => {
+            const comment = new CommentBS(data.comment, media.comments, media);
+            media.comments.addComment(comment);
+            media.comments.nbComments++;
+            return comment;
+        })
+            .catch(err => {
+            Base.notification('Commentaire', "Erreur durant l'ajout d'un commentaire");
+            console.error(err);
+        });
+    }
+    /*************************************************/
+    /*                  PROPERTIES                   */
+    /*************************************************/
+    _parent;
+    comments;
+    nbComments;
+    is_subscribed;
+    status;
+    _events;
+    /*************************************************/
+    /*                  METHODS                      */
+    /*************************************************/
+    constructor(nbComments, media) {
+        this.comments = new Array();
+        this._parent = media;
+        this.is_subscribed = false;
+        this.status = MediaStatusComments.OPEN;
+        this.nbComments = nbComments;
+    }
+    get length() {
+        return this.comments.length;
+    }
+    /**
+     * Récupère les commentaires du média sur l'API
+     * @param   {number} [nbpp=50] - Le nombre de commentaires à récupérer
+     * @param   {number} [since=0] - L'identifiant du dernier commentaire reçu
+     * @returns {Promise<CommentsBS>}
+     */
+    fetchComments(nbpp = 50, since = 0) {
+        const self = this;
+        return new Promise((resolve, reject) => {
+            let params = {
+                type: self._parent.mediaType.singular,
+                id: self._parent.id,
+                nbpp: nbpp,
+                replies: 0,
+                order: 'desc'
+            };
+            if (since > 0) {
+                params.since_id = since;
+            }
+            Base.callApi(HTTP_VERBS.GET, 'comments', 'comments', params)
+                .then((data) => {
+                if (data.comments !== undefined) {
+                    if (since <= 0) {
+                        self.comments = new Array();
+                    }
+                    for (let c = 0; c < data.comments.length; c++) {
+                        self.addComment(data.comments[c]);
+                    }
+                }
+                self.nbComments = parseInt(data.total, 10);
+                self.is_subscribed = !!data.is_subscribed;
+                self.status = data.status;
+                resolve(self);
+            })
+                .catch(err => {
+                console.warn('fetchComments', err);
+                Base.notification('Récupération des commentaires', "Une erreur est apparue durant la récupération des commentaires");
+                reject(err);
+            });
+        });
+    }
+    /**
+     * Ajoute un commentaire à la collection
+     * @param   {Obj} data - Les données du commentaire provenant de l'API
+     * @returns {CommentsBS}
+     */
+    addComment(data) {
+        if (data instanceof CommentBS) {
+            this.comments.push(data);
+        }
+        else {
+            this.comments.push(new CommentBS(data, this, this._parent));
+        }
+        return this;
+    }
+    /**
+     * Retire un commentaire de la collection
+     * /!\ (Ne le supprime pas sur l'API) /!\
+     * @param   {number} cmtId - L'identifiant du commentaire à retirer
+     * @returns {CommentsBS}
+     */
+    removeComment(cmtId) {
+        for (let c = 0; c < this.comments.length; c++) {
+            if (this.comments[c].id === cmtId) {
+                this.comments.splice(c, 1);
+                break;
+            }
+        }
+        return this;
+    }
+    /**
+     * Indique si il s'agit du premier commentaire
+     * @param cmtId - L'identifiant du commentaire
+     * @returns {boolean}
+     */
+    isFirst(cmtId) {
+        return this.comments[0].id === cmtId;
+    }
+    /**
+     * Indique si il s'agit du dernier commentaire
+     * @param cmtId - L'identifiant du commentaire
+     * @returns {boolean}
+     */
+    isLast(cmtId) {
+        return this.comments[this.comments.length - 1].id === cmtId;
+    }
+    /**
+     * Indique si on peut écrire des commentaires sur ce média
+     * @returns {boolean}
+     */
+    isOpen() {
+        return this.status === MediaStatusComments.OPEN;
+    }
+    /**
+     * Retourne le commentaire correspondant à l'ID fournit en paramètre
+     * @param   {number} cId - L'identifiant du commentaire
+     * @returns {CommentBS|void}
+     */
+    getComment(cId) {
+        for (let c = 0; c < this.comments.length; c++) {
+            if (this.comments[c].id === cId) {
+                return this.comments[c];
+            }
+        }
+        return null;
+    }
+    /**
+     * Retourne le commentaire précédent celui fournit en paramètre
+     * @param   {number} cId - L'identifiant du commentaire
+     * @returns {CommentBS|null}
+     */
+    getPrevComment(cId) {
+        for (let c = 0; c < this.comments.length; c++) {
+            if (this.comments[c].id === cId && c > 0) {
+                return this.comments[c - 1];
+            }
+        }
+        return null;
+    }
+    /**
+     * Retourne le commentaire suivant celui fournit en paramètre
+     * @param   {number} cId - L'identifiant du commentaire
+     * @returns {CommentBS|null}
+     */
+    getNextComment(cId) {
+        const len = this.comments.length;
+        for (let c = 0; c < this.comments.length; c++) {
+            // TODO: Vérifier que tous les commentaires ont été récupérer
+            if (this.comments[c].id === cId && c < len - 1) {
+                return this.comments[c + 1];
+            }
+        }
+        return null;
+    }
+    /**
+     * Retourne les réponses d'un commentaire
+     * @param   {number} commentId - Identifiant du commentaire original
+     * @returns {Promise<Array<CommentBS>>} Tableau des réponses
+     */
+    async fetchReplies(commentId) {
+        const data = await Base.callApi(HTTP_VERBS.GET, 'comments', 'replies', { id: commentId, order: 'desc' });
+        const replies = new Array();
+        if (data.comments) {
+            for (let c = 0; c < data.comments.length; c++) {
+                replies.push(new CommentBS(data.comments[c], this, this._parent));
+            }
+        }
+        return replies;
+    }
+    /**
+     * Modifie le nombre de votes et le vote du membre pour un commentaire
+     * @param   {number} commentId - Identifiant du commentaire
+     * @param   {number} thumbs - Nombre de votes
+     * @param   {number} thumbed - Le vote du membre connecté
+     * @returns {boolean}
+     */
+    changeThumbs(commentId, thumbs, thumbed) {
+        for (let c = 0; c < this.comments.length; c++) {
+            if (this.comments[c].id === commentId) {
+                this.comments[c].thumbs = thumbs;
+                this.comments[c].thumbed = thumbed;
+                return true;
+            }
+        }
+        return false;
+    }
+    /**
+     * Retourne la template pour l'affichage de l'ensemble des commentaires
+     * @param   {number} nbpp - Le nombre de commentaires à récupérer
+     * @returns {Promise<string>} La template
+     */
+    async getTemplate(nbpp) {
+        const self = this;
+        return new Promise((resolve, reject) => {
+            let promise = Promise.resolve(self);
+            if (Base.debug)
+                console.log('Base ', { length: self.comments.length, nbComments: self.nbComments });
+            if (self.comments.length <= 0 && self.nbComments > 0) {
+                if (Base.debug)
+                    console.log('Base fetchComments call');
+                promise = self.fetchComments(nbpp);
+            }
+            let comment, template = `
+                    <div data-media-type="${self._parent.mediaType.singular}"
+                         data-media-id="${self._parent.id}"
+                         class="displayFlex flexDirectionColumn"
+                         style="margin-top: 2px; min-height: 0">
+                        <button type="button" class="btn-reset btnSubscribe" style="position: absolute; top: 3px; right: 31px; padding: 8px;">
+                            <span class="svgContainer">
+                                <svg fill="${Base.theme == 'dark' ? 'rgba(255, 255, 255, .5)' : '#333'}" width="14" height="16" style="position: relative; top: 1px; left: -1px;">
+                                    <path fill-rule="nonzero" d="M13.176 13.284L3.162 2.987 1.046.812 0 1.854l2.306 2.298v.008c-.428.812-.659 1.772-.659 2.806v4.103L0 12.709v.821h11.307l1.647 1.641L14 14.13l-.824-.845zM6.588 16c.914 0 1.647-.73 1.647-1.641H4.941c0 .91.733 1.641 1.647 1.641zm4.941-6.006v-3.02c0-2.527-1.35-4.627-3.705-5.185V1.23C7.824.55 7.272 0 6.588 0c-.683 0-1.235.55-1.235 1.23v.559c-.124.024-.239.065-.346.098a2.994 2.994 0 0 0-.247.09h-.008c-.008 0-.008 0-.017.009-.19.073-.379.164-.56.254 0 0-.008 0-.008.008l7.362 7.746z"></path>
+                                </svg>
+                            </span>
+                        </button>
+                        <div class="comments overflowYScroll">`;
+            promise.then(async () => {
+                for (let c = 0; c < self.comments.length; c++) {
+                    comment = self.comments[c];
+                    template += CommentBS.getTemplateComment(comment, true);
+                    // Si le commentaires à des réponses et qu'elles ne sont pas chargées
+                    if (comment.nbReplies > 0 && comment.replies.length <= 0) {
+                        // On récupère les réponses
+                        comment.replies = await self.fetchReplies(comment.id);
+                        // On ajoute un boutton pour afficher/masquer les réponses
+                    }
+                    for (let r = 0; r < comment.replies.length; r++) {
+                        template += CommentBS.getTemplateComment(comment.replies[r], true);
+                    }
+                }
+                // On ajoute le bouton pour voir plus de commentaires
+                if (self.comments.length < self.nbComments) {
+                    template += `<button type="button" class="btn-reset btn-greyBorder moreComments" style="margin-top: 10px; width: 100%;">${Base.trans("timeline.comments.display_more")}<i class="fa fa-cog fa-spin fa-2x fa-fw" style="display:none;margin-left:15px;vertical-align:middle;"></i><span class="sr-only">Loading...</span></button>`;
+                }
+                template + '</div>';
+                if (self.status.toLowerCase() === MediaStatusComments.OPEN) {
+                    template += CommentBS.getTemplateWriting();
+                }
+                resolve(template + '</div>');
+            })
+                .catch(err => {
+                reject(err);
+            });
+        });
+    }
+    /**
+     * Ajoute les évènements sur les commentaires lors du rendu
+     * @param   {JQuery<HTMLElement>} $container - Le conteneur des éléments d'affichage
+     * @param   {number} nbpp - Le nombre de commentaires à récupérer sur l'API
+     * @param   {Obj} funcPopup - Objet des fonctions d'affichage/ de masquage de la popup
+     * @returns {void}
+     */
+    loadEvents($container, nbpp, funcPopup) {
+        // Tableau servant à contenir les events créer pour pouvoir les supprimer plus tard
+        this._events = new Array();
+        const self = this;
+        const $popup = jQuery('#popin-dialog');
+        const $btnClose = jQuery("#popin-showClose");
+        // On ajoute les templates HTML du commentaire,
+        // des réponses et du formulaire de d'écriture
+        // On active le bouton de fermeture de la popup
+        $btnClose.click(() => {
+            funcPopup.hidePopup();
+            $popup.removeAttr('data-popin-type');
+        });
+        this._events.push({ elt: $btnClose, event: 'click' });
+        const $btnSubscribe = $container.find('.btnSubscribe');
+        /**
+         * Met à jour l'affichage du bouton de souscription
+         * des alertes de nouveaux commentaires
+         * @param   {JQuery<HTMLElement>} $btn - L'élément jQuery correspondant au bouton de souscription
+         * @returns {void}
+         */
+        function displaySubscription($btn) {
+            if (!self.is_subscribed && $btn.hasClass('active')) {
+                $btn.removeClass('active');
+                $btn.attr('title', "Recevoir les commentaires par e-mail");
+                $btn.find('svg').replaceWith(`
+                    <svg fill="${Base.theme == 'dark' ? 'rgba(255, 255, 255, .5)' : '#333'}" width="14" height="16" style="position: relative; top: 1px; left: -1px;">
+                        <path fill-rule="nonzero" d="M13.176 13.284L3.162 2.987 1.046.812 0 1.854l2.306 2.298v.008c-.428.812-.659 1.772-.659 2.806v4.103L0 12.709v.821h11.307l1.647 1.641L14 14.13l-.824-.845zM6.588 16c.914 0 1.647-.73 1.647-1.641H4.941c0 .91.733 1.641 1.647 1.641zm4.941-6.006v-3.02c0-2.527-1.35-4.627-3.705-5.185V1.23C7.824.55 7.272 0 6.588 0c-.683 0-1.235.55-1.235 1.23v.559c-.124.024-.239.065-.346.098a2.994 2.994 0 0 0-.247.09h-.008c-.008 0-.008 0-.017.009-.19.073-.379.164-.56.254 0 0-.008 0-.008.008l7.362 7.746z"></path>
+                    </svg>
+                `);
+            }
+            else if (self.is_subscribed && !$btn.hasClass('active')) {
+                $btn.addClass('active');
+                $btn.attr('title', "Ne plus recevoir les commentaires par e-mail");
+                $btn.find('svg').replaceWith(`
+                    <svg width="20" height="22" viewBox="0 0 20 22" style="width: 17px;">
+                        <g transform="translate(-4)" fill="none">
+                            <path d="M0 0h24v24h-24z"></path>
+                            <path fill="${Base.theme == 'dark' ? 'rgba(255, 255, 255, .5)' : '#333'}" d="M12 22c1.1 0 2-.9 2-2h-4c0 1.1.89 2 2 2zm6-6v-5c0-3.07-1.64-5.64-4.5-6.32v-.68c0-.83-.67-1.5-1.5-1.5s-1.5.67-1.5 1.5v.68c-2.87.68-4.5 3.24-4.5 6.32v5l-2 2v1h16v-1l-2-2z"></path>
+                        </g>
+                    </svg>
+                `);
+            }
+        }
+        $btnSubscribe.click((e) => {
+            e.stopPropagation();
+            e.preventDefault();
+            const $btn = $(e.currentTarget);
+            let params = { type: self._parent.mediaType.singular, id: self._parent.id };
+            if ($btn.hasClass('active')) {
+                Base.callApi(HTTP_VERBS.DELETE, 'comments', 'subscription', params)
+                    .then((data) => {
+                    self.is_subscribed = false;
+                    displaySubscription($btn);
+                });
+            }
+            else {
+                Base.callApi(HTTP_VERBS.POST, 'comments', 'subscription', params)
+                    .then((data) => {
+                    self.is_subscribed = true;
+                    displaySubscription($btn);
+                });
+            }
+        });
+        this._events.push({ elt: $btnSubscribe, event: 'click' });
+        if (self.is_subscribed) {
+            displaySubscription($btnSubscribe);
+        }
+        // On active le lien pour afficher le spoiler
+        const $btnSpoiler = $container.find('.view-spoiler');
+        if ($btnSpoiler.length > 0) {
+            $btnSpoiler.click((e) => {
+                e.stopPropagation();
+                e.preventDefault();
+                $(e.currentTarget).prev('span.comment-text').fadeIn();
+                $(e.currentTarget).fadeOut();
+            });
+        }
+        this._events.push({ elt: $btnSpoiler, event: 'click' });
+        /**
+         * Ajoutons les events pour:
+         *  - btnUpVote: Voter pour ce commentaire
+         *  - btnDownVote: Voter contre ce commentaire
+         */
+        const $btnThumb = $container.find('.comments .comment .btnThumb');
+        $btnThumb.click((e) => {
+            e.stopPropagation();
+            e.preventDefault();
+            const $btn = jQuery(e.currentTarget);
+            const $comment = $btn.parents('.comment');
+            const commentId = parseInt($comment.data('commentId'), 10);
+            let comment;
+            // Si il s'agit d'une réponse, il nous faut le commentaire parent
+            if ($comment.hasClass('reply')) {
+                let $parent = $comment.prev();
+                while ($parent.hasClass('reply')) {
+                    $parent = $parent.prev();
+                }
+                const parentId = parseInt($parent.data('commentId'), 10);
+                if (commentId == parentId) {
+                    comment = this.getComment(commentId);
+                }
+                else {
+                    const cmtParent = this.getComment(parentId);
+                    comment = cmtParent.getReply(commentId);
+                }
+            }
+            else {
+                comment = this.getComment(commentId);
+            }
+            let verb = HTTP_VERBS.POST;
+            const vote = $btn.hasClass('btnUpVote') ? 1 : -1;
+            let params = { id: commentId, type: vote, switch: false };
+            // On a déjà voté
+            if (comment.thumbed == vote) {
+                verb = HTTP_VERBS.DELETE;
+                params = { id: commentId };
+            }
+            else if (comment.thumbed != 0) {
+                console.warn("Le vote est impossible. Annuler votre vote et recommencer");
+                return;
+            }
+            Base.callApi(verb, 'comments', 'thumb', params)
+                .then((data) => {
+                comment.thumbs = parseInt(data.comment.thumbs, 10);
+                comment.thumbed = data.comment.thumbed ? parseInt(data.comment.thumbed, 10) : 0;
+                comment.updateRenderThumbs(vote);
+            })
+                .catch(err => {
+                const msg = err.text !== undefined ? err.text : err;
+                Base.notification('Thumb commentaire', "Une erreur est apparue durant le vote: " + msg);
+            });
+        });
+        this._events.push({ elt: $btnThumb, event: 'click' });
+        /**
+         * On affiche/masque les options du commentaire
+         */
+        const $btnOptions = $container.find('.btnToggleOptions');
+        $btnOptions.click((e) => {
+            e.stopPropagation();
+            e.preventDefault();
+            jQuery(e.currentTarget).parents('.actionsCmt').first()
+                .find('.options-comment').each((_index, elt) => {
+                const $elt = jQuery(elt);
+                if ($elt.is(':visible')) {
+                    $elt.hide();
+                }
+                else {
+                    $elt.show();
+                }
+            });
+        });
+        this._events.push({ elt: $btnOptions, event: 'click' });
+        /**
+         * On envoie la réponse à ce commentaire à l'API
+         */
+        const $btnSend = $container.find('.sendComment');
+        $btnSend.click((e) => {
+            e.stopPropagation();
+            e.preventDefault();
+            const $textarea = $(e.currentTarget).siblings('textarea');
+            if ($textarea.val().length > 0) {
+                let comment;
+                if ($textarea.data('replyTo')) {
+                    comment = self.getComment(parseInt($textarea.data('replyTo'), 10));
+                    comment.reply($textarea.val());
+                }
+                else {
+                    CommentsBS.sendComment(self._parent, $textarea.val())
+                        .then((comment) => {
+                        if (comment) {
+                            $textarea.val('');
+                            $textarea.parents('.writing').siblings('.comments').append(CommentBS.getTemplateComment(comment));
+                        }
+                    });
+                }
+            }
+        });
+        this._events.push({ elt: $btnSend, event: 'click' });
+        /**
+         * On active / desactive le bouton d'envoi du commentaire
+         * en fonction du contenu du textarea
+         */
+        const $textarea = $container.find('textarea');
+        $textarea.keypress((e) => {
+            const $textarea = $(e.currentTarget);
+            if ($textarea.val().length > 0) {
+                $textarea.siblings('button').removeAttr('disabled');
+            }
+            else {
+                $textarea.siblings('button').attr('disabled', 'true');
+            }
+        });
+        this._events.push({ elt: $textarea, event: 'keypress' });
+        /**
+         * On ajoute les balises SPOILER au message dans le textarea
+         */
+        const $baliseSpoiler = $container.find('.baliseSpoiler');
+        /**
+         * Permet d'englober le texte du commentaire en écriture
+         * avec les balises [spoiler]...[/spoiler]
+         */
+        $baliseSpoiler.click((e) => {
+            const $textarea = $popup.find('textarea');
+            if (/\[spoiler\]/.test($textarea.val())) {
+                return;
+            }
+            const text = '[spoiler]' + $textarea.val() + '[/spoiler]';
+            $textarea.val(text);
+        });
+        this._events.push({ elt: $baliseSpoiler, event: 'click' });
+        const $btnReplies = $container.find('.comments .toggleReplies');
+        /**
+         * Affiche/masque les réponses d'un commentaire
+         */
+        $btnReplies.click((e) => {
+            e.stopPropagation();
+            e.preventDefault();
+            const $btn = $(e.currentTarget);
+            const state = $btn.data('toggle'); // 0: Etat masqué, 1: Etat affiché
+            const $comment = $btn.parents('.comment');
+            const inner = $comment.data('commentInner');
+            const $replies = $comment.parents('.comments').find(`.comment[data-comment-reply="${inner}"]`);
+            if (state == '0') {
+                // On affiche
+                $replies.fadeIn('fast');
+                $btn.find('.btnText').text(Base.trans("comment.hide_answers"));
+                $btn.find('svg').attr('style', 'transition: transform 200ms ease 0s; transform: rotate(180deg);');
+                $btn.data('toggle', '1');
+            }
+            else {
+                // On masque
+                $replies.fadeOut('fast');
+                $btn.find('.btnText').text(Base.trans("comment.button.reply", { "%count%": $replies.length.toString() }, $replies.length));
+                $btn.find('svg').attr('style', 'transition: transform 200ms ease 0s;');
+                $btn.data('toggle', '0');
+            }
+        });
+        this._events.push({ elt: $btnReplies, event: 'click' });
+        const $btnResponse = $container.find('.btnResponse');
+        /**
+         * Permet de créer une réponse à un commentaire
+         */
+        $btnResponse.click((e) => {
+            e.stopPropagation();
+            e.preventDefault();
+            const $btn = $(e.currentTarget);
+            const $comment = $btn.parents('.comment');
+            const commentId = parseInt($comment.data('commentId'), 10);
+            let comment;
+            // Si il s'agit d'une réponse, il nous faut le commentaire parent
+            if ($comment.hasClass('iv_i5') || $comment.hasClass('it_i3')) {
+                const $parent = $comment.siblings('.comment:not(.iv_i5)').first();
+                const parentId = parseInt($parent.data('commentId'), 10);
+                if (commentId == parentId) {
+                    comment = this.getComment(commentId);
+                }
+                else {
+                    const cmtParent = this.getComment(parentId);
+                    comment = cmtParent.getReply(commentId);
+                }
+            }
+            else {
+                comment = this.getComment(commentId);
+            }
+            $container.find('textarea')
+                .val('@' + comment.login)
+                .attr('data-reply-to', comment.id);
+        });
+        this._events.push({ elt: $btnResponse, event: 'click' });
+        const $btnMore = $container.find('.moreComments');
+        /**
+         * Permet d'afficher plus de commentaires
+         */
+        $btnMore.click((e) => {
+            e.stopPropagation();
+            e.preventDefault();
+            const $btn = jQuery(e.currentTarget);
+            if (self.comments.length >= self.nbComments) {
+                $btn.hide();
+                return;
+            }
+            const $loader = $btn.find('.fa-spin');
+            $loader.show();
+            const lastCmtId = self.comments[self.comments.length - 1].id;
+            const oldLastCmtIndex = self.comments.length - 1;
+            self.fetchComments(nbpp, lastCmtId).then(async () => {
+                let template = '', comment, firstCmtId = self.comments[oldLastCmtIndex + 1].id;
+                for (let c = oldLastCmtIndex + 1; c < self.comments.length; c++) {
+                    comment = self.comments[c];
+                    template += CommentBS.getTemplateComment(comment, true);
+                    // Si le commentaires à des réponses et qu'elles ne sont pas chargées
+                    if (comment.nbReplies > 0 && comment.replies.length <= 0) {
+                        // On récupère les réponses
+                        comment.replies = await self.fetchReplies(comment.id);
+                        // On ajoute un boutton pour afficher/masquer les réponses
+                    }
+                    for (let r = 0; r < comment.replies.length; r++) {
+                        template += CommentBS.getTemplateComment(comment.replies[r], true);
+                    }
+                }
+                $btn.before(template);
+                jQuery(`.comment[data-comment-id="${firstCmtId.toString()}"]`).get(0).scrollIntoView();
+                self.cleanEvents(self.loadEvents);
+                if (self.comments.length >= self.nbComments) {
+                    $btn.hide();
+                }
+            }).finally(() => {
+                $loader.hide();
+            });
+        });
+        this._events.push({ elt: $btnMore, event: 'click' });
+    }
+    /**
+     * Nettoie les events créer par la fonction loadEvents
+     * @param   {Function} onComplete - Fonction de callback
+     * @returns {void}
+     */
+    cleanEvents(onComplete = Base.noop) {
+        if (this._events && this._events.length > 0) {
+            let data;
+            for (let e = 0; e < this._events.length; e++) {
+                data = this._events[e];
+                data.elt.off(data.event);
+            }
+        }
+        onComplete();
+    }
+    /**
+     * Gère l'affichage de l'ensemble des commentaires
+     * @returns {void}
+     */
+    render() {
+        if (Base.debug)
+            console.log('CommentsBS render');
+        // La popup et ses éléments
+        const self = this, $popup = jQuery('#popin-dialog'), $contentHtmlElement = $popup.find(".popin-content-html"), $contentReact = $popup.find('.popin-content-reactmodule'), $closeButtons = $popup.find("#popin-showClose"), hidePopup = () => {
+            document.body.style.overflow = "visible";
+            document.body.style.paddingRight = "";
+            $popup.attr('aria-hidden', 'true');
+            $popup.find("#popupalertyes").show();
+            $popup.find("#popupalertno").show();
+            $contentHtmlElement.hide();
+            $contentReact.empty();
+            self.cleanEvents();
+        }, showPopup = () => {
+            document.body.style.overflow = "hidden";
+            document.body.style.paddingRight = getScrollbarWidth() + "px";
+            $popup.find("#popupalertyes").hide();
+            $popup.find("#popupalertno").hide();
+            $contentHtmlElement.hide();
+            $contentReact.show();
+            $closeButtons.show();
+            $popup.attr('aria-hidden', 'false');
+        };
+        // On ajoute le loader dans la popup et on l'affiche
+        $contentReact.empty().append(`<div class="title" id="dialog-title" tabindex="0">${Base.trans("blog.title.comments")}</div>`);
+        const $title = $contentReact.find('.title');
+        let templateLoader = `
+            <div class="loaderCmt">
+                <svg class="sr-only">
+                    <defs>
+                        <clipPath id="placeholder">
+                            <path d="M50 25h160v8H50v-8zm0-18h420v8H50V7zM20 40C8.954 40 0 31.046 0 20S8.954 0 20 0s20 8.954 20 20-8.954 20-20 20z"></path>
+                        </clipPath>
+                    </defs>
+                </svg>
+        `;
+        for (let l = 0; l < 4; l++) {
+            templateLoader += `
+                <div class="er_ex null"><div class="ComponentPlaceholder er_et " style="height: 40px;"></div></div>`;
+        }
+        $contentReact.append(templateLoader + '</div>');
+        showPopup();
+        const nbCmts = 20; // Nombre de commentaires à récupérer sur l'API
+        self.getTemplate(nbCmts).then((template) => {
+            // On définit le type d'affichage de la popup
+            $popup.attr('data-popin-type', 'comments');
+            // On masque le loader pour ajouter les données à afficher
+            $contentReact.fadeOut('fast', () => {
+                $contentReact.find('.loaderCmt').remove();
+                $contentReact.append(template);
+                $contentReact.fadeIn();
+                self.loadEvents($contentReact, nbCmts, { hidePopup, showPopup });
+            });
+        });
+    }
+}
+
 class CommentBS {
     id;
     /**
@@ -220,11 +896,12 @@ class CommentBS {
      * ???
      */
     user_rank;
-    first;
-    last;
     _parent;
-    constructor(data, parent) {
+    _media;
+    _events;
+    constructor(data, parent, media) {
         this._parent = parent;
+        this._media = media;
         this.id = parseInt(data.id, 10);
         this.reference = data.reference;
         this.type = data.type;
@@ -245,8 +922,20 @@ class CommentBS {
         this.replies = new Array();
         this.from_admin = data.from_admin;
         this.user_rank = data.user_rank;
-        this.first = !!data.first;
-        this.last = !!data.last;
+    }
+    /**
+     * Indique si le commentaire est le premier de la liste
+     * @returns {boolean}
+     */
+    isFirst() {
+        return this._parent.isFirst(this.id);
+    }
+    /**
+     * Indique si le commentaire est le dernier de la liste
+     * @returns {boolean}
+     */
+    isLast() {
+        return this._parent.isLast(this.id);
     }
     /**
      * Permet d'afficher une note avec des étoiles
@@ -446,75 +1135,27 @@ class CommentBS {
         return null;
     }
     /**
-     * Affiche le commentaire dans une dialogbox
+     * Ajoute les évènements sur les commentaires lors du rendu
+     * @param   {JQuery<HTMLElement>} $container - Le conteneur des éléments d'affichage
+     * @param   {Obj} funcPopup - Objet des fonctions d'affichage/ de masquage de la popup
+     * @returns {void}
      */
-    async display() {
-        // La popup et ses éléments
-        const _this = this, $popup = jQuery('#popin-dialog'), $contentHtml = $popup.find(".popin-content-html"), $contentReact = $popup.find('.popin-content-reactmodule'), $closeButtons = $popup.find("#popin-showClose"), cleanEvents = () => {
-            // On désactive les events
-            $popup.find("#popin-showClose").off('click');
-            $popup.find('.comments .comment .btnThumb').off('click');
-            $popup.find('.btnToggleOptions').off('click');
-            $contentReact.find('.prev-comment').off('click');
-            $contentReact.find('.next-comment').off('click');
-            $contentReact.find('.view-spoiler').off('click');
-            $popup.find('.sendComment').off('click');
-            $popup.find('textarea').off('keypress');
-            $popup.find('.baliseSpoiler').off('click');
-        }, hidePopup = () => {
-            document.body.style.overflow = "visible";
-            document.body.style.paddingRight = "";
-            $popup.attr('aria-hidden', 'true');
-            $popup.find("#popupalertyes").show();
-            $popup.find("#popupalertno").show();
-            $contentReact.empty();
-            $contentHtml.hide();
-            cleanEvents();
-        }, showPopup = () => {
-            document.body.style.overflow = "hidden";
-            document.body.style.paddingRight = getScrollbarWidth() + "px";
-            $popup.find("#popupalertyes").hide();
-            $popup.find("#popupalertno").hide();
-            $contentHtml.hide();
-            $contentReact.show();
-            $closeButtons.show();
-            $popup.attr('aria-hidden', 'false');
-        };
-        // On vérifie que la popup est masquée
-        hidePopup();
-        let template = '<div class="comments overflowYScroll">' +
-            CommentBS.getTemplateComment(this);
-        // Récupération des réponses sur l'API
-        // On ajoute les réponses, par ordre décroissant à la template
-        if (this.nbReplies > 0 && this.replies.length <= 0) {
-            const replies = await this._parent.fetchRepliesOfComment(this.id);
-            if (replies && replies.length > 0) {
-                this.replies = replies;
-            }
-        }
-        for (let r = this.replies.length - 1; r >= 0; r--) {
-            template += CommentBS.getTemplateComment(this.replies[r]);
-        }
-        // On définit le type d'affichage de la popup
-        $popup.attr('data-popin-type', 'comments');
-        // On affiche le titre de la popup
-        // avec des boutons pour naviguer
-        $contentReact.empty().append(`<div class="title" id="dialog-title" tabindex="0"></div>`);
-        const $title = $contentReact.find('.title');
-        $title.append(Base.trans("blog.title.comments") + ' <i class="fa fa-chevron-circle-left prev-comment" aria-hidden="true"></i> <i class="fa fa-chevron-circle-right next-comment" aria-hidden="true"></i>');
-        // On ajoute les templates HTML du commentaire,
-        // des réponses et du formulaire de d'écriture
-        $contentReact.append(template + '</div>' + CommentBS.getTemplateWriting());
-        // On active le bouton de fermeture de la popup
-        $closeButtons.click(() => {
-            hidePopup();
+    loadEvents($container, funcPopup) {
+        this._events = new Array();
+        const self = this;
+        const $popup = jQuery('#popin-dialog');
+        const $btnClose = jQuery("#popin-showClose");
+        const $title = $container.find('.title');
+        $btnClose.click(() => {
+            funcPopup.hidePopup();
             $popup.removeAttr('data-popin-type');
         });
+        this._events.push({ elt: $btnClose, event: 'click' });
         // On récupère le bouton de navigation 'précédent'
         const $prevCmt = $title.find('.prev-comment');
         // Si le commentaire est le premier de la liste
         // on ne l'active pas
-        if (this.first) {
+        if (this.isFirst()) {
             $prevCmt.css('color', 'grey').css('cursor', 'initial');
         }
         else {
@@ -523,15 +1164,16 @@ class CommentBS {
                 e.stopPropagation();
                 e.preventDefault();
                 // Il faut tout nettoyer, comme pour la fermeture
-                cleanEvents();
+                self.cleanEvents();
                 // Il faut demander au parent d'afficher le commentaire précédent
-                _this._parent.getPrevComment(_this.id).display();
+                self._parent.getPrevComment(self.id).render();
             });
+            this._events.push({ elt: $prevCmt, event: 'click' });
         }
         const $nextCmt = $title.find('.next-comment');
         // Si le commentaire est le dernier de la liste
         // on ne l'active pas
-        if (this.last) {
+        if (this.isLast()) {
             $nextCmt.css('color', 'grey').css('cursor', 'initial');
         }
         else {
@@ -540,13 +1182,14 @@ class CommentBS {
                 e.stopPropagation();
                 e.preventDefault();
                 // Il faut tout nettoyer, comme pour la fermeture
-                cleanEvents();
+                self.cleanEvents();
                 // Il faut demander au parent d'afficher le commentaire suivant
-                _this._parent.getNextComment(_this.id).display();
+                self._parent.getNextComment(self.id).render();
             });
+            this._events.push({ elt: $nextCmt, event: 'click' });
         }
         // On active le lien pour afficher le spoiler
-        const $btnSpoiler = $contentReact.find('.view-spoiler');
+        const $btnSpoiler = $container.find('.view-spoiler');
         if ($btnSpoiler.length > 0) {
             $btnSpoiler.click((e) => {
                 e.stopPropagation();
@@ -554,13 +1197,15 @@ class CommentBS {
                 $(e.currentTarget).prev('span.comment-text').fadeIn();
                 $(e.currentTarget).fadeOut();
             });
+            this._events.push({ elt: $btnSpoiler, event: 'click' });
         }
         /**
          * Ajoutons les events pour:
          *  - btnUpVote: Voter pour ce commentaire
          *  - btnDownVote: Voter contre ce commentaire
          */
-        $popup.find('.comments .comment .btnThumb').click((e) => {
+        const $btnThumb = $container.find('.comments .comment .btnThumb');
+        $btnThumb.click((e) => {
             e.stopPropagation();
             e.preventDefault();
             const $btn = jQuery(e.currentTarget);
@@ -569,23 +1214,23 @@ class CommentBS {
             const vote = $btn.hasClass('btnUpVote') ? 1 : -1;
             let params = { id: commentId, type: vote, switch: false };
             // On a déjà voté
-            if (_this.thumbed == vote) {
+            if (self.thumbed == vote) {
                 verb = HTTP_VERBS.DELETE;
                 params = { id: commentId };
             }
-            else if (_this.thumbed != 0) {
+            else if (self.thumbed != 0) {
                 console.warn("Le vote est impossible. Annuler votre vote et recommencer");
                 return;
             }
             Base.callApi(verb, 'comments', 'thumb', params)
                 .then((data) => {
-                if (commentId == _this.id) {
-                    _this.thumbs = parseInt(data.comment.thumbs, 10);
-                    _this.thumbed = data.comment.thumbed ? parseInt(data.comment.thumbed, 10) : 0;
-                    _this.updateRenderThumbs(vote);
+                if (commentId == self.id) {
+                    self.thumbs = parseInt(data.comment.thumbs, 10);
+                    self.thumbed = data.comment.thumbed ? parseInt(data.comment.thumbed, 10) : 0;
+                    self.updateRenderThumbs(vote);
                 }
-                else if (_this.isReply(commentId)) {
-                    const reply = _this.getReply(commentId);
+                else if (self.isReply(commentId)) {
+                    const reply = self.getReply(commentId);
                     reply.thumbs = parseInt(data.comment.thumbs, 10);
                     reply.thumbed = data.comment.thumbed ? parseInt(data.comment.thumbed, 10) : 0;
                     reply.updateRenderThumbs(vote);
@@ -593,7 +1238,7 @@ class CommentBS {
                 else {
                     // Demander au parent d'incrémenter les thumbs du commentaire
                     const thumbed = data.comment.thumbed ? parseInt(data.comment.thumbed, 10) : 0;
-                    _this._parent.changeThumbsComment(commentId, data.comment.thumbs, thumbed);
+                    self._parent.changeThumbs(commentId, data.comment.thumbs, thumbed);
                 }
             })
                 .catch(err => {
@@ -601,10 +1246,12 @@ class CommentBS {
                 Base.notification('Vote commentaire', "Une erreur est apparue durant le vote: " + msg);
             });
         });
+        this._events.push({ elt: $btnThumb, event: 'click' });
         /**
          * On affiche/masque les options du commentaire
          */
-        $popup.find('.btnToggleOptions').click((e) => {
+        const $btnOptions = $container.find('.btnToggleOptions');
+        $btnOptions.click((e) => {
             e.stopPropagation();
             e.preventDefault();
             jQuery(e.currentTarget).parents('.iv_i3').first()
@@ -618,31 +1265,33 @@ class CommentBS {
                 }
             });
         });
+        this._events.push({ elt: $btnOptions, event: 'click' });
         /**
          * On envoie la réponse à ce commentaire à l'API
          */
-        $popup.find('.sendComment').click((e) => {
+        const $btnSend = $container.find('.sendComment');
+        $btnSend.click((e) => {
             e.stopPropagation();
             e.preventDefault();
             const $textarea = $(e.currentTarget).siblings('textarea');
             if ($textarea.val().length > 0) {
                 const replyId = parseInt($textarea.data('replyTo'), 10);
                 const msg = $textarea.val();
-                if (replyId && replyId == _this.id) {
-                    _this.reply(msg).then(comment => {
+                if (replyId && replyId == self.id) {
+                    self.reply(msg).then(comment => {
                         if (comment) {
                             let template = CommentBS.getTemplateComment(comment);
-                            $contentReact.find('.comments').append(template);
+                            $container.find('.comments').append(template);
                         }
                     });
                 }
                 else if (replyId) {
-                    const reply = _this.getReply(replyId);
+                    const reply = self.getReply(replyId);
                     if (reply) {
                         reply.reply(msg).then(comment => {
                             if (comment) {
                                 let template = CommentBS.getTemplateComment(comment);
-                                $contentReact.find(`.comments .comment[data-comment-id="${reply.id}"]`)
+                                $container.find(`.comments .comment[data-comment-id="${reply.id}"]`)
                                     .after(template);
                             }
                         });
@@ -652,16 +1301,18 @@ class CommentBS {
                     }
                 }
                 else {
-                    CommentBS.sendComment(_this._parent, msg);
+                    CommentsBS.sendComment(self._media, msg);
                 }
                 $textarea.val('');
             }
         });
+        this._events.push({ elt: $btnSend, event: 'click' });
         /**
          * On active / desactive le bouton d'envoi du commentaire
          * en fonction du contenu du textarea
          */
-        $popup.find('textarea').keypress((e) => {
+        const $textarea = $container.find('textarea');
+        $textarea.keypress((e) => {
             const $textarea = $(e.currentTarget);
             if ($textarea.val().length > 0) {
                 $textarea.siblings('button').removeAttr('disabled');
@@ -670,10 +1321,12 @@ class CommentBS {
                 $textarea.siblings('button').attr('disabled', 'true');
             }
         });
+        this._events.push({ elt: $textarea, event: 'keypress' });
         /**
          * On ajoute les balises SPOILER au message dans le textarea
          */
-        $popup.find('.baliseSpoiler').click((e) => {
+        const $baliseSpoiler = $container.find('.baliseSpoiler');
+        $baliseSpoiler.click((e) => {
             const $textarea = $popup.find('textarea');
             if (/\[spoiler\]/.test($textarea.val())) {
                 return;
@@ -681,7 +1334,9 @@ class CommentBS {
             const text = '[spoiler]' + $textarea.val() + '[/spoiler]';
             $textarea.val(text);
         });
-        $contentReact.find('.comments .toggleReplies').click((e) => {
+        this._events.push({ elt: $baliseSpoiler, event: 'click' });
+        const $btnReplies = $container.find('.comments .toggleReplies');
+        $btnReplies.click((e) => {
             e.stopPropagation();
             e.preventDefault();
             const $btn = $(e.currentTarget);
@@ -704,7 +1359,9 @@ class CommentBS {
                 $btn.data('toggle', '0');
             }
         });
-        $contentReact.find('.btnResponse').click((e) => {
+        this._events.push({ elt: $btnReplies, event: 'click' });
+        const $btnResponse = $container.find('.btnResponse');
+        $btnResponse.click((e) => {
             e.stopPropagation();
             e.preventDefault();
             const $btn = $(e.currentTarget);
@@ -716,21 +1373,113 @@ class CommentBS {
                 const $parent = $comment.siblings('.comment:not(.iv_i5)').first();
                 const parentId = parseInt($parent.data('commentId'), 10);
                 if (commentId == parentId) {
-                    comment = _this._parent.getComment(commentId);
+                    comment = self._parent.getComment(commentId);
                 }
                 else {
-                    const cmtParent = _this._parent.getComment(parentId);
+                    const cmtParent = self._parent.getComment(parentId);
                     comment = cmtParent.getReply(commentId);
                 }
             }
             else {
-                comment = _this._parent.getComment(commentId);
+                comment = self._parent.getComment(commentId);
             }
-            $contentReact.find('textarea')
+            $container.find('textarea')
                 .val('@' + comment.login)
                 .attr('data-reply-to', comment.id);
         });
+        this._events.push({ elt: $btnResponse, event: 'click' });
+    }
+    /**
+     * Nettoie les events créer par la fonction loadEvents
+     * @param   {Function} onComplete - Fonction de callback
+     * @returns {void}
+     */
+    cleanEvents(onComplete = Base.noop) {
+        if (this._events && this._events.length > 0) {
+            let data;
+            for (let e = 0; e < this._events.length; e++) {
+                data = this._events[e];
+                data.elt.off(data.event);
+            }
+        }
+        onComplete();
+    }
+    /**
+     * Affiche le commentaire dans une dialogbox
+     */
+    async render() {
+        // La popup et ses éléments
+        const self = this, $popup = jQuery('#popin-dialog'), $contentHtml = $popup.find(".popin-content-html"), $contentReact = $popup.find('.popin-content-reactmodule'), $closeButtons = $popup.find("#popin-showClose"), hidePopup = () => {
+            document.body.style.overflow = "visible";
+            document.body.style.paddingRight = "";
+            $popup.attr('aria-hidden', 'true');
+            $popup.find("#popupalertyes").show();
+            $popup.find("#popupalertno").show();
+            $contentReact.empty();
+            $contentHtml.hide();
+            self.cleanEvents();
+        }, showPopup = () => {
+            document.body.style.overflow = "hidden";
+            document.body.style.paddingRight = getScrollbarWidth() + "px";
+            $popup.find("#popupalertyes").hide();
+            $popup.find("#popupalertno").hide();
+            $contentHtml.hide();
+            $contentReact.show();
+            $closeButtons.show();
+            $popup.attr('aria-hidden', 'false');
+        };
+        // On ajoute le loader dans la popup et on l'affiche
+        $contentReact.empty().append(`<div class="title" id="dialog-title" tabindex="0">${Base.trans("blog.title.comments")}</div>`);
+        let $title = $contentReact.find('.title');
+        let templateLoader = `
+            <div class="loaderCmt">
+                <svg class="sr-only">
+                    <defs>
+                        <clipPath id="placeholder">
+                            <path d="M50 25h160v8H50v-8zm0-18h420v8H50V7zM20 40C8.954 40 0 31.046 0 20S8.954 0 20 0s20 8.954 20 20-8.954 20-20 20z"></path>
+                        </clipPath>
+                    </defs>
+                </svg>
+        `;
+        for (let l = 0; l < 4; l++) {
+            templateLoader += `
+                <div class="er_ex null"><div class="ComponentPlaceholder er_et " style="height: 40px;"></div></div>`;
+        }
+        $contentReact.append(templateLoader + '</div>');
         showPopup();
+        let template = '<div class="comments overflowYScroll">' +
+            CommentBS.getTemplateComment(this);
+        // Récupération des réponses sur l'API
+        // On ajoute les réponses, par ordre décroissant à la template
+        if (this.nbReplies > 0 && this.replies.length <= 0) {
+            const replies = await this._parent.fetchReplies(this.id);
+            if (replies && replies.length > 0) {
+                this.replies = replies;
+            }
+        }
+        for (let r = this.replies.length - 1; r >= 0; r--) {
+            template += CommentBS.getTemplateComment(this.replies[r]);
+        }
+        template += '</div>';
+        if (this._parent.isOpen()) {
+            template += CommentBS.getTemplateWriting();
+        }
+        // On définit le type d'affichage de la popup
+        $popup.attr('data-popin-type', 'comments');
+        $contentReact.fadeOut('fast', () => {
+            $contentReact.find('.loaderCmt').remove();
+            // On affiche le titre de la popup
+            // avec des boutons pour naviguer
+            $contentReact.empty().append(`<div class="title" id="dialog-title" tabindex="0"></div>`);
+            $title = $contentReact.find('.title');
+            $title.append(Base.trans("blog.title.comments") + ' <i class="fa fa-chevron-circle-left prev-comment" aria-hidden="true"></i> <i class="fa fa-chevron-circle-right next-comment" aria-hidden="true"></i>');
+            // On ajoute les templates HTML du commentaire,
+            // des réponses et du formulaire de d'écriture
+            $contentReact.append(template);
+            $contentReact.fadeIn();
+            // On active les boutons de l'affichage du commentaire
+            self.loadEvents($contentReact, { hidePopup, showPopup });
+        });
     }
     /**
      * Envoie une réponse de ce commentaire à l'API
@@ -740,43 +1489,16 @@ class CommentBS {
     reply(text) {
         const _this = this;
         const params = {
-            type: this._parent.mediaType.singular,
-            id: this._parent.id,
+            type: this._media.mediaType.singular,
+            id: this._media.id,
             in_reply_to: this.inner_id,
             text: text
         };
         return Base.callApi(HTTP_VERBS.POST, 'comments', 'comment', params)
             .then((data) => {
-            const comment = new CommentBS(data.comment, _this._parent);
+            const comment = new CommentBS(data.comment, _this._parent, _this._media);
             _this.replies.push(comment);
             // _this._parent.comments.push(comment);
-            return comment;
-        })
-            .catch(err => {
-            Base.notification('Commentaire', "Erreur durant l'ajout d'un commentaire");
-            console.error(err);
-        });
-    }
-    /**
-     * Envoie une réponse de ce commentaire à l'API
-     * @param   {string} text        Le texte de la réponse
-     * @returns {Promise<void | CommentBS>}
-     */
-    static sendComment(media, text) {
-        const _this = this;
-        const params = {
-            type: media.mediaType.singular,
-            id: media.id,
-            text: text
-        };
-        return Base.callApi(HTTP_VERBS.POST, 'comments', 'comment', params)
-            .then((data) => {
-            const comment = new CommentBS(data.comment, media);
-            // On change le flag du dernier comment
-            media.comments[media.comments.length - 1].last = false;
-            comment.last = true;
-            media.comments.push(comment);
-            media.nbComments++;
             return comment;
         })
             .catch(err => {
@@ -1307,9 +2029,6 @@ class Base {
     description;
     characters;
     comments;
-    nbComments;
-    suscribeComments;
-    statusComments;
     id;
     objNote;
     resource_url;
@@ -1341,14 +2060,17 @@ class Base {
                 this.characters.push(new Character(data.characters[c]));
             }
         }
-        this.nbComments = parseInt(data.comments, 10);
-        this.comments = [];
+        const nbComments = data.comments ? parseInt(data.comments, 10) : 0;
+        this.comments = new CommentsBS(nbComments, this);
         this.objNote = (data.note) ? new Note(data.note, this) : new Note(data.notes, this);
         this.resource_url = data.resource_url;
         this.title = data.title;
         this.user = new User(data.user);
         this.description = data.description;
         return this;
+    }
+    get nbComments() {
+        return this.comments.nbComments;
     }
     /**
      * Initialize le tableau des écouteurs d'évènements
@@ -1535,524 +2257,6 @@ class Base {
                 Base.notification('Erreur de vote', 'Une erreur s\'est produite lors de l\'envoi de la note: ' + err);
                 reject(err);
             });
-        });
-    }
-    /**
-     * Récupère les commentaires du média sur l'API
-     * @param   {number} [nbpp=50] - Le nombre de commentaires à récupérer
-     * @param   {number} [since=0] - L'identifiant du dernier commentaire reçu
-     * @returns {Promise<Base>}
-     */
-    fetchComments(nbpp = 50, since = 0) {
-        const _this = this;
-        return new Promise((resolve, reject) => {
-            let params = {
-                type: _this.mediaType.singular,
-                id: _this.id,
-                nbpp: nbpp,
-                replies: 0,
-                order: 'desc'
-            };
-            if (since > 0) {
-                params.since_id = since;
-            }
-            Base.callApi(HTTP_VERBS.GET, 'comments', 'comments', params)
-                .then((data) => {
-                if (data.comments !== undefined) {
-                    if (since <= 0) {
-                        _this.comments = new Array();
-                    }
-                    else {
-                        // On modifie le flag de fin, vu qu'on rajoute des commentaires
-                        this.comments[this.comments.length - 1].last = false;
-                    }
-                    for (let c = 0; c < data.comments.length; c++) {
-                        data.comments[c].first = data.comments[c].last = false;
-                        if (c === 0 && since <= 0)
-                            data.comments[c].first = true;
-                        if (c === data.comments.length - 1)
-                            data.comments[c].last = true;
-                        _this.comments.push(new CommentBS(data.comments[c], this));
-                    }
-                    _this.nbComments = parseInt(data.total, 10);
-                    _this.suscribeComments = !!data.is_subscribed;
-                    _this.statusComments = data.status;
-                }
-                resolve(_this);
-            })
-                .catch(err => {
-                console.warn('fetchComments', err);
-                Base.notification('Récupération des commentaires', "Une erreur est apparue durant la récupération des commentaires");
-                reject(err);
-            });
-        });
-    }
-    /**
-     * Retourne le commentaire correspondant à l'ID fournit en paramètre
-     * @param   {number} cId - L'identifiant du commentaire
-     * @returns {CommentBS|null}
-     */
-    getComment(cId) {
-        for (let c = 0; c < this.comments.length; c++) {
-            if (this.comments[c].id === cId) {
-                return this.comments[c];
-            }
-        }
-        return null;
-    }
-    /**
-     * Retourne le commentaire précédent celui fournit en paramètre
-     * @param   {number} cId - L'identifiant du commentaire
-     * @returns {CommentBS|null}
-     */
-    getPrevComment(cId) {
-        for (let c = 0; c < this.comments.length; c++) {
-            if (this.comments[c].id === cId && c > 0) {
-                return this.comments[c - 1];
-            }
-        }
-        return null;
-    }
-    /**
-     * Retourne le commentaire suivant celui fournit en paramètre
-     * @param   {number} cId - L'identifiant du commentaire
-     * @returns {CommentBS|null}
-     */
-    getNextComment(cId) {
-        const len = this.comments.length;
-        for (let c = 0; c < this.comments.length; c++) {
-            // TODO: Vérifier que tous les commentaires ont été récupérer
-            if (this.comments[c].id === cId && c < len - 1) {
-                return this.comments[c + 1];
-            }
-        }
-        return null;
-    }
-    /**
-     * Retourne les réponses d'un commentaire
-     * @param   {number} commentId - Identifiant du commentaire original
-     * @returns {Array<CommentBS>}    Tableau des réponses
-     */
-    async fetchRepliesOfComment(commentId) {
-        const data = await Base.callApi(HTTP_VERBS.GET, 'comments', 'replies', { id: commentId, order: 'desc' });
-        const replies = new Array();
-        if (data.comments) {
-            for (let c = 0; c < data.comments.length; c++) {
-                replies.push(new CommentBS(data.comments[c], this));
-            }
-        }
-        return replies;
-    }
-    /**
-     * Modifie le nombre de votes et le vote du membre pour un commentaire
-     * @param   {number} commentId - Identifiant du commentaire
-     * @param   {number} thumbs - Nombre de votes
-     * @param   {number} thumbed - Le vote du membre connecté
-     * @returns {boolean}
-     */
-    changeThumbsComment(commentId, thumbs, thumbed) {
-        for (let c = 0; c < this.comments.length; c++) {
-            if (this.comments[c].id === commentId) {
-                this.comments[c].thumbs = thumbs;
-                this.comments[c].thumbed = thumbed;
-                return true;
-            }
-        }
-        return false;
-    }
-    displayComments() {
-        if (Base.debug)
-            console.log('Base displayComments');
-        // La popup et ses éléments
-        const self = this, $popup = jQuery('#popin-dialog'), $contentHtmlElement = $popup.find(".popin-content-html"), $contentReact = $popup.find('.popin-content-reactmodule'), 
-        //   $title = $contentHtmlElement.find(".title"),
-        //   $text = $popup.find(".popin-content-ajax"),
-        $closeButtons = $popup.find("#popin-showClose"), cleanEvents = (cb) => {
-            // On désactive les events
-            $popup.find("#popin-showClose").off('click');
-            $popup.find('.comments .comment .btnThumb').off('click');
-            $popup.find('.btnToggleOptions').off('click');
-            $contentReact.find('.view-spoiler').off('click');
-            $popup.find('.sendComment').off('click');
-            $popup.find('textarea').off('keypress');
-            $popup.find('.baliseSpoiler').off('click');
-            $contentReact.find('.comments .toggleReplies').off('click');
-            $contentReact.find('.btnSubscribe').off('click');
-            $contentReact.find('.moreComments').off('click');
-            if (cb)
-                cb();
-        }, hidePopup = () => {
-            document.body.style.overflow = "visible";
-            document.body.style.paddingRight = "";
-            $popup.attr('aria-hidden', 'true');
-            $popup.find("#popupalertyes").show();
-            $popup.find("#popupalertno").show();
-            $contentHtmlElement.hide();
-            $contentReact.empty();
-            cleanEvents();
-        }, showPopup = () => {
-            document.body.style.overflow = "hidden";
-            document.body.style.paddingRight = getScrollbarWidth() + "px";
-            $popup.find("#popupalertyes").hide();
-            $popup.find("#popupalertno").hide();
-            $contentHtmlElement.hide();
-            $contentReact.show();
-            $closeButtons.show();
-            $popup.attr('aria-hidden', 'false');
-        };
-        // On vérifie que la popup est masquée
-        // hidePopup();
-        $contentReact.empty().append(`<div class="title" id="dialog-title" tabindex="0">${Base.trans("blog.title.comments")}</div>`);
-        const $title = $contentReact.find('.title');
-        let templateLoader = `
-            <div class="loaderCmt">
-                <svg class="sr-only">
-                    <defs>
-                        <clipPath id="placeholder">
-                            <path d="M50 25h160v8H50v-8zm0-18h420v8H50V7zM20 40C8.954 40 0 31.046 0 20S8.954 0 20 0s20 8.954 20 20-8.954 20-20 20z"></path>
-                        </clipPath>
-                    </defs>
-                </svg>
-        `;
-        for (let l = 0; l < 4; l++) {
-            templateLoader += `
-                <div class="er_ex null"><div class="ComponentPlaceholder er_et " style="height: 40px;"></div></div>
-            `;
-        }
-        templateLoader += '</div>';
-        $contentReact.append(templateLoader);
-        showPopup();
-        let promise = Promise.resolve(this);
-        const nbCmts = 20; // Nombre de commentaires à récupérer sur l'API
-        if (Base.debug)
-            console.log('Base ', { length: this.comments.length, nbComments: this.nbComments });
-        if (this.comments.length <= 0 && this.nbComments > 0) {
-            if (Base.debug)
-                console.log('Base fetchComments call');
-            promise = this.fetchComments(nbCmts);
-        }
-        let comment, template = `
-                <div data-media-type="${this.mediaType.singular}"
-                     data-media-id="${this.id}"
-                     class="displayFlex flexDirectionColumn"
-                     style="margin-top: 2px; min-height: 0">
-                    <button type="button" class="btn-reset btnSubscribe" style="position: absolute; top: 3px; right: 31px; padding: 8px;">
-                        <span class="svgContainer">
-                            <svg fill="${Base.theme == 'dark' ? 'rgba(255, 255, 255, .5)' : '#333'}" width="14" height="16" style="position: relative; top: 1px; left: -1px;">
-                                <path fill-rule="nonzero" d="M13.176 13.284L3.162 2.987 1.046.812 0 1.854l2.306 2.298v.008c-.428.812-.659 1.772-.659 2.806v4.103L0 12.709v.821h11.307l1.647 1.641L14 14.13l-.824-.845zM6.588 16c.914 0 1.647-.73 1.647-1.641H4.941c0 .91.733 1.641 1.647 1.641zm4.941-6.006v-3.02c0-2.527-1.35-4.627-3.705-5.185V1.23C7.824.55 7.272 0 6.588 0c-.683 0-1.235.55-1.235 1.23v.559c-.124.024-.239.065-.346.098a2.994 2.994 0 0 0-.247.09h-.008c-.008 0-.008 0-.017.009-.19.073-.379.164-.56.254 0 0-.008 0-.008.008l7.362 7.746z"></path>
-                            </svg>
-                        </span>
-                    </button>
-                    <div class="comments overflowYScroll">`;
-        promise.then(async () => {
-            for (let c = 0; c < self.comments.length; c++) {
-                comment = this.comments[c];
-                template += CommentBS.getTemplateComment(comment, true);
-                // Si le commentaires à des réponses et qu'elles ne sont pas chargées
-                if (comment.nbReplies > 0 && comment.replies.length <= 0) {
-                    // On récupère les réponses
-                    comment.replies = await self.fetchRepliesOfComment(comment.id);
-                    // On ajoute un boutton pour afficher/masquer les réponses
-                }
-                for (let r = 0; r < comment.replies.length; r++) {
-                    template += CommentBS.getTemplateComment(comment.replies[r], true);
-                }
-            }
-            // On ajoute le bouton pour voir plus de commentaires
-            if (self.comments.length < self.nbComments) {
-                template += `<button type="button" class="btn-reset btn-greyBorder moreComments" style="margin-top: 10px; width: 100%;">${Base.trans("timeline.comments.display_more")}<i class="fa fa-cog fa-spin fa-2x fa-fw" style="display:none;margin-left:15px;vertical-align:middle;"></i><span class="sr-only">Loading...</span></button>`;
-            }
-            template + '</div>';
-            if (self.statusComments.toLowerCase() === 'open') {
-                template += CommentBS.getTemplateWriting();
-            }
-            // On définit le type d'affichage de la popup
-            $popup.attr('data-popin-type', 'comments');
-            // On affiche le titre de la popup
-            // avec des boutons pour naviguer
-            $contentReact.hide('fast', () => {
-                $contentReact.find('.loaderCmt').remove();
-                $contentReact.append(template + '</div>');
-                $contentReact.fadeIn();
-                // subscribeToggle($contentReact.find('.btnSubscribe').get(0), _this.mediaType.singular, _this.id);
-                loadEvents();
-            });
-            function loadEvents() {
-                // On ajoute les templates HTML du commentaire,
-                // des réponses et du formulaire de d'écriture
-                // On active le bouton de fermeture de la popup
-                $closeButtons.click(() => {
-                    hidePopup();
-                    $popup.removeAttr('data-popin-type');
-                });
-                const $btnSubscribe = $contentReact.find('.btnSubscribe');
-                /**
-                 * Met à jour l'affichage du bouton de souscription
-                 * des alertes de nouveaux commentaires
-                 * @param   {JQuery<HTMLElement>} $btn - L'élément jQuery correspondant au bouton de souscription
-                 * @returns {void}
-                 */
-                function displaySubscription($btn) {
-                    if (!self.suscribeComments && $btn.hasClass('active')) {
-                        $btn.removeClass('active');
-                        $btn.attr('title', "Recevoir les commentaires par e-mail");
-                        $btn.find('svg').replaceWith(`
-                            <svg fill="${Base.theme == 'dark' ? 'rgba(255, 255, 255, .5)' : '#333'}" width="14" height="16" style="position: relative; top: 1px; left: -1px;">
-                                <path fill-rule="nonzero" d="M13.176 13.284L3.162 2.987 1.046.812 0 1.854l2.306 2.298v.008c-.428.812-.659 1.772-.659 2.806v4.103L0 12.709v.821h11.307l1.647 1.641L14 14.13l-.824-.845zM6.588 16c.914 0 1.647-.73 1.647-1.641H4.941c0 .91.733 1.641 1.647 1.641zm4.941-6.006v-3.02c0-2.527-1.35-4.627-3.705-5.185V1.23C7.824.55 7.272 0 6.588 0c-.683 0-1.235.55-1.235 1.23v.559c-.124.024-.239.065-.346.098a2.994 2.994 0 0 0-.247.09h-.008c-.008 0-.008 0-.017.009-.19.073-.379.164-.56.254 0 0-.008 0-.008.008l7.362 7.746z"></path>
-                            </svg>
-                        `);
-                    }
-                    else if (self.suscribeComments && !$btn.hasClass('active')) {
-                        $btn.addClass('active');
-                        $btn.attr('title', "Ne plus recevoir les commentaires par e-mail");
-                        $btn.find('svg').replaceWith(`
-                            <svg width="20" height="22" viewBox="0 0 20 22" style="width: 17px;">
-                                <g transform="translate(-4)" fill="none">
-                                    <path d="M0 0h24v24h-24z"></path>
-                                    <path fill="${Base.theme == 'dark' ? 'rgba(255, 255, 255, .5)' : '#333'}" d="M12 22c1.1 0 2-.9 2-2h-4c0 1.1.89 2 2 2zm6-6v-5c0-3.07-1.64-5.64-4.5-6.32v-.68c0-.83-.67-1.5-1.5-1.5s-1.5.67-1.5 1.5v.68c-2.87.68-4.5 3.24-4.5 6.32v5l-2 2v1h16v-1l-2-2z"></path>
-                                </g>
-                            </svg>
-                        `);
-                    }
-                }
-                $btnSubscribe.click((e) => {
-                    e.stopPropagation();
-                    e.preventDefault();
-                    const $btn = $(e.currentTarget);
-                    let params = { type: self.mediaType.singular, id: self.id };
-                    if ($btn.hasClass('active')) {
-                        Base.callApi(HTTP_VERBS.DELETE, 'comments', 'subscription', params)
-                            .then((data) => {
-                            self.suscribeComments = false;
-                            displaySubscription($btn);
-                        });
-                    }
-                    else {
-                        Base.callApi(HTTP_VERBS.POST, 'comments', 'subscription', params)
-                            .then((data) => {
-                            self.suscribeComments = true;
-                            displaySubscription($btn);
-                        });
-                    }
-                });
-                if (self.suscribeComments) {
-                    displaySubscription($btnSubscribe);
-                }
-                // On active le lien pour afficher le spoiler
-                const $btnSpoiler = $contentReact.find('.view-spoiler');
-                if ($btnSpoiler.length > 0) {
-                    $btnSpoiler.click((e) => {
-                        e.stopPropagation();
-                        e.preventDefault();
-                        $(e.currentTarget).prev('span.comment-text').fadeIn();
-                        $(e.currentTarget).fadeOut();
-                    });
-                }
-                /**
-                 * Ajoutons les events pour:
-                 *  - btnUpVote: Voter pour ce commentaire
-                 *  - btnDownVote: Voter contre ce commentaire
-                 */
-                $contentReact.find('.comments .comment .btnThumb').click((e) => {
-                    e.stopPropagation();
-                    e.preventDefault();
-                    const $btn = jQuery(e.currentTarget);
-                    const $comment = $btn.parents('.comment');
-                    const commentId = parseInt($comment.data('commentId'), 10);
-                    let comment;
-                    // Si il s'agit d'une réponse, il nous faut le commentaire parent
-                    if ($comment.hasClass('reply')) {
-                        let $parent = $comment.prev();
-                        while ($parent.hasClass('reply')) {
-                            $parent = $parent.prev();
-                        }
-                        const parentId = parseInt($parent.data('commentId'), 10);
-                        if (commentId == parentId) {
-                            comment = this.getComment(commentId);
-                        }
-                        else {
-                            const cmtParent = this.getComment(parentId);
-                            comment = cmtParent.getReply(commentId);
-                        }
-                    }
-                    else {
-                        comment = this.getComment(commentId);
-                    }
-                    let verb = HTTP_VERBS.POST;
-                    const vote = $btn.hasClass('btnUpVote') ? 1 : -1;
-                    let params = { id: commentId, type: vote, switch: false };
-                    // On a déjà voté
-                    if (comment.thumbed == vote) {
-                        verb = HTTP_VERBS.DELETE;
-                        params = { id: commentId };
-                    }
-                    else if (comment.thumbed != 0) {
-                        console.warn("Le vote est impossible. Annuler votre vote et recommencer");
-                        return;
-                    }
-                    Base.callApi(verb, 'comments', 'thumb', params)
-                        .then((data) => {
-                        comment.thumbs = parseInt(data.comment.thumbs, 10);
-                        comment.thumbed = data.comment.thumbed ? parseInt(data.comment.thumbed, 10) : 0;
-                        comment.updateRenderThumbs(vote);
-                    })
-                        .catch(err => {
-                        const msg = err.text !== undefined ? err.text : err;
-                        Base.notification('Thumb commentaire', "Une erreur est apparue durant le vote: " + msg);
-                    });
-                });
-                /**
-                 * On affiche/masque les options du commentaire
-                 */
-                $contentReact.find('.btnToggleOptions').click((e) => {
-                    e.stopPropagation();
-                    e.preventDefault();
-                    jQuery(e.currentTarget).parents('.actionsCmt').first()
-                        .find('.options-comment').each((_index, elt) => {
-                        const $elt = jQuery(elt);
-                        if ($elt.is(':visible')) {
-                            $elt.hide();
-                        }
-                        else {
-                            $elt.show();
-                        }
-                    });
-                });
-                /**
-                 * On envoie la réponse à ce commentaire à l'API
-                 */
-                $contentReact.find('.sendComment').click((e) => {
-                    e.stopPropagation();
-                    e.preventDefault();
-                    const $textarea = $(e.currentTarget).siblings('textarea');
-                    if ($textarea.val().length > 0) {
-                        let comment;
-                        if ($textarea.data('replyTo')) {
-                            comment = self.getComment(parseInt($textarea.data('replyTo'), 10));
-                            comment.reply($textarea.val());
-                        }
-                        else {
-                            CommentBS.sendComment(self, $textarea.val())
-                                .then((comment) => {
-                                if (comment) {
-                                    $textarea.val('');
-                                    $textarea.parents('.writing').siblings('.comments').append(CommentBS.getTemplateComment(comment));
-                                }
-                            });
-                        }
-                    }
-                });
-                /**
-                 * On active / desactive le bouton d'envoi du commentaire
-                 * en fonction du contenu du textarea
-                 */
-                $contentReact.find('textarea').keypress((e) => {
-                    const $textarea = $(e.currentTarget);
-                    if ($textarea.val().length > 0) {
-                        $textarea.siblings('button').removeAttr('disabled');
-                    }
-                    else {
-                        $textarea.siblings('button').attr('disabled', 'true');
-                    }
-                });
-                /**
-                 * On ajoute les balises SPOILER au message dans le textarea
-                 */
-                $contentReact.find('.baliseSpoiler').click((e) => {
-                    const $textarea = $popup.find('textarea');
-                    if (/\[spoiler\]/.test($textarea.val())) {
-                        return;
-                    }
-                    const text = '[spoiler]' + $textarea.val() + '[/spoiler]';
-                    $textarea.val(text);
-                });
-                $contentReact.find('.comments .toggleReplies').click((e) => {
-                    e.stopPropagation();
-                    e.preventDefault();
-                    const $btn = $(e.currentTarget);
-                    const state = $btn.data('toggle'); // 0: Etat masqué, 1: Etat affiché
-                    const $comment = $btn.parents('.comment');
-                    const inner = $comment.data('commentInner');
-                    const $replies = $comment.parents('.comments').find(`.comment[data-comment-reply="${inner}"]`);
-                    if (state == '0') {
-                        // On affiche
-                        $replies.fadeIn('fast');
-                        $btn.find('.btnText').text(Base.trans("comment.hide_answers"));
-                        $btn.find('svg').attr('style', 'transition: transform 200ms ease 0s; transform: rotate(180deg);');
-                        $btn.data('toggle', '1');
-                    }
-                    else {
-                        // On masque
-                        $replies.fadeOut('fast');
-                        $btn.find('.btnText').text(Base.trans("comment.button.reply", { "%count%": $replies.length.toString() }, $replies.length));
-                        $btn.find('svg').attr('style', 'transition: transform 200ms ease 0s;');
-                        $btn.data('toggle', '0');
-                    }
-                });
-                $contentReact.find('.btnResponse').click((e) => {
-                    e.stopPropagation();
-                    e.preventDefault();
-                    const $btn = $(e.currentTarget);
-                    const $comment = $btn.parents('.comment');
-                    const commentId = parseInt($comment.data('commentId'), 10);
-                    let comment;
-                    // Si il s'agit d'une réponse, il nous faut le commentaire parent
-                    if ($comment.hasClass('iv_i5') || $comment.hasClass('it_i3')) {
-                        const $parent = $comment.siblings('.comment:not(.iv_i5)').first();
-                        const parentId = parseInt($parent.data('commentId'), 10);
-                        if (commentId == parentId) {
-                            comment = this.getComment(commentId);
-                        }
-                        else {
-                            const cmtParent = this.getComment(parentId);
-                            comment = cmtParent.getReply(commentId);
-                        }
-                    }
-                    else {
-                        comment = this.getComment(commentId);
-                    }
-                    $contentReact.find('textarea')
-                        .val('@' + comment.login)
-                        .attr('data-reply-to', comment.id);
-                });
-                $contentReact.find('.moreComments').click((e) => {
-                    e.stopPropagation();
-                    e.preventDefault();
-                    const $btn = jQuery(e.currentTarget);
-                    if (self.comments.length >= self.nbComments) {
-                        $btn.hide();
-                        return;
-                    }
-                    const $loader = $btn.find('.fa-spin');
-                    $loader.show();
-                    const lastCmtId = self.comments[self.comments.length - 1].id;
-                    const oldLastCmtIndex = self.comments.length - 1;
-                    self.fetchComments(nbCmts, lastCmtId).then(async () => {
-                        let template = '', comment, firstCmtId = self.comments[oldLastCmtIndex + 1].id;
-                        for (let c = oldLastCmtIndex + 1; c < self.comments.length; c++) {
-                            comment = self.comments[c];
-                            template += CommentBS.getTemplateComment(comment, true);
-                            // Si le commentaires à des réponses et qu'elles ne sont pas chargées
-                            if (comment.nbReplies > 0 && comment.replies.length <= 0) {
-                                // On récupère les réponses
-                                comment.replies = await self.fetchRepliesOfComment(comment.id);
-                                // On ajoute un boutton pour afficher/masquer les réponses
-                            }
-                            for (let r = 0; r < comment.replies.length; r++) {
-                                template += CommentBS.getTemplateComment(comment.replies[r], true);
-                            }
-                        }
-                        $btn.before(template);
-                        jQuery(`.comment[data-comment-id="${firstCmtId.toString()}"]`).get(0).scrollIntoView();
-                        cleanEvents(loadEvents);
-                        if (self.comments.length >= self.nbComments) {
-                            $btn.hide();
-                        }
-                    }).finally(() => {
-                        $loader.hide();
-                    });
-                });
-            }
         });
     }
 }
