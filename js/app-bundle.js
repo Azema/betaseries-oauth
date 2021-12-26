@@ -1780,6 +1780,35 @@ class Base {
                     $popup.removeAttr('data-popin-type');
                 });
                 const $btnSubscribe = $contentReact.find('.btnSubscribe');
+                /**
+                 * Met à jour l'affichage du bouton de souscription
+                 * des alertes de nouveaux commentaires
+                 * @param   {JQuery<HTMLElement>} $btn - L'élément jQuery correspondant au bouton de souscription
+                 * @returns {void}
+                 */
+                function displaySubscription($btn) {
+                    if (!self.suscribeComments && $btn.hasClass('active')) {
+                        $btn.removeClass('active');
+                        $btn.attr('title', "Recevoir les commentaires par e-mail");
+                        $btn.find('svg').replaceWith(`
+                            <svg fill="${Base.theme == 'dark' ? 'rgba(255, 255, 255, .5)' : '#333'}" width="14" height="16" style="position: relative; top: 1px; left: -1px;">
+                                <path fill-rule="nonzero" d="M13.176 13.284L3.162 2.987 1.046.812 0 1.854l2.306 2.298v.008c-.428.812-.659 1.772-.659 2.806v4.103L0 12.709v.821h11.307l1.647 1.641L14 14.13l-.824-.845zM6.588 16c.914 0 1.647-.73 1.647-1.641H4.941c0 .91.733 1.641 1.647 1.641zm4.941-6.006v-3.02c0-2.527-1.35-4.627-3.705-5.185V1.23C7.824.55 7.272 0 6.588 0c-.683 0-1.235.55-1.235 1.23v.559c-.124.024-.239.065-.346.098a2.994 2.994 0 0 0-.247.09h-.008c-.008 0-.008 0-.017.009-.19.073-.379.164-.56.254 0 0-.008 0-.008.008l7.362 7.746z"></path>
+                            </svg>
+                        `);
+                    }
+                    else if (self.suscribeComments && !$btn.hasClass('active')) {
+                        $btn.addClass('active');
+                        $btn.attr('title', "Ne plus recevoir les commentaires par e-mail");
+                        $btn.find('svg').replaceWith(`
+                            <svg width="20" height="22" viewBox="0 0 20 22" style="width: 17px;">
+                                <g transform="translate(-4)" fill="none">
+                                    <path d="M0 0h24v24h-24z"></path>
+                                    <path fill="${Base.theme == 'dark' ? 'rgba(255, 255, 255, .5)' : '#333'}" d="M12 22c1.1 0 2-.9 2-2h-4c0 1.1.89 2 2 2zm6-6v-5c0-3.07-1.64-5.64-4.5-6.32v-.68c0-.83-.67-1.5-1.5-1.5s-1.5.67-1.5 1.5v.68c-2.87.68-4.5 3.24-4.5 6.32v5l-2 2v1h16v-1l-2-2z"></path>
+                                </g>
+                            </svg>
+                        `);
+                    }
+                }
                 $btnSubscribe.click((e) => {
                     e.stopPropagation();
                     e.preventDefault();
@@ -1788,42 +1817,20 @@ class Base {
                     if ($btn.hasClass('active')) {
                         Base.callApi(HTTP_VERBS.DELETE, 'comments', 'subscription', params)
                             .then((data) => {
-                            $btn.removeClass('active');
-                            $btn.attr('title', "Recevoir les commentaires par e-mail");
-                            $btn.find('svg').replaceWith(`
-                                <svg fill="${Base.theme == 'dark' ? 'rgba(255, 255, 255, .5)' : '#333'}" width="14" height="16" style="position: relative; top: 1px; left: -1px;">
-                                    <path fill-rule="nonzero" d="M13.176 13.284L3.162 2.987 1.046.812 0 1.854l2.306 2.298v.008c-.428.812-.659 1.772-.659 2.806v4.103L0 12.709v.821h11.307l1.647 1.641L14 14.13l-.824-.845zM6.588 16c.914 0 1.647-.73 1.647-1.641H4.941c0 .91.733 1.641 1.647 1.641zm4.941-6.006v-3.02c0-2.527-1.35-4.627-3.705-5.185V1.23C7.824.55 7.272 0 6.588 0c-.683 0-1.235.55-1.235 1.23v.559c-.124.024-.239.065-.346.098a2.994 2.994 0 0 0-.247.09h-.008c-.008 0-.008 0-.017.009-.19.073-.379.164-.56.254 0 0-.008 0-.008.008l7.362 7.746z"></path>
-                                </svg>
-                            `);
+                            self.suscribeComments = false;
+                            displaySubscription($btn);
                         });
                     }
                     else {
                         Base.callApi(HTTP_VERBS.POST, 'comments', 'subscription', params)
                             .then((data) => {
-                            $btn.addClass('active');
-                            $btn.attr('title', "Ne plus recevoir les commentaires par e-mail");
-                            $btn.find('svg').replaceWith(`
-                                <svg width="20" height="22" viewBox="0 0 20 22" style="width: 17px;">
-                                    <g transform="translate(-4)" fill="none">
-                                        <path d="M0 0h24v24h-24z"></path>
-                                        <path fill="${Base.theme == 'dark' ? 'rgba(255, 255, 255, .5)' : '#333'}" d="M12 22c1.1 0 2-.9 2-2h-4c0 1.1.89 2 2 2zm6-6v-5c0-3.07-1.64-5.64-4.5-6.32v-.68c0-.83-.67-1.5-1.5-1.5s-1.5.67-1.5 1.5v.68c-2.87.68-4.5 3.24-4.5 6.32v5l-2 2v1h16v-1l-2-2z"></path>
-                                    </g>
-                                </svg>
-                            `);
+                            self.suscribeComments = true;
+                            displaySubscription($btn);
                         });
                     }
                 });
                 if (self.suscribeComments) {
-                    $btnSubscribe.addClass('active');
-                    $btnSubscribe.attr('title', "Ne plus recevoir les commentaires par e-mail");
-                    $btnSubscribe.find('svg').replaceWith(`
-                        <svg width="20" height="22" viewBox="0 0 20 22" style="width: 17px;">
-                            <g transform="translate(-4)" fill="none">
-                                <path d="M0 0h24v24h-24z"></path>
-                                <path fill="${Base.theme == 'dark' ? 'rgba(255, 255, 255, .5)' : '#333'}" d="M12 22c1.1 0 2-.9 2-2h-4c0 1.1.89 2 2 2zm6-6v-5c0-3.07-1.64-5.64-4.5-6.32v-.68c0-.83-.67-1.5-1.5-1.5s-1.5.67-1.5 1.5v.68c-2.87.68-4.5 3.24-4.5 6.32v5l-2 2v1h16v-1l-2-2z"></path>
-                            </g>
-                        </svg>
-                    `);
+                    displaySubscription($btnSubscribe);
                 }
                 // On active le lien pour afficher le spoiler
                 const $btnSpoiler = $contentReact.find('.view-spoiler');
@@ -2010,10 +2017,10 @@ class Base {
                         return;
                     }
                     const lastCmtId = self.comments[self.comments.length - 1].id;
-                    const oldLastIndexCmt = self.comments.length - 1;
-                    let template = '', comment;
+                    const oldLastCmtIndex = self.comments.length - 1;
                     self.fetchComments(nbCmts, lastCmtId).then(async () => {
-                        for (let c = oldLastIndexCmt + 1; c < self.comments.length; c++) {
+                        let template = '', comment, firstCmtId = self.comments[oldLastCmtIndex + 1].id;
+                        for (let c = oldLastCmtIndex + 1; c < self.comments.length; c++) {
                             comment = self.comments[c];
                             template += CommentBS.getTemplateComment(comment, true);
                             // Si le commentaires à des réponses et qu'elles ne sont pas chargées
@@ -2027,6 +2034,7 @@ class Base {
                             }
                         }
                         jQuery(e.currentTarget).before(template);
+                        jQuery(`.comment[data-comment-id="${firstCmtId.toString()}"]`).get(0).scrollIntoView();
                         if (self.comments.length >= self.nbComments) {
                             jQuery(e.currentTarget).hide();
                         }
