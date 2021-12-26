@@ -1156,12 +1156,12 @@ class Base {
     /**
      * Fonction servant à appeler l'API de BetaSeries
      *
-     * @param  {String}   type              Type de methode d'appel Ajax (GET, POST, PUT, DELETE)
-     * @param  {String}   resource          La ressource de l'API (ex: shows, seasons, episodes...)
-     * @param  {String}   action            L'action à appliquer sur la ressource (ex: search, list...)
-     * @param  {*}        args              Un objet (clef, valeur) à transmettre dans la requête
-     * @param  {bool}     [force=false]     Indique si on doit utiliser le cache ou non (Par défaut: false)
-     * @return {Promise<Obj>}
+     * @param  {String}   type - Type de methode d'appel Ajax (GET, POST, PUT, DELETE)
+     * @param  {String}   resource - La ressource de l'API (ex: shows, seasons, episodes...)
+     * @param  {String}   action - L'action à appliquer sur la ressource (ex: search, list...)
+     * @param  {Obj}      args - Un objet (clef, valeur) à transmettre dans la requête
+     * @param  {bool}     [force=false] - Indique si on doit utiliser le cache ou non (Par défaut: false)
+     * @return {Promise<Obj>} Les données provenant de l'API
      */
     static callApi(type, resource, action, args, force = false) {
         if (Base.api && Base.api.resources.indexOf(resource) === -1) {
@@ -1329,8 +1329,8 @@ class Base {
     }
     /**
      * Remplit l'objet avec les données fournit en paramètre
-     * @param  {Obj} data Les données provenant de l'API
-     * @returns this
+     * @param  {Obj} data - Les données provenant de l'API
+     * @returns {Base}
      */
     fill(data) {
         this.id = parseInt(data.id, 10);
@@ -1351,7 +1351,7 @@ class Base {
     }
     /**
      * Initialize le tableau des écouteurs d'évènements
-     * @returns this
+     * @returns {Base}
      */
     _initListeners() {
         this._listeners = {};
@@ -1363,9 +1363,9 @@ class Base {
     }
     /**
      * Permet d'ajouter un listener sur un type d'évenement
-     * @param  {string}   name Le type d'évenement
-     * @param  {Function} fn   La fonction à appeler
-     * @return {this}          L'instance du média
+     * @param  {EventTypes} name - Le type d'évenement
+     * @param  {Function}   fn   - La fonction à appeler
+     * @return {Base} L'instance du média
      */
     addListener(name, fn) {
         // On vérifie que le type d'event est pris en charge
@@ -1380,9 +1380,9 @@ class Base {
     }
     /**
      * Permet de supprimer un listener sur un type d'évenement
-     * @param  {string}   name Le type d'évenement
-     * @param  {Function} fn   La fonction qui était appelée
-     * @return {Base}          L'instance du média
+     * @param  {string}   name - Le type d'évenement
+     * @param  {Function} fn   - La fonction qui était appelée
+     * @return {Base} L'instance du média
      */
     removeListener(name, fn) {
         if (this._listeners[name] !== undefined) {
@@ -1395,8 +1395,8 @@ class Base {
     }
     /**
      * Appel les listeners pour un type d'évenement
-     * @param  {string} name Le type d'évenement
-     * @return {Show}        L'instance Show
+     * @param  {EventTypes} name - Le type d'évenement
+     * @return {Base} L'instance du média
      */
     _callListeners(name) {
         if (this._listeners[name] !== undefined) {
@@ -1408,7 +1408,7 @@ class Base {
     }
     /**
      * Sauvegarde l'objet en cache
-     * @return this
+     * @return {Base} L'instance du média
      */
     save() {
         if (Base.cache instanceof CacheUS) {
@@ -1426,7 +1426,7 @@ class Base {
     }
     /**
      * Définit le DOMElement de référence pour ce média
-     * @param  {JQuery} elt DOMElement auquel est rattaché le média
+     * @param  {JQuery} elt - DOMElement auquel est rattaché le média
      */
     set elt(elt) {
         this._elt = elt;
@@ -1440,7 +1440,7 @@ class Base {
     }
     /**
      * Décode le titre de la page
-     * @return {Base} This
+     * @return {Base} L'instance du média
      */
     decodeTitle() {
         let $elt = this.elt.find('.blockInformations__title'), title = $elt.text();
@@ -1453,8 +1453,8 @@ class Base {
      * Ajoute le nombre de votes à la note dans l'attribut title de la balise
      * contenant la représentation de la note de la ressource
      *
-     * @param  {Boolean} change  Indique si on doit changer l'attribut title du DOMElement
-     * @return {String}         Le titre modifié de la note
+     * @param  {Boolean} [change=true] - Indique si on doit changer l'attribut title du DOMElement
+     * @return {String} Le titre modifié de la note
      */
     changeTitleNote(change = true) {
         const $elt = this.elt.find('.js-render-stars');
@@ -1481,7 +1481,7 @@ class Base {
     }
     /**
      * Ajoute le nombre de votes à la note de la ressource
-     * @return {Base}
+     * @return {Base} L'instance du média
      */
     addNumberVoters() {
         const _this = this;
@@ -1519,7 +1519,7 @@ class Base {
     }
     /**
      * Ajoute une note au média
-     * @param   {number} note Note du membre connecté pour le média
+     * @param   {number} note - Note du membre connecté pour le média
      * @returns {Promise<boolean>}
      */
     addVote(note) {
@@ -1538,6 +1538,8 @@ class Base {
     }
     /**
      * Récupère les commentaires du média sur l'API
+     * @param   {number} [nbpp=50] - Le nombre de commentaires à récupérer
+     * @param   {number} [since=0] - L'identifiant du dernier commentaire reçu
      * @returns {Promise<Base>}
      */
     fetchComments(nbpp = 50, since = 0) {
@@ -1586,7 +1588,7 @@ class Base {
     }
     /**
      * Retourne le commentaire correspondant à l'ID fournit en paramètre
-     * @param   {number} cId L'identifiant du commentaire
+     * @param   {number} cId - L'identifiant du commentaire
      * @returns {CommentBS|null}
      */
     getComment(cId) {
@@ -1599,7 +1601,7 @@ class Base {
     }
     /**
      * Retourne le commentaire précédent celui fournit en paramètre
-     * @param   {number} cId L'identifiant du commentaire
+     * @param   {number} cId - L'identifiant du commentaire
      * @returns {CommentBS|null}
      */
     getPrevComment(cId) {
@@ -1612,7 +1614,7 @@ class Base {
     }
     /**
      * Retourne le commentaire suivant celui fournit en paramètre
-     * @param   {number} cId L'identifiant du commentaire
+     * @param   {number} cId - L'identifiant du commentaire
      * @returns {CommentBS|null}
      */
     getNextComment(cId) {
@@ -1627,7 +1629,7 @@ class Base {
     }
     /**
      * Retourne les réponses d'un commentaire
-     * @param   {number} commentId Identifiant du commentaire original
+     * @param   {number} commentId - Identifiant du commentaire original
      * @returns {Array<CommentBS>}    Tableau des réponses
      */
     async fetchRepliesOfComment(commentId) {
@@ -1641,9 +1643,10 @@ class Base {
         return replies;
     }
     /**
-     * Modifie le nombre de votes pour un commentaire
-     * @param   {number} commentId Identifiant du commentaire
-     * @param   {number} thumbs    Nombre de votes
+     * Modifie le nombre de votes et le vote du membre pour un commentaire
+     * @param   {number} commentId - Identifiant du commentaire
+     * @param   {number} thumbs - Nombre de votes
+     * @param   {number} thumbed - Le vote du membre connecté
      * @returns {boolean}
      */
     changeThumbsComment(commentId, thumbs, thumbed) {
@@ -1660,7 +1663,7 @@ class Base {
         if (Base.debug)
             console.log('Base displayComments');
         // La popup et ses éléments
-        const _this = this, $popup = jQuery('#popin-dialog'), $contentHtmlElement = $popup.find(".popin-content-html"), $contentReact = $popup.find('.popin-content-reactmodule'), 
+        const self = this, $popup = jQuery('#popin-dialog'), $contentHtmlElement = $popup.find(".popin-content-html"), $contentReact = $popup.find('.popin-content-reactmodule'), 
         //   $title = $contentHtmlElement.find(".title"),
         //   $text = $popup.find(".popin-content-ajax"),
         $closeButtons = $popup.find("#popin-showClose"), cleanEvents = () => {
@@ -1717,12 +1720,13 @@ class Base {
         $contentReact.append(templateLoader);
         showPopup();
         let promise = Promise.resolve(this);
+        const nbCmts = 20; // Nombre de commentaires à récupérer sur l'API
         if (Base.debug)
             console.log('Base ', { length: this.comments.length, nbComments: this.nbComments });
         if (this.comments.length <= 0 && this.nbComments > 0) {
             if (Base.debug)
                 console.log('Base fetchComments call');
-            promise = this.fetchComments();
+            promise = this.fetchComments(nbCmts);
         }
         let comment, template = `
                 <div data-media-type="${this.mediaType.singular}"
@@ -1738,13 +1742,13 @@ class Base {
                     </button>
                     <div class="comments overflowYScroll">`;
         promise.then(async () => {
-            for (let c = 0; c < _this.comments.length; c++) {
+            for (let c = 0; c < self.comments.length; c++) {
                 comment = this.comments[c];
                 template += CommentBS.getTemplateComment(comment, true);
                 // Si le commentaires à des réponses et qu'elles ne sont pas chargées
                 if (comment.nbReplies > 0 && comment.replies.length <= 0) {
                     // On récupère les réponses
-                    comment.replies = await _this.fetchRepliesOfComment(comment.id);
+                    comment.replies = await self.fetchRepliesOfComment(comment.id);
                     // On ajoute un boutton pour afficher/masquer les réponses
                 }
                 for (let r = 0; r < comment.replies.length; r++) {
@@ -1752,7 +1756,7 @@ class Base {
                 }
             }
             template += `<button type="button" class="btn-reset btn-greyBorder moreComments" style="margin-top: 10px; width: 100%;">${Base.trans("timeline.comments.display_more")}</button></div>`;
-            if (_this.statusComments.toLowerCase() === 'open') {
+            if (self.statusComments.toLowerCase() === 'open') {
                 template += CommentBS.getTemplateWriting();
             }
             // On définit le type d'affichage de la popup
@@ -1779,7 +1783,7 @@ class Base {
                     e.stopPropagation();
                     e.preventDefault();
                     const $btn = $(e.currentTarget);
-                    let params = { type: _this.mediaType.singular, id: _this.id };
+                    let params = { type: self.mediaType.singular, id: self.id };
                     if ($btn.hasClass('active')) {
                         Base.callApi(HTTP_VERBS.DELETE, 'comments', 'subscription', params)
                             .then((data) => {
@@ -1808,7 +1812,7 @@ class Base {
                         });
                     }
                 });
-                if (_this.suscribeComments) {
+                if (self.suscribeComments) {
                     $btnSubscribe.addClass('active');
                     $btnSubscribe.attr('title', "Ne plus recevoir les commentaires par e-mail");
                     $btnSubscribe.find('svg').replaceWith(`
@@ -1907,11 +1911,11 @@ class Base {
                     if ($textarea.val().length > 0) {
                         let comment;
                         if ($textarea.data('replyTo')) {
-                            comment = _this.getComment(parseInt($textarea.data('replyTo'), 10));
+                            comment = self.getComment(parseInt($textarea.data('replyTo'), 10));
                             comment.reply($textarea.val());
                         }
                         else {
-                            CommentBS.sendComment(_this, $textarea.val())
+                            CommentBS.sendComment(self, $textarea.val())
                                 .then((comment) => {
                                 if (comment) {
                                     $textarea.val('');
@@ -1997,22 +2001,21 @@ class Base {
                 $contentReact.find('.moreComments').click((e) => {
                     e.stopPropagation();
                     e.preventDefault();
-                    if (_this.comments.length >= _this.nbComments) {
+                    if (self.comments.length >= self.nbComments) {
                         jQuery(e.currentTarget).hide();
                         return;
                     }
-                    const lastCmtId = _this.comments[_this.comments.length - 1].id;
-                    const oldLastIndexCmt = _this.comments.length - 1;
-                    const nbCmts = 20;
+                    const lastCmtId = self.comments[self.comments.length - 1].id;
+                    const oldLastIndexCmt = self.comments.length - 1;
                     let template = '', comment;
-                    _this.fetchComments(nbCmts, lastCmtId).then(async () => {
-                        for (let c = oldLastIndexCmt + 1; c < _this.comments.length; c++) {
-                            comment = this.comments[c];
+                    self.fetchComments(nbCmts, lastCmtId).then(async () => {
+                        for (let c = oldLastIndexCmt + 1; c < self.comments.length; c++) {
+                            comment = self.comments[c];
                             template += CommentBS.getTemplateComment(comment, true);
                             // Si le commentaires à des réponses et qu'elles ne sont pas chargées
                             if (comment.nbReplies > 0 && comment.replies.length <= 0) {
                                 // On récupère les réponses
-                                comment.replies = await _this.fetchRepliesOfComment(comment.id);
+                                comment.replies = await self.fetchRepliesOfComment(comment.id);
                                 // On ajoute un boutton pour afficher/masquer les réponses
                             }
                             for (let r = 0; r < comment.replies.length; r++) {
@@ -2020,7 +2023,7 @@ class Base {
                             }
                         }
                         jQuery(e.currentTarget).before(template);
-                        if (_this.comments.length >= _this.nbComments) {
+                        if (self.comments.length >= self.nbComments) {
                             jQuery(e.currentTarget).hide();
                         }
                     });
