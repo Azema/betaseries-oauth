@@ -281,7 +281,7 @@ class CommentBS {
         let btnSpoiler = spoiler ? `<button type="button" class="btn-reset mainLink view-spoiler" style="vertical-align: 0px;">${Base.trans("comment.button.display_spoiler")}</button>` : '';
         // let classNames = {reply: 'iv_i5', actions: 'iv_i3', comment: 'iv_iz'};
         let classNames = { reply: 'it_i3', actions: 'it_i1', comment: 'it_ix' };
-        let className = (comment.in_reply_to > 0) ? classNames.reply : '';
+        let className = (comment.in_reply_to > 0) ? classNames.reply + ' reply' : '';
         let btnToggleReplies = comment.nbReplies > 0 ? `
         <button type="button" class="btn-reset mainLink mainLink--regular toggleReplies" style="margin-top: 2px; margin-bottom: -3px;" data-toggle="1">
             <span class="svgContainer" style="display: inline-flex; height: 16px; width: 16px;">
@@ -305,7 +305,7 @@ class CommentBS {
                         </a>
                         <span style="${spoiler ? 'display:none;' : ''}" class="comment-text">${text}</span>
                         ${btnSpoiler}
-                        <div class="${classNames.actions}">
+                        <div class="${classNames.actions} actionsCmt">
                             <div class="options-main options-comment">
                                 <button type="button" class="btn-reset btnUpVote btnThumb">
                                     <svg data-disabled="false" class="SvgLike" fill="#fff" width="16" height="14" viewBox="0 0 16 14" xmlns="http://www.w3.org/2000/svg">
@@ -382,7 +382,7 @@ class CommentBS {
                     <div class="media-body">
                         <form class="gz_g1">
                             <textarea rows="2" placeholder="${Base.trans("timeline.comment.write")}" class="form-control"></textarea>
-                            <button class="btn-reset sendComment" disabled="" aria-label="${Base.trans("comment.send.label")}">
+                            <button class="btn-reset sendComment" disabled="" aria-label="${Base.trans("comment.send.label")}" title="${Base.trans("comment.send.label")}">
                                 <span class="svgContainer" style="width: 16px; height: 16px;">
                                     <svg fill="${Base.theme === 'dark' ? "#fff" : "#333"}" width="15" height="12" xmlns="http://www.w3.org/2000/svg">
                                         <path d="M.34 12l13.993-6L.34 0 .333 4.667l10 1.333-10 1.333z"></path>
@@ -1089,12 +1089,13 @@ class Base {
     static noop = function () { };
     /**
      * Fonction de traduction de chaînes de caractères
-     * @param   {String}  msg     Identifiant de la chaîne à traduire
-     * @param   {*[]}     args    Autres paramètres
+     * @param   {String}  msg  - Identifiant de la chaîne à traduire
+     * @param   {Obj}     [params={}] - Variables utilisées dans la traduction {"%key%"": value}
+     * @param   {number}  [count=1] - Nombre d'éléments pour la version plural
      * @returns {string}
      */
     // eslint-disable-next-line no-unused-vars
-    static trans = function (msg, ...args) { };
+    static trans = function (msg, params = {}, count = 1) { };
     /**
      * Contient les infos sur les différentes classification TV et cinéma
      * @type {Ratings}
@@ -1790,7 +1791,7 @@ class Base {
                             $btn.removeClass('active');
                             $btn.attr('title', "Recevoir les commentaires par e-mail");
                             $btn.find('svg').replaceWith(`
-                                <svg fill="rgba(255, 255, 255, .5)" width="14" height="16" style="position: relative; top: 1px; left: -1px;">
+                                <svg fill="${Base.theme == 'dark' ? 'rgba(255, 255, 255, .5)' : '#333'}" width="14" height="16" style="position: relative; top: 1px; left: -1px;">
                                     <path fill-rule="nonzero" d="M13.176 13.284L3.162 2.987 1.046.812 0 1.854l2.306 2.298v.008c-.428.812-.659 1.772-.659 2.806v4.103L0 12.709v.821h11.307l1.647 1.641L14 14.13l-.824-.845zM6.588 16c.914 0 1.647-.73 1.647-1.641H4.941c0 .91.733 1.641 1.647 1.641zm4.941-6.006v-3.02c0-2.527-1.35-4.627-3.705-5.185V1.23C7.824.55 7.272 0 6.588 0c-.683 0-1.235.55-1.235 1.23v.559c-.124.024-.239.065-.346.098a2.994 2.994 0 0 0-.247.09h-.008c-.008 0-.008 0-.017.009-.19.073-.379.164-.56.254 0 0-.008 0-.008.008l7.362 7.746z"></path>
                                 </svg>
                             `);
@@ -1805,7 +1806,7 @@ class Base {
                                 <svg width="20" height="22" viewBox="0 0 20 22" style="width: 17px;">
                                     <g transform="translate(-4)" fill="none">
                                         <path d="M0 0h24v24h-24z"></path>
-                                        <path fill="rgba(255, 255, 255, .5)" d="M12 22c1.1 0 2-.9 2-2h-4c0 1.1.89 2 2 2zm6-6v-5c0-3.07-1.64-5.64-4.5-6.32v-.68c0-.83-.67-1.5-1.5-1.5s-1.5.67-1.5 1.5v.68c-2.87.68-4.5 3.24-4.5 6.32v5l-2 2v1h16v-1l-2-2z"></path>
+                                        <path fill="${Base.theme == 'dark' ? 'rgba(255, 255, 255, .5)' : '#333'}" d="M12 22c1.1 0 2-.9 2-2h-4c0 1.1.89 2 2 2zm6-6v-5c0-3.07-1.64-5.64-4.5-6.32v-.68c0-.83-.67-1.5-1.5-1.5s-1.5.67-1.5 1.5v.68c-2.87.68-4.5 3.24-4.5 6.32v5l-2 2v1h16v-1l-2-2z"></path>
                                     </g>
                                 </svg>
                             `);
@@ -1819,7 +1820,7 @@ class Base {
                         <svg width="20" height="22" viewBox="0 0 20 22" style="width: 17px;">
                             <g transform="translate(-4)" fill="none">
                                 <path d="M0 0h24v24h-24z"></path>
-                                <path fill="rgba(255, 255, 255, .5)" d="M12 22c1.1 0 2-.9 2-2h-4c0 1.1.89 2 2 2zm6-6v-5c0-3.07-1.64-5.64-4.5-6.32v-.68c0-.83-.67-1.5-1.5-1.5s-1.5.67-1.5 1.5v.68c-2.87.68-4.5 3.24-4.5 6.32v5l-2 2v1h16v-1l-2-2z"></path>
+                                <path fill="${Base.theme == 'dark' ? 'rgba(255, 255, 255, .5)' : '#333'}" d="M12 22c1.1 0 2-.9 2-2h-4c0 1.1.89 2 2 2zm6-6v-5c0-3.07-1.64-5.64-4.5-6.32v-.68c0-.83-.67-1.5-1.5-1.5s-1.5.67-1.5 1.5v.68c-2.87.68-4.5 3.24-4.5 6.32v5l-2 2v1h16v-1l-2-2z"></path>
                             </g>
                         </svg>
                     `);
@@ -1847,8 +1848,11 @@ class Base {
                     const commentId = parseInt($comment.data('commentId'), 10);
                     let comment;
                     // Si il s'agit d'une réponse, il nous faut le commentaire parent
-                    if ($comment.hasClass('iv_i5') || $comment.hasClass('it_i3')) {
-                        const $parent = $comment.siblings('.comment:not(.iv_i5)').first();
+                    if ($comment.hasClass('reply')) {
+                        let $parent = $comment.prev();
+                        while ($parent.hasClass('reply')) {
+                            $parent = $parent.prev();
+                        }
                         const parentId = parseInt($parent.data('commentId'), 10);
                         if (commentId == parentId) {
                             comment = this.getComment(commentId);
@@ -1890,7 +1894,7 @@ class Base {
                 $contentReact.find('.btnToggleOptions').click((e) => {
                     e.stopPropagation();
                     e.preventDefault();
-                    jQuery(e.currentTarget).parents('.it_i1').first()
+                    jQuery(e.currentTarget).parents('.actionsCmt').first()
                         .find('.options-comment').each((_index, elt) => {
                         const $elt = jQuery(elt);
                         if ($elt.is(':visible')) {
@@ -1967,7 +1971,7 @@ class Base {
                     else {
                         // On masque
                         $replies.fadeOut('fast');
-                        $btn.find('.btnText').text(Base.trans("comment.button.reply", { "%count%": $replies.length.toString() }));
+                        $btn.find('.btnText').text(Base.trans("comment.button.reply", { "%count%": $replies.length.toString() }, $replies.length));
                         $btn.find('svg').attr('style', 'transition: transform 200ms ease 0s;');
                         $btn.data('toggle', '0');
                     }
