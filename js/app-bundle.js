@@ -1756,7 +1756,7 @@ class Base {
                     template += CommentBS.getTemplateComment(comment.replies[r], true);
                 }
             }
-            template += `<button type="button" class="btn-reset btn-greyBorder moreComments" style="margin-top: 10px; width: 100%;">${Base.trans("timeline.comments.display_more")}<i class="fa fa-cog fa-spin fa-fw" style="display:none;margin-left:15px;"></i><span class="sr-only">Loading...</span></button></div>`;
+            template += `<button type="button" class="btn-reset btn-greyBorder moreComments" style="margin-top: 10px; width: 100%;">${Base.trans("timeline.comments.display_more")}<i class="fa fa-cog fa-spin fa-2x fa-fw" style="display:none;margin-left:15px;vertical-align:middle;"></i><span class="sr-only">Loading...</span></button></div>`;
             if (self.statusComments.toLowerCase() === 'open') {
                 template += CommentBS.getTemplateWriting();
             }
@@ -2038,6 +2038,8 @@ class Base {
                         }
                         $btn.before(template);
                         jQuery(`.comment[data-comment-id="${firstCmtId.toString()}"]`).get(0).scrollIntoView();
+                        cleanEvents();
+                        loadEvents();
                         if (self.comments.length >= self.nbComments) {
                             $btn.hide();
                         }
