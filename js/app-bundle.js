@@ -448,7 +448,7 @@ class CommentsBS {
          * @returns {void}
          */
         function displaySubscription($btn) {
-            if (!self.is_subscribed && $btn.hasClass('active')) {
+            if (!self.is_subscribed) {
                 $btn.removeClass('active');
                 $btn.attr('title', "Recevoir les commentaires par e-mail");
                 $btn.find('svg').replaceWith(`
@@ -457,7 +457,7 @@ class CommentsBS {
                     </svg>
                 `);
             }
-            else if (self.is_subscribed && !$btn.hasClass('active')) {
+            else if (self.is_subscribed) {
                 $btn.addClass('active');
                 $btn.attr('title', "Ne plus recevoir les commentaires par e-mail");
                 $btn.find('svg').replaceWith(`
@@ -1155,7 +1155,7 @@ class CommentBS {
          * @returns {void}
          */
         function displaySubscription($btn) {
-            if (!self._parent.is_subscribed && $btn.hasClass('active')) {
+            if (!self._parent.is_subscribed) {
                 $btn.removeClass('active');
                 $btn.attr('title', "Recevoir les commentaires par e-mail");
                 $btn.find('svg').replaceWith(`
@@ -1164,7 +1164,7 @@ class CommentBS {
                     </svg>
                 `);
             }
-            else if (self._parent.is_subscribed && !$btn.hasClass('active')) {
+            else if (self._parent.is_subscribed) {
                 $btn.addClass('active');
                 $btn.attr('title', "Ne plus recevoir les commentaires par e-mail");
                 $btn.find('svg').replaceWith(`
