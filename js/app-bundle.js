@@ -1,4 +1,4 @@
-/*! betaseries_userscript - v1.1.4 - 2021-12-25
+/*! betaseries_userscript - v1.1.4 - 2021-12-26
  * https://github.com/Azema/betaseries
  * Copyright (c) 2021 Azema;
  * Licensed Apache-2.0
@@ -253,7 +253,7 @@ class CommentBS {
      * @param   {number} note    La note à afficher
      * @returns {string}
      */
-    _renderNote(note) {
+    static _renderNote(note) {
         let typeSvg, template = '';
         note = note || 0;
         Array.from({
@@ -275,7 +275,7 @@ class CommentBS {
      * @param   {CommentBS} comment Le commentaire à afficher
      * @returns {string}
      */
-    getTemplateComment(comment, all = false) {
+    static getTemplateComment(comment, all = false) {
         const text = new Option(comment.text).innerHTML;
         const spoiler = /\[spoiler\]/.test(text);
         let btnSpoiler = spoiler ? `<button type="button" class="btn-reset mainLink view-spoiler" style="vertical-align: 0px;">${Base.trans("comment.button.display_spoiler")}</button>` : '';
@@ -331,7 +331,7 @@ class CommentBS {
                                     Le ${ /* eslint-disable-line no-undef */typeof moment !== 'undefined' ? moment(comment.date).format('DD/MM/YYYY HH:mm') : comment.date.toString()}
                                 </a>
                                 <span class="stars" title="${comment.user_note} / 5">
-                                    ${this._renderNote(comment.user_note)}
+                                    ${CommentBS._renderNote(comment.user_note)}
                                 </span>
                                 <div class="it_iv">
                                     <button type="button" class="btn-reset btnToggleOptions">
@@ -483,7 +483,7 @@ class CommentBS {
         // On vérifie que la popup est masquée
         hidePopup();
         let template = '<div class="comments overflowYScroll">' +
-            this.getTemplateComment(this);
+            CommentBS.getTemplateComment(this);
         // Récupération des réponses sur l'API
         // On ajoute les réponses, par ordre décroissant à la template
         if (this.nbReplies > 0 && this.replies.length <= 0) {
@@ -493,7 +493,7 @@ class CommentBS {
             }
         }
         for (let r = this.replies.length - 1; r >= 0; r--) {
-            template += this.getTemplateComment(this.replies[r]);
+            template += CommentBS.getTemplateComment(this.replies[r]);
         }
         // On définit le type d'affichage de la popup
         $popup.attr('data-popin-type', 'comments');
@@ -631,7 +631,7 @@ class CommentBS {
                 if (replyId && replyId == _this.id) {
                     _this.reply(msg).then(comment => {
                         if (comment) {
-                            let template = _this.getTemplateComment(comment);
+                            let template = CommentBS.getTemplateComment(comment);
                             $contentReact.find('.comments').append(template);
                         }
                     });
@@ -641,7 +641,7 @@ class CommentBS {
                     if (reply) {
                         reply.reply(msg).then(comment => {
                             if (comment) {
-                                let template = _this.getTemplateComment(comment);
+                                let template = CommentBS.getTemplateComment(comment);
                                 $contentReact.find(`.comments .comment[data-comment-id="${reply.id}"]`)
                                     .after(template);
                             }
@@ -776,6 +776,7 @@ class CommentBS {
             media.comments[media.comments.length - 1].last = false;
             comment.last = true;
             media.comments.push(comment);
+            media.nbComments++;
             return comment;
         })
             .catch(err => {
@@ -1306,6 +1307,8 @@ class Base {
     characters;
     comments;
     nbComments;
+    suscribeComments;
+    statusComments;
     id;
     objNote;
     resource_url;
@@ -1568,6 +1571,9 @@ class Base {
                             data.comments[c].last = true;
                         _this.comments.push(new CommentBS(data.comments[c], this));
                     }
+                    _this.nbComments = parseInt(data.total, 10);
+                    _this.suscribeComments = !!data.is_subscribed;
+                    _this.statusComments = data.status;
                 }
                 resolve(_this);
             })
@@ -1668,6 +1674,7 @@ class Base {
             $popup.find('.baliseSpoiler').off('click');
             $contentReact.find('.comments .toggleReplies').off('click');
             $contentReact.find('.btnSubscribe').off('click');
+            $contentReact.find('.moreComments').off('click');
         }, hidePopup = () => {
             document.body.style.overflow = "visible";
             document.body.style.paddingRight = "";
@@ -1733,7 +1740,7 @@ class Base {
         promise.then(async () => {
             for (let c = 0; c < _this.comments.length; c++) {
                 comment = this.comments[c];
-                template += comment.getTemplateComment(comment, true);
+                template += CommentBS.getTemplateComment(comment, true);
                 // Si le commentaires à des réponses et qu'elles ne sont pas chargées
                 if (comment.nbReplies > 0 && comment.replies.length <= 0) {
                     // On récupère les réponses
@@ -1741,17 +1748,20 @@ class Base {
                     // On ajoute un boutton pour afficher/masquer les réponses
                 }
                 for (let r = 0; r < comment.replies.length; r++) {
-                    template += comment.replies[r].getTemplateComment(comment.replies[r], true);
+                    template += CommentBS.getTemplateComment(comment.replies[r], true);
                 }
             }
-            template += '</div>';
+            template += `<button type="button" class="btn-reset btn-greyBorder moreComments" style="margin-top: 10px; width: 100%;">${Base.trans("timeline.comments.display_more")}</button></div>`;
+            if (_this.statusComments.toLowerCase() === 'open') {
+                template += CommentBS.getTemplateWriting();
+            }
             // On définit le type d'affichage de la popup
             $popup.attr('data-popin-type', 'comments');
             // On affiche le titre de la popup
             // avec des boutons pour naviguer
             $contentReact.hide('fast', () => {
                 $contentReact.find('.loaderCmt').remove();
-                $contentReact.append(template + CommentBS.getTemplateWriting() + '</div>');
+                $contentReact.append(template + '</div>');
                 $contentReact.fadeIn();
                 // subscribeToggle($contentReact.find('.btnSubscribe').get(0), _this.mediaType.singular, _this.id);
                 loadEvents();
@@ -1798,6 +1808,18 @@ class Base {
                         });
                     }
                 });
+                if (_this.suscribeComments) {
+                    $btnSubscribe.addClass('active');
+                    $btnSubscribe.attr('title', "Ne plus recevoir les commentaires par e-mail");
+                    $btnSubscribe.find('svg').replaceWith(`
+                        <svg width="20" height="22" viewBox="0 0 20 22" style="width: 17px;">
+                            <g transform="translate(-4)" fill="none">
+                                <path d="M0 0h24v24h-24z"></path>
+                                <path fill="rgba(255, 255, 255, .5)" d="M12 22c1.1 0 2-.9 2-2h-4c0 1.1.89 2 2 2zm6-6v-5c0-3.07-1.64-5.64-4.5-6.32v-.68c0-.83-.67-1.5-1.5-1.5s-1.5.67-1.5 1.5v.68c-2.87.68-4.5 3.24-4.5 6.32v5l-2 2v1h16v-1l-2-2z"></path>
+                            </g>
+                        </svg>
+                    `);
+                }
                 // On active le lien pour afficher le spoiler
                 const $btnSpoiler = $contentReact.find('.view-spoiler');
                 if ($btnSpoiler.length > 0) {
@@ -1893,7 +1915,7 @@ class Base {
                                 .then((comment) => {
                                 if (comment) {
                                     $textarea.val('');
-                                    $textarea.parents('.writing').siblings('.comments').append(comment.getTemplateComment(comment));
+                                    $textarea.parents('.writing').siblings('.comments').append(CommentBS.getTemplateComment(comment));
                                 }
                             });
                         }
@@ -1971,6 +1993,37 @@ class Base {
                     $contentReact.find('textarea')
                         .val('@' + comment.login)
                         .attr('data-reply-to', comment.id);
+                });
+                $contentReact.find('.moreComments').click((e) => {
+                    e.stopPropagation();
+                    e.preventDefault();
+                    if (_this.comments.length >= _this.nbComments) {
+                        jQuery(e.currentTarget).hide();
+                        return;
+                    }
+                    const lastCmtId = _this.comments[_this.comments.length - 1].id;
+                    const oldLastIndexCmt = _this.comments.length - 1;
+                    const nbCmts = 20;
+                    let template = '', comment;
+                    _this.fetchComments(nbCmts, lastCmtId).then(async () => {
+                        for (let c = oldLastIndexCmt + 1; c < _this.comments.length; c++) {
+                            comment = this.comments[c];
+                            template += CommentBS.getTemplateComment(comment, true);
+                            // Si le commentaires à des réponses et qu'elles ne sont pas chargées
+                            if (comment.nbReplies > 0 && comment.replies.length <= 0) {
+                                // On récupère les réponses
+                                comment.replies = await _this.fetchRepliesOfComment(comment.id);
+                                // On ajoute un boutton pour afficher/masquer les réponses
+                            }
+                            for (let r = 0; r < comment.replies.length; r++) {
+                                template += CommentBS.getTemplateComment(comment.replies[r], true);
+                            }
+                        }
+                        jQuery(e.currentTarget).before(template);
+                        if (_this.comments.length >= _this.nbComments) {
+                            jQuery(e.currentTarget).hide();
+                        }
+                    });
                 });
             }
         });
