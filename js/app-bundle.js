@@ -1667,7 +1667,7 @@ class Base {
         const self = this, $popup = jQuery('#popin-dialog'), $contentHtmlElement = $popup.find(".popin-content-html"), $contentReact = $popup.find('.popin-content-reactmodule'), 
         //   $title = $contentHtmlElement.find(".title"),
         //   $text = $popup.find(".popin-content-ajax"),
-        $closeButtons = $popup.find("#popin-showClose"), cleanEvents = () => {
+        $closeButtons = $popup.find("#popin-showClose"), cleanEvents = (cb) => {
             // On désactive les events
             $popup.find("#popin-showClose").off('click');
             $popup.find('.comments .comment .btnThumb').off('click');
@@ -1679,6 +1679,8 @@ class Base {
             $contentReact.find('.comments .toggleReplies').off('click');
             $contentReact.find('.btnSubscribe').off('click');
             $contentReact.find('.moreComments').off('click');
+            if (cb)
+                cb();
         }, hidePopup = () => {
             document.body.style.overflow = "visible";
             document.body.style.paddingRight = "";
@@ -1756,7 +1758,11 @@ class Base {
                     template += CommentBS.getTemplateComment(comment.replies[r], true);
                 }
             }
-            template += `<button type="button" class="btn-reset btn-greyBorder moreComments" style="margin-top: 10px; width: 100%;">${Base.trans("timeline.comments.display_more")}<i class="fa fa-cog fa-spin fa-2x fa-fw" style="display:none;margin-left:15px;vertical-align:middle;"></i><span class="sr-only">Loading...</span></button></div>`;
+            // On ajoute le bouton pour voir plus de commentaires
+            if (self.comments.length < self.nbComments) {
+                template += `<button type="button" class="btn-reset btn-greyBorder moreComments" style="margin-top: 10px; width: 100%;">${Base.trans("timeline.comments.display_more")}<i class="fa fa-cog fa-spin fa-2x fa-fw" style="display:none;margin-left:15px;vertical-align:middle;"></i><span class="sr-only">Loading...</span></button>`;
+            }
+            template + '</div>';
             if (self.statusComments.toLowerCase() === 'open') {
                 template += CommentBS.getTemplateWriting();
             }
@@ -2038,8 +2044,7 @@ class Base {
                         }
                         $btn.before(template);
                         jQuery(`.comment[data-comment-id="${firstCmtId.toString()}"]`).get(0).scrollIntoView();
-                        cleanEvents();
-                        loadEvents();
+                        cleanEvents(loadEvents);
                         if (self.comments.length >= self.nbComments) {
                             $btn.hide();
                         }
