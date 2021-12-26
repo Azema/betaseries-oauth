@@ -1756,7 +1756,7 @@ class Base {
                     template += CommentBS.getTemplateComment(comment.replies[r], true);
                 }
             }
-            template += `<button type="button" class="btn-reset btn-greyBorder moreComments" style="margin-top: 10px; width: 100%;">${Base.trans("timeline.comments.display_more")}</button></div>`;
+            template += `<button type="button" class="btn-reset btn-greyBorder moreComments" style="margin-top: 10px; width: 100%;">${Base.trans("timeline.comments.display_more")}<i class="fa fa-cog fa-spin fa-fw" style="display:none;margin-left:15px;"></i><span class="sr-only">Loading...</span></button></div>`;
             if (self.statusComments.toLowerCase() === 'open') {
                 template += CommentBS.getTemplateWriting();
             }
@@ -2012,10 +2012,13 @@ class Base {
                 $contentReact.find('.moreComments').click((e) => {
                     e.stopPropagation();
                     e.preventDefault();
+                    const $btn = jQuery(e.currentTarget);
                     if (self.comments.length >= self.nbComments) {
-                        jQuery(e.currentTarget).hide();
+                        $btn.hide();
                         return;
                     }
+                    const $loader = $btn.find('.fa-spin');
+                    $loader.show();
                     const lastCmtId = self.comments[self.comments.length - 1].id;
                     const oldLastCmtIndex = self.comments.length - 1;
                     self.fetchComments(nbCmts, lastCmtId).then(async () => {
@@ -2033,11 +2036,13 @@ class Base {
                                 template += CommentBS.getTemplateComment(comment.replies[r], true);
                             }
                         }
-                        jQuery(e.currentTarget).before(template);
+                        $btn.before(template);
                         jQuery(`.comment[data-comment-id="${firstCmtId.toString()}"]`).get(0).scrollIntoView();
                         if (self.comments.length >= self.nbComments) {
-                            jQuery(e.currentTarget).hide();
+                            $btn.hide();
                         }
+                    }).finally(() => {
+                        $loader.hide();
                     });
                 });
             }
