@@ -1,4 +1,4 @@
-/*! betaseries_userscript - v1.1.4 - 2021-12-26
+/*! betaseries_userscript - v1.1.4 - 2021-12-27
  * https://github.com/Azema/betaseries
  * Copyright (c) 2021 Azema;
  * Licensed Apache-2.0
@@ -194,6 +194,10 @@ class CommentsBS {
         this.status = MediaStatusComments.OPEN;
         this.nbComments = nbComments;
     }
+    /**
+     * Retourne la taille de la collection
+     * @readonly
+     */
     get length() {
         return this.comments.length;
     }
@@ -1575,16 +1579,16 @@ var StarTypes;
     StarTypes["DISABLE"] = "disable";
 })(StarTypes || (StarTypes = {}));
 class Note {
+    total;
+    mean;
+    user;
+    _parent;
     constructor(data, parent) {
         this.total = parseInt(data.total, 10);
         this.mean = parseInt(data.mean, 10);
         this.user = parseInt(data.user, 10);
         this._parent = parent;
     }
-    total;
-    mean;
-    user;
-    _parent;
     /**
      * Retourne la note moyenne sous forme de pourcentage
      * @returns {number} La note sous forme de pourcentage
@@ -1712,20 +1716,35 @@ class Note {
 }
 
 class Next {
-    constructor(data) {
-        this.id = (data.id !== undefined) ? parseInt(data.id, 10) : null;
-        this.code = data.code;
-        this.date = new Date(data.date);
-        this.title = data.title;
-        this.image = data.image;
-    }
     id;
     code;
     date;
     title;
     image;
+    constructor(data) {
+        this.id = (data.id !== undefined) ? parseInt(data.id, 10) : NaN;
+        this.code = data.code;
+        this.date = new Date(data.date);
+        this.title = data.title;
+        this.image = data.image;
+    }
 }
 class User {
+    archived;
+    downloaded;
+    favorited;
+    friends_want_to_watch;
+    friends_watched;
+    hidden;
+    last;
+    mail;
+    next;
+    profile;
+    remaining;
+    seen;
+    status;
+    tags;
+    twitter;
     constructor(data) {
         this.archived = data.archived || false;
         this.downloaded = data.downloaded || false;
@@ -1746,21 +1765,6 @@ class User {
         this.tags = data.tags || '';
         this.twitter = data.twitter || false;
     }
-    archived;
-    downloaded;
-    favorited;
-    friends_want_to_watch;
-    friends_watched;
-    hidden;
-    last;
-    mail;
-    next;
-    profile;
-    remaining;
-    seen;
-    status;
-    tags;
-    twitter;
 }
 
 var MediaType;
@@ -1949,8 +1953,8 @@ class Base {
         if (Base.api && Base.api.resources.indexOf(resource) === -1) {
             throw new Error(`Ressource (${resource}) inconnue dans l'API.`);
         }
-        if (!Base.token || !Base.userKey) {
-            throw new Error('Token and userKey are required');
+        if (!Base.userKey) {
+            throw new Error('userKey are required');
         }
         let check = false, 
         // Les en-têtes pour l'API
@@ -2110,6 +2114,7 @@ class Base {
      * Remplit l'objet avec les données fournit en paramètre
      * @param  {Obj} data - Les données provenant de l'API
      * @returns {Base}
+     * @virtual
      */
     fill(data) {
         this.id = parseInt(data.id, 10);
@@ -2128,12 +2133,17 @@ class Base {
         this.description = data.description;
         return this;
     }
+    /**
+     * Retourne le nombre de commentaires pour ce média sur l'API
+     * @readonly
+     */
     get nbComments() {
         return this.comments.nbComments;
     }
     /**
      * Initialize le tableau des écouteurs d'évènements
      * @returns {Base}
+     * @sealed
      */
     _initListeners() {
         this._listeners = {};
@@ -2148,6 +2158,7 @@ class Base {
      * @param  {EventTypes} name - Le type d'évenement
      * @param  {Function}   fn   - La fonction à appeler
      * @return {Base} L'instance du média
+     * @sealed
      */
     addListener(name, fn) {
         // On vérifie que le type d'event est pris en charge
@@ -2165,6 +2176,7 @@ class Base {
      * @param  {string}   name - Le type d'évenement
      * @param  {Function} fn   - La fonction qui était appelée
      * @return {Base} L'instance du média
+     * @sealed
      */
     removeListener(name, fn) {
         if (this._listeners[name] !== undefined) {
@@ -2179,6 +2191,7 @@ class Base {
      * Appel les listeners pour un type d'évenement
      * @param  {EventTypes} name - Le type d'évenement
      * @return {Base} L'instance du média
+     * @sealed
      */
     _callListeners(name) {
         if (this._listeners[name] !== undefined) {
@@ -2338,6 +2351,7 @@ class Media extends Base {
      * Remplit l'objet avec les données fournit en paramètre
      * @param  {Obj} data Les données provenant de l'API
      * @returns {Media}
+     * @override
      */
     fill(data) {
         this.followers = parseInt(data.followers, 10);
@@ -3287,6 +3301,7 @@ class Movie extends Media {
      * Remplit l'objet avec les données fournit en paramètre
      * @param  {any} data Les données provenant de l'API
      * @returns {Movie}
+     * @override
      */
     fill(data) {
         if (data.user.in_account !== undefined) {
@@ -3553,6 +3568,7 @@ class Episode extends Base {
      * Remplit l'objet avec les données fournit en paramètre
      * @param  {any} data Les données provenant de l'API
      * @returns {Episode}
+     * @override
      */
     fill(data) {
         this.code = data.code;
@@ -3930,6 +3946,7 @@ class Similar extends Media {
      * Remplit l'objet avec les données fournit en paramètre
      * @param  {Obj} data Les données provenant de l'API
      * @returns {Similar}
+     * @override
      */
     fill(data) {
         if (this.mediaType.singular === MediaType.show) {
@@ -4703,6 +4720,7 @@ class Member {
  * Remplit l'objet avec les données fournit en paramètre
  * @param  {Obj} data Les données provenant de l'API
  * @returns {Show}
+ * @override
  */
 Show.prototype.fill = function (data) {
     this.aliases = data.aliases;
