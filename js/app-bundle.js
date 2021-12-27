@@ -3929,7 +3929,8 @@ class Episode extends Base {
                 }
             };
             const lenSeen = _this._season.getNbEpisodesSeen();
-            //if (Base.debug) console.log('Episode.updateRender', {lenEpisodes: lenEpisodes, lenNotSpecial: lenNotSpecial, lenSeen: lenSeen});
+            if (Base.debug)
+                console.log('Episode.updateRender', { lenEpisodes: lenEpisodes, lenNotSpecial: lenNotSpecial, lenSeen: lenSeen });
             // Si tous les épisodes de la saison ont été vus
             if (lenSeen === lenEpisodes) {
                 moveSeason();
