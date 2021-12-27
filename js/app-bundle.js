@@ -387,13 +387,16 @@ class CommentsBS {
                     <div data-media-type="${self._parent.mediaType.singular}"
                          data-media-id="${self._parent.id}"
                          class="displayFlex flexDirectionColumn"
-                         style="margin-top: 2px; min-height: 0">
-                        <button type="button" class="btn-reset btnSubscribe" style="position: absolute; top: 3px; right: 31px; padding: 8px;">
-                            <span class="svgContainer">
-                                <svg></svg>
-                            </span>
-                        </button>
-                        <div class="comments overflowYScroll">`;
+                         style="margin-top: 2px; min-height: 0">`;
+            if (Base.userIdentified()) {
+                template += `
+                <button type="button" class="btn-reset btnSubscribe" style="position: absolute; top: 3px; right: 31px; padding: 8px;">
+                    <span class="svgContainer">
+                        <svg></svg>
+                    </span>
+                </button>`;
+            }
+            template += '<div class="comments overflowYScroll">';
             promise.then(async () => {
                 for (let c = 0; c < self.comments.length; c++) {
                     comment = self.comments[c];
@@ -1014,7 +1017,7 @@ class CommentBS {
                                 </button>
                                 <strong class="mainLink thumbs" style="margin-left: 5px;">${comment.thumbs > 0 ? '+' + comment.thumbs : (comment.thumbs < 0) ? '-' + comment.thumbs : comment.thumbs}</strong>
                                 <span class="mainLink">&nbsp;∙&nbsp;</span>
-                                <button type="button" class="btn-reset mainLink mainLink--regular btnResponse" style="vertical-align: 0px;">${Base.trans("timeline.comment.reply")}</button>
+                                <button type="button" class="btn-reset mainLink mainLink--regular btnResponse" style="vertical-align: 0px;${!Base.userIdentified() ? 'display:none;' : ''}">${Base.trans("timeline.comment.reply")}</button>
                                 <a href="#c_1269819" class="mainTime">
                                     <span class="mainLink">&nbsp;∙&nbsp;</span>
                                     Le ${ /* eslint-disable-line no-undef */typeof moment !== 'undefined' ? moment(comment.date).format('DD/MM/YYYY HH:mm') : comment.date.toString()}
@@ -1495,7 +1498,9 @@ class CommentBS {
         `;
         for (let l = 0; l < 4; l++) {
             templateLoader += `
-                <div class="er_ex null"><div class="ComponentPlaceholder er_et " style="height: 40px;"></div></div>`;
+                <div class="er_ex null">
+                    <div class="ComponentPlaceholder er_et" style="height: 40px;"></div>
+                </div>`;
         }
         $contentReact.append(templateLoader + '</div>');
         showPopup();
@@ -1503,14 +1508,15 @@ class CommentBS {
             <div data-media-type="${self._media.mediaType.singular}"
                             data-media-id="${self._media.id}"
                             class="displayFlex flexDirectionColumn"
-                            style="margin-top: 2px; min-height: 0">
-                <button type="button" class="btn-reset btnSubscribe" style="position: absolute; top: 3px; right: 31px; padding: 8px;">
-                    <span class="svgContainer">
-                        <svg></svg>
-                    </span>
-                </button>
-                <div class="comments overflowYScroll">` +
-            CommentBS.getTemplateComment(this);
+                            style="margin-top: 2px; min-height: 0">`;
+        if (Base.userIdentified()) {
+            template += `<button type="button" class="btn-reset btnSubscribe" style="position: absolute; top: 3px; right: 31px; padding: 8px;">
+                <span class="svgContainer">
+                    <svg></svg>
+                </span>
+            </button>`;
+        }
+        template += '<div class="comments overflowYScroll">' + CommentBS.getTemplateComment(this);
         // Récupération des réponses sur l'API
         // On ajoute les réponses, par ordre décroissant à la template
         if (this.nbReplies > 0 && this.replies.length <= 0) {
@@ -1820,6 +1826,68 @@ class Base {
             "movies": ['list', 'movie', 'search', 'similars'],
             "search": ['all', 'movies', 'shows'],
             "shows": ['display', 'episodes', 'list', 'search', 'similars']
+        },
+        "tokenRequired": {
+            "comments": {
+                "close": { verbs: ['POST'] },
+                "comment": { verbs: ['POST', 'DELETE'] },
+                "comment_event": { verbs: ['POST'] },
+                "open": { verbs: ['POST'] },
+                "subscription": { verbs: ['POST', 'DELETE'] },
+                "thumb": { verbs: ['POST', 'DELETE'] }
+            },
+            "episodes": {
+                "downloaded": { verbs: ['POST', 'DELETE'] },
+                "hidden": { verbs: ['POST', 'DELETE'] },
+                "latest": { verbs: ['GET'] },
+                "list": { verbs: ['GET'] },
+                "next": { verbs: ['GET'] },
+                "note": { verbs: ['POST', 'DELETE'] },
+                "scraper": { verbs: ['GET'] },
+                "search": { verbs: ['GET'] },
+                "unrated": { verbs: ['GET'] },
+                "watched": { verbs: ['POST', 'DELETE'] },
+            },
+            "members": {
+                "avatar": { verbs: ['POST', 'DELETE'] },
+                "banner": { verbs: ['POST', 'DELETE'] },
+                "delete": { verbs: ['POST'] },
+                "destroy": { verbs: ['POST'] },
+                "email": { verbs: ['GET', 'POST'] },
+                "facebook": { verbs: ['POST'] },
+                "is_active": { verbs: ['GET'] },
+                "lametric": { verbs: ['GET'] },
+                "locale": { verbs: ['GET'] },
+                "notification": { verbs: ['DELETE'] },
+                "notifications": { verbs: ['GET'] },
+                "option": { verbs: ['POST'] },
+                "options": { verbs: ['GET'] },
+                "password": { verbs: ['POST'] },
+                "sync": { verbs: ['POST'] },
+                "twitter": { verbs: ['POST', 'DELETE'] },
+            },
+            "movies": {
+                "favorite": { verbs: ['POST', 'DELETE'] },
+                "movie": { verbs: ['POST', 'DELETE'] },
+                "note": { verbs: ['POST', 'DELETE'] },
+                "scraper": { verbs: ['GET'] },
+            },
+            "platforms": {
+                "service": { verbs: ['POST', 'DELETE'] }
+            },
+            "shows": {
+                "archive": { verbs: ['POST', 'DELETE'] },
+                "favorite": { verbs: ['POST', 'DELETE'] },
+                "note": { verbs: ['POST', 'DELETE'] },
+                "recommendation": { verbs: ['POST', 'DELETE', 'PUT'] },
+                "recommendations": { verbs: ['GET'] },
+                "show": { verbs: ['POST', 'DELETE'] },
+                "tags": { verbs: ['POST'] },
+                "unrated": { verbs: ['GET'] },
+            },
+            "subtitles": {
+                "report": { verbs: ['POST'] }
+            }
         }
     };
     /**
@@ -1948,6 +2016,7 @@ class Base {
      * @param  {Obj}      args - Un objet (clef, valeur) à transmettre dans la requête
      * @param  {bool}     [force=false] - Indique si on doit utiliser le cache ou non (Par défaut: false)
      * @return {Promise<Obj>} Les données provenant de l'API
+     * @throws Error
      */
     static callApi(type, resource, action, args, force = false) {
         if (Base.api && Base.api.resources.indexOf(resource) === -1) {
@@ -1955,6 +2024,12 @@ class Base {
         }
         if (!Base.userKey) {
             throw new Error('userKey are required');
+        }
+        if (!Base.token && resource in Base.api.tokenRequired &&
+            action in Base.api.tokenRequired[resource] &&
+            Base.api.tokenRequired[resource][action].indexOf(type) !== 1) {
+            // Identification required
+            throw new Error("Identification required");
         }
         let check = false, 
         // Les en-têtes pour l'API
