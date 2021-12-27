@@ -480,6 +480,10 @@ class CommentsBS {
         $btnSubscribe.click((e) => {
             e.stopPropagation();
             e.preventDefault();
+            if (!Base.userIdentified()) {
+                faceboxDisplay('inscription', {}, function () { });
+                return;
+            }
             const $btn = $(e.currentTarget);
             let params = { type: self._parent.mediaType.singular, id: self._parent.id };
             if ($btn.hasClass('active')) {
@@ -519,6 +523,10 @@ class CommentsBS {
         $btnThumb.click((e) => {
             e.stopPropagation();
             e.preventDefault();
+            if (!Base.userIdentified()) {
+                faceboxDisplay('inscription', {}, function () { });
+                return;
+            }
             const $btn = jQuery(e.currentTarget);
             const $comment = $btn.parents('.comment');
             const commentId = parseInt($comment.data('commentId'), 10);
@@ -591,6 +599,10 @@ class CommentsBS {
         $btnSend.click((e) => {
             e.stopPropagation();
             e.preventDefault();
+            if (!Base.userIdentified()) {
+                faceboxDisplay('inscription', {}, function () { });
+                return;
+            }
             const $textarea = $(e.currentTarget).siblings('textarea');
             if ($textarea.val().length > 0) {
                 let comment;
@@ -677,6 +689,10 @@ class CommentsBS {
         $btnResponse.click((e) => {
             e.stopPropagation();
             e.preventDefault();
+            if (!Base.userIdentified()) {
+                faceboxDisplay('inscription', {}, function () { });
+                return;
+            }
             const $btn = $(e.currentTarget);
             const $comment = $btn.parents('.comment');
             const commentId = parseInt($comment.data('commentId'), 10);
@@ -1187,6 +1203,10 @@ class CommentBS {
         $btnSubscribe.click((e) => {
             e.stopPropagation();
             e.preventDefault();
+            if (!Base.userIdentified()) {
+                faceboxDisplay('inscription', {}, function () { });
+                return;
+            }
             const $btn = $(e.currentTarget);
             let params = { type: self._media.mediaType.singular, id: self._media.id };
             if ($btn.hasClass('active')) {
@@ -1263,6 +1283,10 @@ class CommentBS {
         $btnThumb.click((e) => {
             e.stopPropagation();
             e.preventDefault();
+            if (!Base.userIdentified()) {
+                faceboxDisplay('inscription', {}, function () { });
+                return;
+            }
             const $btn = jQuery(e.currentTarget);
             const commentId = parseInt($btn.parents('.comment').data('commentId'), 10);
             let verb = HTTP_VERBS.POST;
@@ -1328,6 +1352,10 @@ class CommentBS {
         $btnSend.click((e) => {
             e.stopPropagation();
             e.preventDefault();
+            if (!Base.userIdentified()) {
+                faceboxDisplay('inscription', {}, function () { });
+                return;
+            }
             const $textarea = $(e.currentTarget).siblings('textarea');
             if ($textarea.val().length > 0) {
                 const replyId = parseInt($textarea.data('replyTo'), 10);
@@ -1419,6 +1447,10 @@ class CommentBS {
         $btnResponse.click((e) => {
             e.stopPropagation();
             e.preventDefault();
+            if (!Base.userIdentified()) {
+                faceboxDisplay('inscription', {}, function () { });
+                return;
+            }
             const $btn = $(e.currentTarget);
             const $comment = $btn.parents('.comment');
             const commentId = parseInt($comment.data('commentId'), 10);
@@ -1773,6 +1805,10 @@ class User {
     }
 }
 
+function ExceptionIdentification(message) {
+    this.message = message;
+    this.name = "ExceptionIdentification";
+}
 var MediaType;
 (function (MediaType) {
     MediaType["show"] = "show";
@@ -2029,7 +2065,7 @@ class Base {
             action in Base.api.tokenRequired[resource] &&
             Base.api.tokenRequired[resource][action].indexOf(type) !== 1) {
             // Identification required
-            throw new Error("Identification required");
+            throw new ExceptionIdentification("Identification required");
         }
         let check = false, 
         // Les en-têtes pour l'API
