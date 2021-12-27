@@ -1623,7 +1623,7 @@ class Note {
     _parent;
     constructor(data, parent) {
         this.total = parseInt(data.total, 10);
-        this.mean = parseInt(data.mean, 10);
+        this.mean = parseFloat(data.mean);
         this.user = parseInt(data.user, 10);
         this._parent = parent;
     }
@@ -1750,6 +1750,13 @@ class Note {
             className = (note <= s) ? StarTypes.EMPTY : (note < s + 1) ? StarTypes.HALF : StarTypes.FULL;
             $($stars.get(s)).attr('xlink:href', `#icon-star-${className}`);
         }
+        /*
+        3 <= 0 || 3 < 1 HALF
+        3 <= 1 || 3 < 2 HALF
+        3 <= 2 || 3 < 3 HALF
+        3 <= 3 EMPTY
+        3 <= 4 EMPTY
+        */
     }
 }
 
@@ -3593,6 +3600,7 @@ class Season {
         return nbEpisodesSpecial;
     }
 }
+
 class Episode extends Base {
     /**
      * @type {Season} L'objet Season contenant l'épisode
@@ -4851,9 +4859,11 @@ Show.prototype.fill = function (data) {
     if (data.platforms !== undefined && data.platforms != null) {
         this.platforms = new Platforms(data.platforms);
     }
-    this.seasons = new Array();
-    for (let s = 0; s < data.seasons_details.length; s++) {
-        this.seasons.push(new Season(data.seasons_details[s], this));
+    if (this.id == null && this.seasons == null) {
+        this.seasons = new Array();
+        for (let s = 0; s < data.seasons_details.length; s++) {
+            this.seasons.push(new Season(data.seasons_details[s], this));
+        }
     }
     this.showrunner = null;
     if (data.showrunner !== undefined && data.showrunner != null) {
