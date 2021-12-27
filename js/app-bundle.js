@@ -413,7 +413,7 @@ class CommentsBS {
                     template += `<button type="button" class="btn-reset btn-greyBorder moreComments" style="margin-top: 10px; width: 100%;">${Base.trans("timeline.comments.display_more")}<i class="fa fa-cog fa-spin fa-2x fa-fw" style="display:none;margin-left:15px;vertical-align:middle;"></i><span class="sr-only">Loading...</span></button>`;
                 }
                 template + '</div>';
-                if (self.status.toLowerCase() === MediaStatusComments.OPEN) {
+                if (self.isOpen() && Base.userIdentified()) {
                     template += CommentBS.getTemplateWriting();
                 }
                 resolve(template + '</div>');
@@ -1523,7 +1523,7 @@ class CommentBS {
             template += CommentBS.getTemplateComment(this.replies[r]);
         }
         template += '</div>';
-        if (this._parent.isOpen()) {
+        if (this._parent.isOpen() && Base.userIdentified()) {
             template += CommentBS.getTemplateWriting();
         }
         template += '</div>';
