@@ -1643,7 +1643,7 @@ class Note {
         // On met en forme le nombre de votes
         total = new Intl.NumberFormat('fr-FR', { style: 'decimal', useGrouping: true }).format(this.total), 
         // On limite le nombre de chiffre après la virgule
-        note = this.mean.toFixed(1);
+        note = this.mean.toFixed(2);
         let toString = `${total} ${votes} : ${note} / 5`;
         // On ajoute la note du membre connecté, si il a voté
         if (this.user > 0) {
@@ -1744,18 +1744,17 @@ class Note {
      */
     renderStars() {
         const $stars = jQuery('.blockInformations__metadatas .js-render-stars .star-svg use');
-        const note = Math.round(this.mean);
         let className;
         for (let s = 0; s < 5; s++) {
-            className = (note <= s) ? StarTypes.EMPTY : (note < s + 1) ? StarTypes.HALF : StarTypes.FULL;
+            className = (this.mean <= s) ? StarTypes.EMPTY : (this.mean < s + 1) ? StarTypes.HALF : StarTypes.FULL;
             $($stars.get(s)).attr('xlink:href', `#icon-star-${className}`);
         }
         /*
-        3 <= 0 || 3 < 1 HALF
-        3 <= 1 || 3 < 2 HALF
-        3 <= 2 || 3 < 3 HALF
-        3 <= 3 EMPTY
-        3 <= 4 EMPTY
+        3.8 <= 0 || 3.8 < 1 : FULL
+        3.8 <= 1 || 3.8 < 2 : FULL
+        3.8 <= 2 || 3.8 < 3 : FULL
+        3.8 <= 3 || 3.8 < 4 : HALF
+        3.8 <= 4 : EMPTY
         */
     }
 }
