@@ -1,4 +1,4 @@
-/*! betaseries_userscript - v1.1.4 - 2021-12-28
+/*! betaseries_userscript - v1.1.5 - 2021-12-28
  * https://github.com/Azema/betaseries
  * Copyright (c) 2021 Azema;
  * Licensed Apache-2.0
@@ -1330,6 +1330,8 @@ class CommentBS {
          * On affiche/masque les options du commentaire
          */
         const $btnOptions = $container.find('.btnToggleOptions');
+        if (Base.debug)
+            console.log('Comment loadEvents toggleOptions.length', $btnOptions.length);
         $btnOptions.click((e) => {
             e.stopPropagation();
             e.preventDefault();
@@ -1749,13 +1751,6 @@ class Note {
             className = (this.mean <= s) ? StarTypes.EMPTY : (this.mean < s + 1) ? StarTypes.HALF : StarTypes.FULL;
             $($stars.get(s)).attr('xlink:href', `#icon-star-${className}`);
         }
-        /*
-        3.8 <= 0 || 3.8 < 1 : FULL
-        3.8 <= 1 || 3.8 < 2 : FULL
-        3.8 <= 2 || 3.8 < 3 : FULL
-        3.8 <= 3 || 3.8 < 4 : HALF
-        3.8 <= 4 : EMPTY
-        */
     }
 }
 
