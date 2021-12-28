@@ -2065,6 +2065,7 @@ class Base {
             throw new Error(`Ressource (${resource}) inconnue dans l'API.`);
         }
         if (!Base.userKey) {
+            Base.notification('Call API', `La clé API doit être renseignée`);
             throw new Error('userKey are required');
         }
         if (!Base.token && resource in Base.api.tokenRequired &&
