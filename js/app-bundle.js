@@ -1,4 +1,4 @@
-/*! betaseries_userscript - v1.1.4 - 2021-12-27
+/*! betaseries_userscript - v1.1.4 - 2021-12-28
  * https://github.com/Azema/betaseries
  * Copyright (c) 2021 Azema;
  * Licensed Apache-2.0
@@ -4488,6 +4488,13 @@ class UpdateAuto {
         this._exist = true;
         this.changeColorBtn();
         return this;
+    }
+    /**
+     * Retourne l'objet Show associé
+     * @returns {Show}
+     */
+    get show() {
+        return this._show;
     }
     /**
      * get status - Retourne le statut de la tâche d'update auto
