@@ -2070,6 +2070,7 @@ class Base {
         if (!Base.token && resource in Base.api.tokenRequired &&
             action in Base.api.tokenRequired[resource] &&
             Base.api.tokenRequired[resource][action].indexOf(type) !== 1) {
+            Base.notification('Call API', `Identification requise pour cet appel: ${type} ${resource}/${action}`);
             // Identification required
             throw new ExceptionIdentification("Identification required");
         }
