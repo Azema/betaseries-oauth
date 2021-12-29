@@ -1668,20 +1668,18 @@ class Note {
         if (Base.debug)
             console.log('objNote createPopupForVote');
         // La popup et ses éléments
-        const _this = this, $popup = jQuery('#popin-dialog'), $contentHtmlElement = $popup.find(".popin-content-html"), $contentReact = $popup.find('.popin-content-reactmodule'), $title = $contentHtmlElement.find(".title"), $text = $popup.find("p"), $closeButtons = $popup.find("#popin-showClose"), hidePopup = () => {
+        const _this = this, $popup = jQuery('#popin-dialog'), $contentHtmlElement = $popup.find(".popin-content-html"), $contentReact = $popup.find('.popin-content-reactmodule'), $title = $contentHtmlElement.find(".title"), $text = $popup.find("p"), $closeButtons = $popup.find(".js-close-popupalert"), hidePopup = () => {
             if (Base.debug)
                 console.log('objNote createPopupForVote hidePopup');
             $popup.attr('aria-hidden', 'true');
-            $popup.find("#popupalertyes").show();
-            $popup.find("#popupalertno").show();
+            $contentHtmlElement.find(".button-set").show();
             $contentHtmlElement.hide();
             // On désactive les events
             $text.find('.star-svg').off('mouseenter').off('mouseleave').off('click');
         }, showPopup = () => {
             if (Base.debug)
                 console.log('objNote createPopupForVote showPopup');
-            $popup.find("#popupalertyes").hide();
-            $popup.find("#popupalertno").hide();
+            $contentHtmlElement.find(".button-set").hide();
             $contentHtmlElement.show();
             $contentReact.hide();
             $closeButtons.show();
@@ -2907,17 +2905,22 @@ class Show extends Media {
                 if (Base.debug)
                     console.log('Proposition de voter pour la série');
                 promise.then(() => {
+                    let retourCallback = false;
                     // eslint-disable-next-line no-undef
                     new PopupAlert({
                         title: Base.trans("popin.note.title.show"),
                         text: "Voulez-vous noter la série ?",
                         callback_yes: function () {
                             // jQuery('.blockInformations__metadatas > button').trigger('click');
-                            self.objNote.createPopupForVote();
+                            retourCallback = true;
                             return true;
                         },
                         callback_no: function () {
                             return true;
+                        },
+                        onclose: function () {
+                            if (retourCallback)
+                                self.objNote.createPopupForVote();
                         }
                     });
                 });
