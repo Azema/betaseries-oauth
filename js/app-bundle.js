@@ -2861,6 +2861,7 @@ class Show extends Media {
      * @return {void}
      */
     updateRender(cb = Base.noop) {
+        const self = this;
         this.updateProgressBar();
         this.updateNextEpisode();
         let note = this.objNote;
@@ -2905,7 +2906,8 @@ class Show extends Media {
                         title: Base.trans("popin.note.title.show"),
                         text: "Voulez-vous noter la série ?",
                         callback_yes: function () {
-                            jQuery('.blockInformations__metadatas > button').trigger('click');
+                            // jQuery('.blockInformations__metadatas > button').trigger('click');
+                            self.objNote.createPopupForVote();
                             return true;
                         },
                         callback_no: function () {
