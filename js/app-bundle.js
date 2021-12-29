@@ -1756,13 +1756,36 @@ class Note {
     /**
      * Met à jour l'affichage de la note
      */
-    renderStars() {
-        const $stars = jQuery('.blockInformations__metadatas .js-render-stars .star-svg use');
+    updateStars(elt = null) {
+        elt = elt || jQuery('.blockInformations__metadatas .js-render-stars');
+        const $stars = elt.find('.star-svg use');
         let className;
         for (let s = 0; s < 5; s++) {
             className = (this.mean <= s) ? StarTypes.EMPTY : (this.mean < s + 1) ? StarTypes.HALF : StarTypes.FULL;
             $($stars.get(s)).attr('xlink:href', `#icon-star-${className}`);
         }
+    }
+    /**
+     * Retourne la template pour l'affichage d'une note sous forme d'étoiles
+     * @param   {number} [note=0] - La note à afficher
+     * @param   {string} [color] - La couleur des étoiles
+     * @returns {string}
+     */
+    static renderStars(note = 0, color = '') {
+        let typeSvg, template = '';
+        Array.from({
+            length: 5
+        }, (_index, number) => {
+            typeSvg = note <= number ? "empty" : (note < number + 1) ? 'half' : "full";
+            template += `
+                <svg viewBox="0 0 100 100" class="star-svg">
+                    <use xmlns:xlink="http://www.w3.org/1999/xlink"
+                        xlink:href="#icon-star${color}-${typeSvg}">
+                    </use>
+                </svg>
+            `;
+        });
+        return template;
     }
 }
 
