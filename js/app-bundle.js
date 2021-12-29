@@ -2918,7 +2918,7 @@ class Show extends Media {
                         callback_no: function () {
                             return true;
                         },
-                        onclose: function () {
+                        onClose: function () {
                             if (retourCallback)
                                 self.objNote.createPopupForVote();
                         }
