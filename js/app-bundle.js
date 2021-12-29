@@ -1665,8 +1665,12 @@ class Note {
      * Crée une popup avec 5 étoiles pour noter le média
      */
     createPopupForVote() {
+        if (Base.debug)
+            console.log('objNote createPopupForVote');
         // La popup et ses éléments
         const _this = this, $popup = jQuery('#popin-dialog'), $contentHtmlElement = $popup.find(".popin-content-html"), $contentReact = $popup.find('.popin-content-reactmodule'), $title = $contentHtmlElement.find(".title"), $text = $popup.find("p"), $closeButtons = $popup.find("#popin-showClose"), hidePopup = () => {
+            if (Base.debug)
+                console.log('objNote createPopupForVote hidePopup');
             $popup.attr('aria-hidden', 'true');
             $popup.find("#popupalertyes").show();
             $popup.find("#popupalertno").show();
@@ -1674,6 +1678,8 @@ class Note {
             // On désactive les events
             $text.find('.star-svg').off('mouseenter').off('mouseleave').off('click');
         }, showPopup = () => {
+            if (Base.debug)
+                console.log('objNote createPopupForVote showPopup');
             $popup.find("#popupalertyes").hide();
             $popup.find("#popupalertno").hide();
             $contentHtmlElement.show();
