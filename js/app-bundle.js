@@ -1,4 +1,4 @@
-/*! betaseries_userscript - v1.1.5 - 2021-12-28
+/*! betaseries_userscript - v1.1.5 - 2021-12-29
  * https://github.com/Azema/betaseries
  * Copyright (c) 2021 Azema;
  * Licensed Apache-2.0
@@ -1324,6 +1324,9 @@ class CommentBS {
                     const thumbed = data.comment.thumbed ? parseInt(data.comment.thumbed, 10) : 0;
                     self._parent.changeThumbs(commentId, data.comment.thumbs, thumbed);
                 }
+                // Petite animation pour le nombre de votes
+                $btn.siblings('strong.thumbs')
+                    .css('animation', '1s ease 0s 1 normal forwards running backgroundFadeOut');
             })
                 .catch(err => {
                 const msg = err.text !== undefined ? err.text : err;
@@ -2515,6 +2518,7 @@ class Media extends Base {
      */
     set in_account(i) {
         this._in_account = !!i;
+        this.save();
     }
     /**
      * Retourne les similars associés au media
@@ -2901,7 +2905,7 @@ class Show extends Media {
                         title: Base.trans("popin.note.title.show"),
                         text: "Voulez-vous noter la série ?",
                         callback_yes: function () {
-                            jQuery('.blockInformations__metadatas .js-render-stars').trigger('click');
+                            jQuery('.blockInformations__metadatas > button').trigger('click');
                             return true;
                         },
                         callback_no: function () {
@@ -3555,7 +3559,7 @@ class Season {
                 .then(data => {
                 _this.episodes = [];
                 for (let e = 0; e < data.episodes.length; e++) {
-                    _this.episodes.push(new Episode(data.episodes[e], _this._show, _this));
+                    _this.episodes.push(new Episode(data.episodes[e], _this));
                 }
                 resolve(_this);
             }, err => {
@@ -3599,6 +3603,39 @@ class Season {
                 nbEpisodesSpecial++;
         }
         return nbEpisodesSpecial;
+    }
+    /**
+     * Met à jour l'objet Show
+     * @param {Function} cb Function de callback
+     * @returns {Season}
+     */
+    updateShow(cb = Base.noop) {
+        this._show.update(true).then(cb);
+        return this;
+    }
+    /**
+     * Modifie la saison courante de l'objet Show
+     * @param   {number} seasonNumber Le numéro de la saison
+     * @returns {Season}
+     */
+    changeCurrentSeason(seasonNumber) {
+        this._show.setCurrentSeason(seasonNumber);
+        return this;
+    }
+    /**
+     * Indique si la série est sur le compte du membre connecté
+     * @returns {boolean}
+     */
+    showInAccount() {
+        return this._show.in_account;
+    }
+    /**
+     * Définit la série comme étant sur le compte du membre connecté
+     * @returns {Season}
+     */
+    addShowToAccount() {
+        this._show.in_account = true;
+        return this;
     }
 }
 
@@ -3644,10 +3681,6 @@ class Episode extends Base {
      */
     seen_total;
     /**
-     * @type {Show} L'objet Show contenant l'épisode
-     */
-    show;
-    /**
      * @type {boolean} Indique si il s'agit d'un épisode spécial
      */
     special;
@@ -3674,13 +3707,11 @@ class Episode extends Base {
     /**
      * Constructeur de la classe Episode
      * @param   {Obj}       data    Les données provenant de l'API
-     * @param   {Show}      show    L'objet Show
      * @param   {Season}    season  L'objet Season contenant l'épisode
      * @returns {Episode}
      */
-    constructor(data, show, season) {
+    constructor(data, season) {
         super(data);
-        this.show = show;
         this._season = season;
         return this.fill(data);
     }
@@ -3819,6 +3850,7 @@ class Episode extends Base {
         const pos = this.elt.find('.checkSeen').data('pos');
         let promise = new Promise(resolve => { resolve(false); });
         let args = { id: this.id, bulk: true };
+        this.toggleSpinner(true);
         if (method === HTTP_VERBS.POST) {
             let createPromise = () => {
                 return new Promise(resolve => {
@@ -3851,14 +3883,10 @@ class Episode extends Base {
             Base.callApi(method, 'episodes', 'watched', args).then((data) => {
                 if (Base.debug)
                     console.log('updateStatus %s episodes/watched', method, data);
-                if (!(_this.show instanceof Show) && Base.cache.has(DataTypesCache.shows, data.show.id)) {
-                    _this.show = Base.cache.get(DataTypesCache.shows, data.show.id);
-                }
                 // Si un épisode est vu et que la série n'a pas été ajoutée
                 // au compte du membre connecté
-                if (!_this.show.in_account && data.episode.show.in_account) {
-                    _this.show.in_account = true;
-                    _this.show.save();
+                if (!_this._season.showInAccount() && data.episode.show.in_account) {
+                    _this._season.addShowToAccount();
                 }
                 // On met à jour l'objet Episode
                 if (method === HTTP_VERBS.POST && response && pos) {
@@ -3881,7 +3909,8 @@ class Episode extends Base {
                     .fill(data.episode)
                     .updateRender(status, true)
                     ._callListeners(EventTypes.UPDATE)
-                    .save();
+                    .save()
+                    ._season.updateShow();
             })
                 .catch(err => {
                 if (Base.debug)
@@ -3918,7 +3947,7 @@ class Episode extends Base {
             // On supprime le voile masquant sur la vignette pour voir l'image de l'épisode
             $elt.parents('div.slide__image').first().find('img').removeAttr('style');
             $elt.parents('div.slide_flex').first().removeClass('slide--notSeen');
-            const moveSeason = function () {
+            const moveSeason = function (cb = Base.noop) {
                 const slideCurrent = jQuery('#seasons div.slide--current');
                 // On check la saison
                 slideCurrent.find('.slide__image').prepend('<div class="checkSeen"></div>');
@@ -3931,11 +3960,12 @@ class Episode extends Base {
                 if (slideCurrent.next().length > 0) {
                     if (Base.debug)
                         console.log('Il y a une autre saison');
+                    const seasonNumber = _this._season.number + 1;
+                    _this._season.changeCurrentSeason(seasonNumber);
                     slideCurrent.next().trigger('click');
-                    let seasonNumber = _this.show.currentSeason.number + 1;
-                    _this.show.setCurrentSeason(seasonNumber);
                     slideCurrent.removeClass('slide--current');
                 }
+                return cb();
             };
             const lenSeen = _this._season.getNbEpisodesSeen();
             if (Base.debug)
@@ -3979,16 +4009,7 @@ class Episode extends Base {
                     .addClass('slide--notSeen');
             }
         }
-        if (update) {
-            if (this.show instanceof Show) {
-                this.show.update(true).then(() => {
-                    _this.toggleSpinner(false);
-                });
-            }
-            else {
-                console.warn('Episode.show is not an instance of class Show', this);
-            }
-        }
+        this.toggleSpinner(false);
         return this;
     }
     /**
