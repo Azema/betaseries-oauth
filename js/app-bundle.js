@@ -1,4 +1,4 @@
-/*! betaseries_userscript - v1.1.5 - 2021-12-30
+/*! betaseries_userscript - v1.1.6 - 2021-12-30
  * https://github.com/Azema/betaseries
  * Copyright (c) 2021 Azema;
  * Licensed Apache-2.0
