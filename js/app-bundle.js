@@ -5,18 +5,18 @@
  */
 "use strict";
 
-export var DataTypesCache;
+var DataTypesCache;
 (function (DataTypesCache) {
     DataTypesCache["shows"] = "shows";
     DataTypesCache["episodes"] = "episodes";
     DataTypesCache["movies"] = "movies";
     DataTypesCache["members"] = "members";
     DataTypesCache["updates"] = "updateAuto";
-})(DataTypesCache || (DataTypesCache = {}));
+})(DataTypesCache = DataTypesCache || (DataTypesCache = {}));
 /**
  * @class Gestion du Cache pour le script
  */
-export class CacheUS {
+class CacheUS {
     _data;
     constructor() {
         return this._init();
@@ -118,7 +118,7 @@ export class CacheUS {
     }
 }
 
-export class Character {
+class Character {
     constructor(data) {
         this.actor = data.actor || '';
         this.picture = data.picture || '';
@@ -141,14 +141,12 @@ export class Character {
     movie_id;
 }
 
-import { Base, HTTP_VERBS } from "./Base";
-import { CommentBS } from "./Comment";
-export var MediaStatusComments;
+var MediaStatusComments;
 (function (MediaStatusComments) {
     MediaStatusComments["OPEN"] = "open";
     MediaStatusComments["CLOSED"] = "close";
-})(MediaStatusComments || (MediaStatusComments = {}));
-export class CommentsBS {
+})(MediaStatusComments = MediaStatusComments || (MediaStatusComments = {}));
+class CommentsBS {
     /*************************************************/
     /*                  STATIC                       */
     /*************************************************/
@@ -838,9 +836,7 @@ export class CommentsBS {
     }
 }
 
-import { Base, HTTP_VERBS } from './Base';
-import { CommentsBS } from './Comments';
-export class CommentBS {
+class CommentBS {
     /**
      * Contient le nom des classes CSS utilisées pour le rendu du commentaire
      * @type Obj
@@ -1623,7 +1619,6 @@ export class CommentBS {
     }
 }
 
-import { Base, MediaType } from "./Base";
 var StarTypes;
 (function (StarTypes) {
     StarTypes["EMPTY"] = "empty";
@@ -1631,7 +1626,7 @@ var StarTypes;
     StarTypes["FULL"] = "full";
     StarTypes["DISABLE"] = "disable";
 })(StarTypes || (StarTypes = {}));
-export class Note {
+class Note {
     total;
     mean;
     user;
@@ -1808,7 +1803,7 @@ class Next {
         this.image = data.image;
     }
 }
-export class User {
+class User {
     archived;
     downloaded;
     favorited;
@@ -1846,38 +1841,33 @@ export class User {
     }
 }
 
-import { CacheUS } from "./Cache";
-import { Character } from "./Character";
-import { CommentsBS } from "./Comments";
-import { Note } from "./Note";
-import { User } from "./User";
 function ExceptionIdentification(message) {
     this.message = message;
     this.name = "ExceptionIdentification";
 }
-export var MediaType;
+var MediaType;
 (function (MediaType) {
     MediaType["show"] = "show";
     MediaType["movie"] = "movie";
     MediaType["episode"] = "episode";
-})(MediaType || (MediaType = {}));
-export var EventTypes;
+})(MediaType = MediaType || (MediaType = {}));
+var EventTypes;
 (function (EventTypes) {
     EventTypes["UPDATE"] = "update";
     EventTypes["SAVE"] = "save";
     EventTypes["ADD"] = "add";
     EventTypes["REMOVE"] = "remove";
     EventTypes["NOTE"] = "note";
-})(EventTypes || (EventTypes = {}));
-export var HTTP_VERBS;
+})(EventTypes = EventTypes || (EventTypes = {}));
+var HTTP_VERBS;
 (function (HTTP_VERBS) {
     HTTP_VERBS["GET"] = "GET";
     HTTP_VERBS["POST"] = "POST";
     HTTP_VERBS["PUT"] = "PUT";
     HTTP_VERBS["DELETE"] = "DELETE";
     HTTP_VERBS["OPTIONS"] = "OPTIONS";
-})(HTTP_VERBS || (HTTP_VERBS = {}));
-export class Base {
+})(HTTP_VERBS = HTTP_VERBS || (HTTP_VERBS = {}));
+class Base {
     /*
                     STATIC
     */
@@ -2493,8 +2483,7 @@ export class Base {
     }
 }
 
-import { Base } from "./Base";
-export class Media extends Base {
+class Media extends Base {
     followers;
     genres;
     imdb_id;
@@ -2584,9 +2573,7 @@ export class Media extends Base {
     }
 }
 
-import { Base, EventTypes } from "./Base";
-import { Media } from "./Media";
-export class Images {
+class Images {
     constructor(data) {
         this.show = data.show;
         this.banner = data.banner;
@@ -2598,14 +2585,14 @@ export class Images {
     box;
     poster;
 }
-export var Picked;
+var Picked;
 (function (Picked) {
     Picked[Picked["none"] = 0] = "none";
     Picked[Picked["banner"] = 1] = "banner";
     Picked[Picked["show"] = 2] = "show";
-})(Picked || (Picked = {}));
+})(Picked = Picked || (Picked = {}));
 // eslint-disable-next-line no-unused-vars
-export class Picture {
+class Picture {
     constructor(data) {
         this.id = parseInt(data.id, 10);
         this.show_id = parseInt(data.show_id, 10);
@@ -2625,7 +2612,7 @@ export class Picture {
     date;
     picked;
 }
-export class Platform {
+class Platform {
     constructor(data) {
         this.id = parseInt(data.id, 10);
         this.name = data.name;
@@ -2641,7 +2628,7 @@ export class Platform {
     available;
     logo;
 }
-export class Platforms {
+class Platforms {
     constructor(data) {
         if (data.svods && data.svods instanceof Array) {
             this.svods = new Array();
@@ -2656,7 +2643,7 @@ export class Platforms {
     svods;
     svod;
 }
-export class Showrunner {
+class Showrunner {
     constructor(data) {
         this.id = data.id ? parseInt(data.id, 10) : null;
         this.name = data.name;
@@ -2666,7 +2653,7 @@ export class Showrunner {
     name;
     picture;
 }
-export class Show extends Media {
+class Show extends Media {
     /***************************************************/
     /*                      STATIC                     */
     /***************************************************/
@@ -3415,16 +3402,14 @@ export class Show extends Media {
     }
 }
 
-import { Base, MediaType, HTTP_VERBS } from "./Base";
-import { Media } from "./Media";
-export var MovieStatus;
+var MovieStatus;
 (function (MovieStatus) {
     MovieStatus[MovieStatus["TOSEE"] = 0] = "TOSEE";
     MovieStatus[MovieStatus["SEEN"] = 1] = "SEEN";
     MovieStatus[MovieStatus["DONTWANTTOSEE"] = 2] = "DONTWANTTOSEE";
-})(MovieStatus || (MovieStatus = {}));
+})(MovieStatus = MovieStatus || (MovieStatus = {}));
 // eslint-disable-next-line no-unused-vars
-export class Movie extends Media {
+class Movie extends Media {
     /***************************************************/
     /*                      STATIC                     */
     /***************************************************/
@@ -3549,7 +3534,7 @@ export class Movie extends Media {
     }
 }
 
-export class Subtitle {
+class Subtitle {
     constructor(data) {
         this.id = parseInt(data.id, 10);
         this.language = data.language;
@@ -3568,9 +3553,7 @@ export class Subtitle {
     date;
 }
 
-import { Base } from "./Base";
-import { Episode } from "./Episode";
-export class Season {
+class Season {
     /**
      * @type {number} Numéro de la saison dans la série
      */
@@ -3691,9 +3674,7 @@ export class Season {
     }
 }
 
-import { Base, HTTP_VERBS, MediaType, EventTypes } from "./Base";
-import { Subtitle } from "./Subtitle";
-export class Episode extends Base {
+class Episode extends Base {
     /**
      * @type {Season} L'objet Season contenant l'épisode
      */
@@ -4094,10 +4075,7 @@ export class Episode extends Base {
     }
 }
 
-import { Base, MediaType, HTTP_VERBS } from "./Base";
-import { Media } from "./Media";
-import { Showrunner, Platforms, Images } from "./Show";
-export class Similar extends Media {
+class Similar extends Media {
     /* Interface implMovie */
     backdrop;
     director;
@@ -4496,10 +4474,8 @@ export class Similar extends Media {
     }
 }
 
-import { Base } from "./Base";
-import { DataTypesCache } from "./Cache";
 // eslint-disable-next-line no-unused-vars
-export class UpdateAuto {
+class UpdateAuto {
     static getValue = function (name, defaultVal) {
         return Base.cache.getOrDefault(DataTypesCache.updates, 'updateAuto', defaultVal);
     };
@@ -4750,7 +4726,6 @@ export class UpdateAuto {
     }
 }
 
-import { Base, HTTP_VERBS } from "./Base";
 var DaysOfWeek;
 (function (DaysOfWeek) {
     DaysOfWeek["monday"] = "lundi";
@@ -4817,7 +4792,7 @@ class Options {
     }
 }
 /* eslint-disable-next-line no-unused-vars */
-export class Member {
+class Member {
     /**
      * @type {number} Identifiant du membre
      */
@@ -4925,11 +4900,6 @@ export class Member {
     }
 }
 
-import { Base, MediaType } from "./Base";
-import { Media } from "./Media";
-import { Show, Images, Platforms, Showrunner } from "./Show";
-import { Season } from "./Season";
-import { Similar } from "./Similar";
 /**
  * Remplit l'objet avec les données fournit en paramètre
  * @param  {Obj} data Les données provenant de l'API
