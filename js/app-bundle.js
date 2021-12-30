@@ -17,6 +17,7 @@ var DataTypesCache;
  * @class Gestion du Cache pour le script
  */
 class CacheUS {
+    _data;
     constructor() {
         return this._init();
     }
@@ -129,33 +130,23 @@ class Character {
         this.show_id = (data.show_id !== undefined) ? parseInt(data.show_id, 10) : 0;
         this.movie_id = (data.movie_id !== undefined) ? parseInt(data.movie_id, 10) : 0;
     }
+    actor;
+    description;
+    guest;
+    id;
+    name;
+    picture;
+    role;
+    show_id;
+    movie_id;
 }
 
-var __awaiter = (this && this.__awaiter) || function (thisArg, _arguments, P, generator) {
-    function adopt(value) { return value instanceof P ? value : new P(function (resolve) { resolve(value); }); }
-    return new (P || (P = Promise))(function (resolve, reject) {
-        function fulfilled(value) { try { step(generator.next(value)); } catch (e) { reject(e); } }
-        function rejected(value) { try { step(generator["throw"](value)); } catch (e) { reject(e); } }
-        function step(result) { result.done ? resolve(result.value) : adopt(result.value).then(fulfilled, rejected); }
-        step((generator = generator.apply(thisArg, _arguments || [])).next());
-    });
-};
 var MediaStatusComments;
 (function (MediaStatusComments) {
     MediaStatusComments["OPEN"] = "open";
     MediaStatusComments["CLOSED"] = "close";
 })(MediaStatusComments = MediaStatusComments || (MediaStatusComments = {}));
 class CommentsBS {
-    /*************************************************/
-    /*                  METHODS                      */
-    /*************************************************/
-    constructor(nbComments, media) {
-        this.comments = new Array();
-        this._parent = media;
-        this.is_subscribed = false;
-        this.status = MediaStatusComments.OPEN;
-        this.nbComments = nbComments;
-    }
     /*************************************************/
     /*                  STATIC                       */
     /*************************************************/
@@ -166,7 +157,6 @@ class CommentsBS {
      * @returns {Promise<void | CommentBS>}
      */
     static sendComment(media, text) {
-        const _this = this;
         const params = {
             type: media.mediaType.singular,
             id: media.id,
@@ -183,6 +173,25 @@ class CommentsBS {
             Base.notification('Commentaire', "Erreur durant l'ajout d'un commentaire");
             console.error(err);
         });
+    }
+    /*************************************************/
+    /*                  PROPERTIES                   */
+    /*************************************************/
+    _parent;
+    comments;
+    nbComments;
+    is_subscribed;
+    status;
+    _events;
+    /*************************************************/
+    /*                  METHODS                      */
+    /*************************************************/
+    constructor(nbComments, media) {
+        this.comments = new Array();
+        this._parent = media;
+        this.is_subscribed = false;
+        this.status = MediaStatusComments.OPEN;
+        this.nbComments = nbComments;
     }
     /**
      * Retourne la taille de la collection
@@ -330,17 +339,15 @@ class CommentsBS {
      * @param   {number} commentId - Identifiant du commentaire original
      * @returns {Promise<Array<CommentBS>>} Tableau des réponses
      */
-    fetchReplies(commentId) {
-        return __awaiter(this, void 0, void 0, function* () {
-            const data = yield Base.callApi(HTTP_VERBS.GET, 'comments', 'replies', { id: commentId, order: 'desc' });
-            const replies = new Array();
-            if (data.comments) {
-                for (let c = 0; c < data.comments.length; c++) {
-                    replies.push(new CommentBS(data.comments[c], this, this._parent));
-                }
+    async fetchReplies(commentId) {
+        const data = await Base.callApi(HTTP_VERBS.GET, 'comments', 'replies', { id: commentId, order: 'desc' });
+        const replies = new Array();
+        if (data.comments) {
+            for (let c = 0; c < data.comments.length; c++) {
+                replies.push(new CommentBS(data.comments[c], this, this._parent));
             }
-            return replies;
-        });
+        }
+        return replies;
     }
     /**
      * Modifie le nombre de votes et le vote du membre pour un commentaire
@@ -364,59 +371,57 @@ class CommentsBS {
      * @param   {number} nbpp - Le nombre de commentaires à récupérer
      * @returns {Promise<string>} La template
      */
-    getTemplate(nbpp) {
-        return __awaiter(this, void 0, void 0, function* () {
-            const self = this;
-            return new Promise((resolve, reject) => {
-                let promise = Promise.resolve(self);
+    async getTemplate(nbpp) {
+        const self = this;
+        return new Promise((resolve, reject) => {
+            let promise = Promise.resolve(self);
+            if (Base.debug)
+                console.log('Base ', { length: self.comments.length, nbComments: self.nbComments });
+            if (self.comments.length <= 0 && self.nbComments > 0) {
                 if (Base.debug)
-                    console.log('Base ', { length: self.comments.length, nbComments: self.nbComments });
-                if (self.comments.length <= 0 && self.nbComments > 0) {
-                    if (Base.debug)
-                        console.log('Base fetchComments call');
-                    promise = self.fetchComments(nbpp);
-                }
-                let comment, template = `
+                    console.log('Base fetchComments call');
+                promise = self.fetchComments(nbpp);
+            }
+            let comment, template = `
                     <div data-media-type="${self._parent.mediaType.singular}"
                          data-media-id="${self._parent.id}"
                          class="displayFlex flexDirectionColumn"
                          style="margin-top: 2px; min-height: 0">`;
-                if (Base.userIdentified()) {
-                    template += `
+            if (Base.userIdentified()) {
+                template += `
                 <button type="button" class="btn-reset btnSubscribe" style="position: absolute; top: 3px; right: 31px; padding: 8px;">
                     <span class="svgContainer">
                         <svg></svg>
                     </span>
                 </button>`;
+            }
+            template += '<div class="comments overflowYScroll">';
+            promise.then(async () => {
+                for (let c = 0; c < self.comments.length; c++) {
+                    comment = self.comments[c];
+                    template += CommentBS.getTemplateComment(comment, true);
+                    // Si le commentaires à des réponses et qu'elles ne sont pas chargées
+                    if (comment.nbReplies > 0 && comment.replies.length <= 0) {
+                        // On récupère les réponses
+                        comment.replies = await self.fetchReplies(comment.id);
+                        // On ajoute un boutton pour afficher/masquer les réponses
+                    }
+                    for (let r = 0; r < comment.replies.length; r++) {
+                        template += CommentBS.getTemplateComment(comment.replies[r], true);
+                    }
                 }
-                template += '<div class="comments overflowYScroll">';
-                promise.then(() => __awaiter(this, void 0, void 0, function* () {
-                    for (let c = 0; c < self.comments.length; c++) {
-                        comment = self.comments[c];
-                        template += CommentBS.getTemplateComment(comment, true);
-                        // Si le commentaires à des réponses et qu'elles ne sont pas chargées
-                        if (comment.nbReplies > 0 && comment.replies.length <= 0) {
-                            // On récupère les réponses
-                            comment.replies = yield self.fetchReplies(comment.id);
-                            // On ajoute un boutton pour afficher/masquer les réponses
-                        }
-                        for (let r = 0; r < comment.replies.length; r++) {
-                            template += CommentBS.getTemplateComment(comment.replies[r], true);
-                        }
-                    }
-                    // On ajoute le bouton pour voir plus de commentaires
-                    if (self.comments.length < self.nbComments) {
-                        template += `<button type="button" class="btn-reset btn-greyBorder moreComments" style="margin-top: 10px; width: 100%;">${Base.trans("timeline.comments.display_more")}<i class="fa fa-cog fa-spin fa-2x fa-fw" style="display:none;margin-left:15px;vertical-align:middle;"></i><span class="sr-only">Loading...</span></button>`;
-                    }
-                    template + '</div>';
-                    if (self.isOpen() && Base.userIdentified()) {
-                        template += CommentBS.getTemplateWriting();
-                    }
-                    resolve(template + '</div>');
-                }))
-                    .catch(err => {
-                    reject(err);
-                });
+                // On ajoute le bouton pour voir plus de commentaires
+                if (self.comments.length < self.nbComments) {
+                    template += `<button type="button" class="btn-reset btn-greyBorder moreComments" style="margin-top: 10px; width: 100%;">${Base.trans("timeline.comments.display_more")}<i class="fa fa-cog fa-spin fa-2x fa-fw" style="display:none;margin-left:15px;vertical-align:middle;"></i><span class="sr-only">Loading...</span></button>`;
+                }
+                template + '</div>';
+                if (self.isOpen() && Base.userIdentified()) {
+                    template += CommentBS.getTemplateWriting();
+                }
+                resolve(template + '</div>');
+            })
+                .catch(err => {
+                reject(err);
             });
         });
     }
@@ -727,7 +732,7 @@ class CommentsBS {
             $loader.show();
             const lastCmtId = self.comments[self.comments.length - 1].id;
             const oldLastCmtIndex = self.comments.length - 1;
-            self.fetchComments(nbpp, lastCmtId).then(() => __awaiter(this, void 0, void 0, function* () {
+            self.fetchComments(nbpp, lastCmtId).then(async () => {
                 let template = '', comment, firstCmtId = self.comments[oldLastCmtIndex + 1].id;
                 for (let c = oldLastCmtIndex + 1; c < self.comments.length; c++) {
                     comment = self.comments[c];
@@ -735,7 +740,7 @@ class CommentsBS {
                     // Si le commentaires à des réponses et qu'elles ne sont pas chargées
                     if (comment.nbReplies > 0 && comment.replies.length <= 0) {
                         // On récupère les réponses
-                        comment.replies = yield self.fetchReplies(comment.id);
+                        comment.replies = await self.fetchReplies(comment.id);
                         // On ajoute un boutton pour afficher/masquer les réponses
                     }
                     for (let r = 0; r < comment.replies.length; r++) {
@@ -748,7 +753,7 @@ class CommentsBS {
                 if (self.comments.length >= self.nbComments) {
                     $btn.hide();
                 }
-            })).finally(() => {
+            }).finally(() => {
                 $loader.hide();
             });
         });
@@ -830,16 +835,93 @@ class CommentsBS {
     }
 }
 
-var __awaiter = (this && this.__awaiter) || function (thisArg, _arguments, P, generator) {
-    function adopt(value) { return value instanceof P ? value : new P(function (resolve) { resolve(value); }); }
-    return new (P || (P = Promise))(function (resolve, reject) {
-        function fulfilled(value) { try { step(generator.next(value)); } catch (e) { reject(e); } }
-        function rejected(value) { try { step(generator["throw"](value)); } catch (e) { reject(e); } }
-        function step(result) { result.done ? resolve(result.value) : adopt(result.value).then(fulfilled, rejected); }
-        step((generator = generator.apply(thisArg, _arguments || [])).next());
-    });
-};
 class CommentBS {
+    /**
+     * Contient le nom des classes CSS utilisées pour le rendu du commentaire
+     * @type Obj
+     */
+    static classNamesCSS = { reply: 'it_i3', actions: 'it_i1', comment: 'it_ix' };
+    id;
+    /**
+     * Référence du média, pour créer l'URL (type.titleUrl)
+     */
+    reference;
+    /**
+     * Type de média
+     */
+    type;
+    /**
+     * Identifiant du média
+     */
+    ref_id;
+    /**
+     * Identifiant du membre du commentaire
+     */
+    user_id;
+    /**
+     * Login du membre du commentaire
+     */
+    login;
+    /**
+     * URL de l'avatar du membre du commentaire
+     */
+    avatar;
+    /**
+     * Date de création du commentaire
+     */
+    date;
+    /**
+     * Contenu du commentaire
+     */
+    text;
+    /**
+     * Index du commentaire dans la liste des commentaires du média
+     */
+    inner_id;
+    /**
+     * Index du commentaire dont celui-ci est une réponse
+     */
+    in_reply_to;
+    /**
+     * Identifiant du commentaire dont celui-ci est une réponse
+     */
+    in_reply_id;
+    /**
+     * Informations sur le membre du commentaire original
+     */
+    in_reply_user;
+    /**
+     * Note du membre pour le média
+     */
+    user_note;
+    /**
+     * Votes pour ce commentaire
+     */
+    thumbs;
+    /**
+     * Vote du membre connecté
+     */
+    thumbed;
+    /**
+     * Nombre de réponse à ce commentaires
+     */
+    nbReplies;
+    /**
+     * Les réponses au commentaire
+     * @type {Array<CommentBS>}
+     */
+    replies;
+    /**
+     * Message de l'administration
+     */
+    from_admin;
+    /**
+     * ???
+     */
+    user_rank;
+    _parent;
+    _media;
+    _events;
     constructor(data, parent, media) {
         this._parent = parent;
         this._media = media;
@@ -1421,32 +1503,31 @@ class CommentBS {
     /**
      * Affiche le commentaire dans une dialogbox
      */
-    render() {
-        return __awaiter(this, void 0, void 0, function* () {
-            // La popup et ses éléments
-            const self = this, $popup = jQuery('#popin-dialog'), $contentHtml = $popup.find(".popin-content-html"), $contentReact = $popup.find('.popin-content-reactmodule'), $closeButtons = $popup.find("#popin-showClose"), hidePopup = () => {
-                document.body.style.overflow = "visible";
-                document.body.style.paddingRight = "";
-                $popup.attr('aria-hidden', 'true');
-                $popup.find("#popupalertyes").show();
-                $popup.find("#popupalertno").show();
-                $contentReact.empty();
-                $contentHtml.hide();
-                self.cleanEvents();
-            }, showPopup = () => {
-                document.body.style.overflow = "hidden";
-                document.body.style.paddingRight = getScrollbarWidth() + "px";
-                $popup.find("#popupalertyes").hide();
-                $popup.find("#popupalertno").hide();
-                $contentHtml.hide();
-                $contentReact.show();
-                $closeButtons.show();
-                $popup.attr('aria-hidden', 'false');
-            };
-            // On ajoute le loader dans la popup et on l'affiche
-            $contentReact.empty().append(`<div class="title" id="dialog-title" tabindex="0">${Base.trans("blog.title.comments")}</div>`);
-            let $title = $contentReact.find('.title');
-            let templateLoader = `
+    async render() {
+        // La popup et ses éléments
+        const self = this, $popup = jQuery('#popin-dialog'), $contentHtml = $popup.find(".popin-content-html"), $contentReact = $popup.find('.popin-content-reactmodule'), $closeButtons = $popup.find("#popin-showClose"), hidePopup = () => {
+            document.body.style.overflow = "visible";
+            document.body.style.paddingRight = "";
+            $popup.attr('aria-hidden', 'true');
+            $popup.find("#popupalertyes").show();
+            $popup.find("#popupalertno").show();
+            $contentReact.empty();
+            $contentHtml.hide();
+            self.cleanEvents();
+        }, showPopup = () => {
+            document.body.style.overflow = "hidden";
+            document.body.style.paddingRight = getScrollbarWidth() + "px";
+            $popup.find("#popupalertyes").hide();
+            $popup.find("#popupalertno").hide();
+            $contentHtml.hide();
+            $contentReact.show();
+            $closeButtons.show();
+            $popup.attr('aria-hidden', 'false');
+        };
+        // On ajoute le loader dans la popup et on l'affiche
+        $contentReact.empty().append(`<div class="title" id="dialog-title" tabindex="0">${Base.trans("blog.title.comments")}</div>`);
+        let $title = $contentReact.find('.title');
+        let templateLoader = `
             <div class="loaderCmt">
                 <svg class="sr-only">
                     <defs>
@@ -1456,59 +1537,58 @@ class CommentBS {
                     </defs>
                 </svg>
         `;
-            for (let l = 0; l < 4; l++) {
-                templateLoader += `
+        for (let l = 0; l < 4; l++) {
+            templateLoader += `
                 <div class="er_ex null">
                     <div class="ComponentPlaceholder er_et" style="height: 40px;"></div>
                 </div>`;
-            }
-            $contentReact.append(templateLoader + '</div>');
-            showPopup();
-            let template = `
+        }
+        $contentReact.append(templateLoader + '</div>');
+        showPopup();
+        let template = `
             <div data-media-type="${self._media.mediaType.singular}"
                             data-media-id="${self._media.id}"
                             class="displayFlex flexDirectionColumn"
                             style="margin-top: 2px; min-height: 0">`;
-            if (Base.userIdentified()) {
-                template += `<button type="button" class="btn-reset btnSubscribe" style="position: absolute; top: 3px; right: 31px; padding: 8px;">
+        if (Base.userIdentified()) {
+            template += `<button type="button" class="btn-reset btnSubscribe" style="position: absolute; top: 3px; right: 31px; padding: 8px;">
                 <span class="svgContainer">
                     <svg></svg>
                 </span>
             </button>`;
+        }
+        template += '<div class="comments overflowYScroll">' + CommentBS.getTemplateComment(this);
+        // Récupération des réponses sur l'API
+        // On ajoute les réponses, par ordre décroissant à la template
+        if (this.nbReplies > 0 && this.replies.length <= 0) {
+            const replies = await this._parent.fetchReplies(this.id);
+            if (replies && replies.length > 0) {
+                this.replies = replies;
             }
-            template += '<div class="comments overflowYScroll">' + CommentBS.getTemplateComment(this);
-            // Récupération des réponses sur l'API
-            // On ajoute les réponses, par ordre décroissant à la template
-            if (this.nbReplies > 0 && this.replies.length <= 0) {
-                const replies = yield this._parent.fetchReplies(this.id);
-                if (replies && replies.length > 0) {
-                    this.replies = replies;
-                }
-            }
-            for (let r = this.replies.length - 1; r >= 0; r--) {
-                template += CommentBS.getTemplateComment(this.replies[r]);
-            }
-            template += '</div>';
-            if (this._parent.isOpen() && Base.userIdentified()) {
-                template += CommentBS.getTemplateWriting();
-            }
-            template += '</div>';
-            // On définit le type d'affichage de la popup
-            $popup.attr('data-popin-type', 'comments');
-            $contentReact.fadeOut('fast', () => {
-                $contentReact.find('.loaderCmt').remove();
-                // On affiche le titre de la popup
-                // avec des boutons pour naviguer
-                $contentReact.empty().append(`<div class="title" id="dialog-title" tabindex="0"></div>`);
-                $title = $contentReact.find('.title');
-                $title.append(Base.trans("blog.title.comments") + ' <i class="fa fa-chevron-circle-left prev-comment" aria-hidden="true"></i> <i class="fa fa-chevron-circle-right next-comment" aria-hidden="true"></i>');
-                // On ajoute les templates HTML du commentaire,
-                // des réponses et du formulaire de d'écriture
-                $contentReact.append(template);
-                $contentReact.fadeIn();
-                // On active les boutons de l'affichage du commentaire
-                self.loadEvents($contentReact, { hidePopup, showPopup });
-            });
+        }
+        for (let r = this.replies.length - 1; r >= 0; r--) {
+            template += CommentBS.getTemplateComment(this.replies[r]);
+        }
+        template += '</div>';
+        if (this._parent.isOpen() && Base.userIdentified()) {
+            template += CommentBS.getTemplateWriting();
+        }
+        template += '</div>';
+        // On définit le type d'affichage de la popup
+        $popup.attr('data-popin-type', 'comments');
+        $contentReact.fadeOut('fast', () => {
+            $contentReact.find('.loaderCmt').remove();
+            // On affiche le titre de la popup
+            // avec des boutons pour naviguer
+            $contentReact.empty().append(`<div class="title" id="dialog-title" tabindex="0"></div>`);
+            $title = $contentReact.find('.title');
+            $title.append(Base.trans("blog.title.comments") + ' <i class="fa fa-chevron-circle-left prev-comment" aria-hidden="true"></i> <i class="fa fa-chevron-circle-right next-comment" aria-hidden="true"></i>');
+            // On ajoute les templates HTML du commentaire,
+            // des réponses et du formulaire de d'écriture
+            $contentReact.append(template);
+            $contentReact.fadeIn();
+            // On active les boutons de l'affichage du commentaire
+            self.loadEvents($contentReact, { hidePopup, showPopup });
         });
     }
     /**
@@ -1537,11 +1617,6 @@ class CommentBS {
         });
     }
 }
-/**
- * Contient le nom des classes CSS utilisées pour le rendu du commentaire
- * @type Obj
- */
-CommentBS.classNamesCSS = { reply: 'it_i3', actions: 'it_i1', comment: 'it_ix' };
 
 var StarTypes;
 (function (StarTypes) {
@@ -1551,6 +1626,10 @@ var StarTypes;
     StarTypes["DISABLE"] = "disable";
 })(StarTypes || (StarTypes = {}));
 class Note {
+    total;
+    mean;
+    user;
+    _parent;
     constructor(data, parent) {
         this.total = parseInt(data.total, 10);
         this.mean = parseFloat(data.mean);
@@ -1710,6 +1789,11 @@ class Note {
 }
 
 class Next {
+    id;
+    code;
+    date;
+    title;
+    image;
     constructor(data) {
         this.id = (data.id !== undefined) ? parseInt(data.id, 10) : NaN;
         this.code = data.code;
@@ -1719,6 +1803,21 @@ class Next {
     }
 }
 class User {
+    archived;
+    downloaded;
+    favorited;
+    friends_want_to_watch;
+    friends_watched;
+    hidden;
+    last;
+    mail;
+    next;
+    profile;
+    remaining;
+    seen;
+    status;
+    tags;
+    twitter;
     constructor(data) {
         this.archived = data.archived || false;
         this.downloaded = data.downloaded || false;
@@ -1769,15 +1868,169 @@ var HTTP_VERBS;
 })(HTTP_VERBS = HTTP_VERBS || (HTTP_VERBS = {}));
 class Base {
     /*
-                    METHODS
+                    STATIC
     */
-    constructor(data) {
-        if (!(data instanceof Object)) {
-            throw new Error("data is not an object");
+    /**
+     * Flag de debug pour le dev
+     * @type {boolean}
+     */
+    static debug = false;
+    /**
+     * L'objet cache du script pour stocker les données
+     * @type {CacheUS}
+     */
+    static cache = null;
+    /**
+     * Objet contenant les informations de l'API
+     * @type {*}
+     */
+    static api = {
+        "url": 'https://api.betaseries.com',
+        "versions": { "current": '3.0', "last": '3.0' },
+        "resources": [
+            'badges', 'comments', 'episodes', 'friends', 'members', 'messages',
+            'movies', 'news', 'oauth', 'pictures', 'planning', 'platforms',
+            'polls', 'reports', 'search', 'seasons', 'shows', 'subtitles',
+            'timeline'
+        ],
+        "check": {
+            "episodes": ['display', 'list', 'search'],
+            "movies": ['list', 'movie', 'search', 'similars'],
+            "search": ['all', 'movies', 'shows'],
+            "shows": ['display', 'episodes', 'list', 'search', 'similars']
+        },
+        "tokenRequired": {
+            "comments": {
+                "close": ['POST'],
+                "comment": ['POST', 'DELETE'],
+                "comment_event": ['POST'],
+                "open": ['POST'],
+                "subscription": ['POST', 'DELETE'],
+                "thumb": ['POST', 'DELETE']
+            },
+            "episodes": {
+                "downloaded": ['POST', 'DELETE'],
+                "hidden": ['POST', 'DELETE'],
+                "latest": ['GET'],
+                "list": ['GET'],
+                "next": ['GET'],
+                "note": ['POST', 'DELETE'],
+                "scraper": ['GET'],
+                "search": ['GET'],
+                "unrated": ['GET'],
+                "watched": ['POST', 'DELETE'],
+            },
+            "members": {
+                "avatar": ['POST', 'DELETE'],
+                "banner": ['POST', 'DELETE'],
+                "delete": ['POST'],
+                "destroy": ['POST'],
+                "email": ['GET', 'POST'],
+                "facebook": ['POST'],
+                "is_active": ['GET'],
+                "lametric": ['GET'],
+                "locale": ['GET'],
+                "notification": ['DELETE'],
+                "notifications": ['GET'],
+                "option": ['POST'],
+                "options": ['GET'],
+                "password": ['POST'],
+                "sync": ['POST'],
+                "twitter": ['POST', 'DELETE'],
+            },
+            "movies": {
+                "favorite": ['POST', 'DELETE'],
+                "movie": ['POST', 'DELETE'],
+                "note": ['POST', 'DELETE'],
+                "scraper": ['GET'],
+            },
+            "platforms": {
+                "service": ['POST', 'DELETE']
+            },
+            "shows": {
+                "archive": ['POST', 'DELETE'],
+                "favorite": ['POST', 'DELETE'],
+                "note": ['POST', 'DELETE'],
+                "recommendation": ['POST', 'DELETE', 'PUT'],
+                "recommendations": ['GET'],
+                "show": ['POST', 'DELETE'],
+                "tags": ['POST'],
+                "unrated": ['GET'],
+            },
+            "subtitles": {
+                "report": ['POST']
+            }
         }
-        this._initListeners();
-        return this;
-    }
+    };
+    /**
+     * Le token d'authentification de l'API
+     * @type {String}
+     */
+    static token = null;
+    /**
+     * La clé d'utilisation de l'API
+     * @type {String}
+     */
+    static userKey = null;
+    /**
+     * L'identifiant du membre connecté
+     * @type {Number}
+     */
+    static userId = null;
+    /**
+     * Clé pour l'API TheMovieDB
+     * @type {string}
+     */
+    static themoviedb_api_user_key = null;
+    /**
+     * Le nombre d'appels à l'API
+     * @type {Number}
+     */
+    static counter = 0;
+    /**
+     * L'URL de base du serveur contenant les ressources statiques
+     * @type {String}
+     */
+    static serverBaseUrl = '';
+    /**
+     * Indique le theme d'affichage du site Web (light or dark)
+     * @type {string}
+     */
+    static theme = 'light';
+    /**
+     * Fonction de notification sur la page Web
+     * @type {Function}
+     */
+    static notification = function () { };
+    /**
+     * Fonction pour vérifier que le membre est connecté
+     * @type {Function}
+     */
+    static userIdentified = function () { };
+    /**
+     * Fonction vide
+     * @type {Function}
+     */
+    static noop = function () { };
+    /**
+     * Fonction de traduction de chaînes de caractères
+     * @param   {String}  msg  - Identifiant de la chaîne à traduire
+     * @param   {Obj}     [params={}] - Variables utilisées dans la traduction {"%key%"": value}
+     * @param   {number}  [count=1] - Nombre d'éléments pour la version plural
+     * @returns {string}
+     */
+    // eslint-disable-next-line no-unused-vars
+    static trans = function (msg, params = {}, count = 1) { };
+    /**
+     * Contient les infos sur les différentes classification TV et cinéma
+     * @type {Ratings}
+     */
+    static ratings = null;
+    /**
+     * Types d'évenements gérés par cette classe
+     * @type {Array}
+     */
+    static EventTypes = new Array(EventTypes.UPDATE, EventTypes.SAVE);
     /**
      * Fonction d'authentification sur l'API BetaSeries
      *
@@ -1981,6 +2234,30 @@ class Base {
                 fetchUri(resolve, reject);
             }
         });
+    }
+    /*
+                    PROPERTIES
+    */
+    description;
+    characters;
+    comments;
+    id;
+    objNote;
+    resource_url;
+    title;
+    user;
+    mediaType;
+    _elt;
+    _listeners;
+    /*
+                    METHODS
+    */
+    constructor(data) {
+        if (!(data instanceof Object)) {
+            throw new Error("data is not an object");
+        }
+        this._initListeners();
+        return this;
     }
     /**
      * Remplit l'objet avec les données fournit en paramètre
@@ -2204,172 +2481,17 @@ class Base {
         });
     }
 }
-/*
-                STATIC
-*/
-/**
- * Flag de debug pour le dev
- * @type {boolean}
- */
-Base.debug = false;
-/**
- * L'objet cache du script pour stocker les données
- * @type {CacheUS}
- */
-Base.cache = null;
-/**
- * Objet contenant les informations de l'API
- * @type {*}
- */
-Base.api = {
-    "url": 'https://api.betaseries.com',
-    "versions": { "current": '3.0', "last": '3.0' },
-    "resources": [
-        'badges', 'comments', 'episodes', 'friends', 'members', 'messages',
-        'movies', 'news', 'oauth', 'pictures', 'planning', 'platforms',
-        'polls', 'reports', 'search', 'seasons', 'shows', 'subtitles',
-        'timeline'
-    ],
-    "check": {
-        "episodes": ['display', 'list', 'search'],
-        "movies": ['list', 'movie', 'search', 'similars'],
-        "search": ['all', 'movies', 'shows'],
-        "shows": ['display', 'episodes', 'list', 'search', 'similars']
-    },
-    "tokenRequired": {
-        "comments": {
-            "close": ['POST'],
-            "comment": ['POST', 'DELETE'],
-            "comment_event": ['POST'],
-            "open": ['POST'],
-            "subscription": ['POST', 'DELETE'],
-            "thumb": ['POST', 'DELETE']
-        },
-        "episodes": {
-            "downloaded": ['POST', 'DELETE'],
-            "hidden": ['POST', 'DELETE'],
-            "latest": ['GET'],
-            "list": ['GET'],
-            "next": ['GET'],
-            "note": ['POST', 'DELETE'],
-            "scraper": ['GET'],
-            "search": ['GET'],
-            "unrated": ['GET'],
-            "watched": ['POST', 'DELETE'],
-        },
-        "members": {
-            "avatar": ['POST', 'DELETE'],
-            "banner": ['POST', 'DELETE'],
-            "delete": ['POST'],
-            "destroy": ['POST'],
-            "email": ['GET', 'POST'],
-            "facebook": ['POST'],
-            "is_active": ['GET'],
-            "lametric": ['GET'],
-            "locale": ['GET'],
-            "notification": ['DELETE'],
-            "notifications": ['GET'],
-            "option": ['POST'],
-            "options": ['GET'],
-            "password": ['POST'],
-            "sync": ['POST'],
-            "twitter": ['POST', 'DELETE'],
-        },
-        "movies": {
-            "favorite": ['POST', 'DELETE'],
-            "movie": ['POST', 'DELETE'],
-            "note": ['POST', 'DELETE'],
-            "scraper": ['GET'],
-        },
-        "platforms": {
-            "service": ['POST', 'DELETE']
-        },
-        "shows": {
-            "archive": ['POST', 'DELETE'],
-            "favorite": ['POST', 'DELETE'],
-            "note": ['POST', 'DELETE'],
-            "recommendation": ['POST', 'DELETE', 'PUT'],
-            "recommendations": ['GET'],
-            "show": ['POST', 'DELETE'],
-            "tags": ['POST'],
-            "unrated": ['GET'],
-        },
-        "subtitles": {
-            "report": ['POST']
-        }
-    }
-};
-/**
- * Le token d'authentification de l'API
- * @type {String}
- */
-Base.token = null;
-/**
- * La clé d'utilisation de l'API
- * @type {String}
- */
-Base.userKey = null;
-/**
- * L'identifiant du membre connecté
- * @type {Number}
- */
-Base.userId = null;
-/**
- * Clé pour l'API TheMovieDB
- * @type {string}
- */
-Base.themoviedb_api_user_key = null;
-/**
- * Le nombre d'appels à l'API
- * @type {Number}
- */
-Base.counter = 0;
-/**
- * L'URL de base du serveur contenant les ressources statiques
- * @type {String}
- */
-Base.serverBaseUrl = '';
-/**
- * Indique le theme d'affichage du site Web (light or dark)
- * @type {string}
- */
-Base.theme = 'light';
-/**
- * Fonction de notification sur la page Web
- * @type {Function}
- */
-Base.notification = function () { };
-/**
- * Fonction pour vérifier que le membre est connecté
- * @type {Function}
- */
-Base.userIdentified = function () { };
-/**
- * Fonction vide
- * @type {Function}
- */
-Base.noop = function () { };
-/**
- * Fonction de traduction de chaînes de caractères
- * @param   {String}  msg  - Identifiant de la chaîne à traduire
- * @param   {Obj}     [params={}] - Variables utilisées dans la traduction {"%key%"": value}
- * @param   {number}  [count=1] - Nombre d'éléments pour la version plural
- * @returns {string}
- */
-// eslint-disable-next-line no-unused-vars
-Base.trans = function (msg, params = {}, count = 1) { };
-/**
- * Contient les infos sur les différentes classification TV et cinéma
- * @type {Ratings}
- */
-Base.ratings = null;
-/**
- * Types d'évenements gérés par cette classe
- * @type {Array}
- */
-Base.EventTypes = new Array(EventTypes.UPDATE, EventTypes.SAVE);
 
 class Media extends Base {
+    followers;
+    genres;
+    imdb_id;
+    language;
+    length;
+    original_title;
+    similars;
+    nbSimilars;
+    _in_account;
     constructor(data) {
         super(data);
         return this;
@@ -2457,6 +2579,10 @@ class Images {
         this.box = data.box;
         this.poster = data.poster;
     }
+    show;
+    banner;
+    box;
+    poster;
 }
 var Picked;
 (function (Picked) {
@@ -2476,6 +2602,14 @@ class Picture {
         this.date = new Date(data.date);
         this.picked = data.picked;
     }
+    id;
+    show_id;
+    login_id;
+    url;
+    width;
+    height;
+    date;
+    picked;
 }
 class Platform {
     constructor(data) {
@@ -2486,6 +2620,12 @@ class Platform {
         this.available = data.available;
         this.logo = data.logo;
     }
+    id;
+    name;
+    tag;
+    link_url;
+    available;
+    logo;
 }
 class Platforms {
     constructor(data) {
@@ -2499,6 +2639,8 @@ class Platforms {
             this.svod = new Platform(data.svod);
         }
     }
+    svods;
+    svod;
 }
 class Showrunner {
     constructor(data) {
@@ -2506,16 +2648,19 @@ class Showrunner {
         this.name = data.name;
         this.picture = data.picture;
     }
+    id;
+    name;
+    picture;
 }
 class Show extends Media {
     /***************************************************/
-    /*                      METHODS                    */
+    /*                      STATIC                     */
     /***************************************************/
-    constructor(data, element) {
-        super(data);
-        this.elt = element;
-        return this.fill(data)._init();
-    }
+    /**
+     * Types d'évenements gérés par cette classe
+     * @type {Array}
+     */
+    static EventTypes = new Array(EventTypes.UPDATE, EventTypes.SAVE, EventTypes.ADD, EventTypes.REMOVE);
     /**
      * Methode static servant à retourner un objet show
      * à partir de son ID
@@ -2529,6 +2674,34 @@ class Show extends Media {
                 .then(data => resolve(new Show(data, jQuery('.blockInformations'))))
                 .catch(err => reject(err));
         });
+    }
+    /***************************************************/
+    /*                  PROPERTIES                     */
+    /***************************************************/
+    aliases;
+    creation;
+    country;
+    currentSeason;
+    images;
+    nbEpisodes;
+    network;
+    next_trailer;
+    next_trailer_host;
+    rating;
+    pictures;
+    platforms;
+    seasons;
+    showrunner;
+    social_links;
+    status;
+    thetvdb_id;
+    /***************************************************/
+    /*                      METHODS                    */
+    /***************************************************/
+    constructor(data, element) {
+        super(data);
+        this.elt = element;
+        return this.fill(data)._init();
     }
     /**
      * Initialise l'objet lors de sa construction et après son remplissage
@@ -3227,14 +3400,6 @@ class Show extends Media {
         return this;
     }
 }
-/***************************************************/
-/*                      STATIC                     */
-/***************************************************/
-/**
- * Types d'évenements gérés par cette classe
- * @type {Array}
- */
-Show.EventTypes = new Array(EventTypes.UPDATE, EventTypes.SAVE, EventTypes.ADD, EventTypes.REMOVE);
 
 var MovieStatus;
 (function (MovieStatus) {
@@ -3244,18 +3409,6 @@ var MovieStatus;
 })(MovieStatus = MovieStatus || (MovieStatus = {}));
 // eslint-disable-next-line no-unused-vars
 class Movie extends Media {
-    /***************************************************/
-    /*                      METHODS                    */
-    /***************************************************/
-    constructor(data, element) {
-        if (data.user.in_account !== undefined) {
-            data.in_account = data.user.in_account;
-            delete data.user.in_account;
-        }
-        super(data);
-        this.elt = element;
-        return this.fill(data);
-    }
     /***************************************************/
     /*                      STATIC                     */
     /***************************************************/
@@ -3272,6 +3425,34 @@ class Movie extends Media {
                 .then(data => resolve(new Movie(data, jQuery('.blockInformations'))))
                 .catch(err => reject(err));
         });
+    }
+    /***************************************************/
+    /*                  PROPERTIES                     */
+    /***************************************************/
+    backdrop;
+    director;
+    original_release_date;
+    other_title;
+    platform_links;
+    poster;
+    production_year;
+    release_date;
+    sale_date;
+    tagline;
+    tmdb_id;
+    trailer;
+    url;
+    /***************************************************/
+    /*                      METHODS                    */
+    /***************************************************/
+    constructor(data, element) {
+        if (data.user.in_account !== undefined) {
+            data.in_account = data.user.in_account;
+            delete data.user.in_account;
+        }
+        super(data);
+        this.elt = element;
+        return this.fill(data);
     }
     /**
      * Remplit l'objet avec les données fournit en paramètre
@@ -3362,9 +3543,28 @@ class Subtitle {
         this.url = data.url;
         this.date = new Date(data.date);
     }
+    id;
+    language;
+    source;
+    quality;
+    file;
+    url;
+    date;
 }
 
 class Season {
+    /**
+     * @type {number} Numéro de la saison dans la série
+     */
+    number;
+    /**
+     * @type {Array<Episode>} Tableau des épisodes de la saison
+     */
+    episodes;
+    /**
+     * @type {Show} L'objet Show auquel est rattaché la saison
+     */
+    _show;
     /**
      * Constructeur de la classe Season
      * @param   {Obj}   data    Les données provenant de l'API
@@ -3474,6 +3674,70 @@ class Season {
 }
 
 class Episode extends Base {
+    /**
+     * @type {Season} L'objet Season contenant l'épisode
+     */
+    _season;
+    /**
+     * @type {string} Le code de l'épisode SXXEXX
+     */
+    code;
+    /**
+     * @type {Date} La date de sortie de l'épisode
+     */
+    date;
+    /**
+     * @type {string}
+     */
+    director;
+    /**
+     * @type {number} Le numéro de l'épisode dans la saison
+     */
+    episode;
+    /**
+     * @type {number} Le numéro de l'épisode dans la série
+     */
+    global;
+    /**
+     * @type {number} Le numéro de la saison
+     */
+    numSeason;
+    /**
+     * @type {Array<Platform_link>} Les plateformes de diffusion
+     */
+    platform_links;
+    /**
+     * @type {ReleasesSvod}
+     */
+    releasesSvod;
+    /**
+     * @type {number} Nombre de membres de BS à avoir vu l'épisode
+     */
+    seen_total;
+    /**
+     * @type {boolean} Indique si il s'agit d'un épisode spécial
+     */
+    special;
+    /**
+     * @type {Array<Subtitle>} Tableau des sous-titres dispo sur BS
+     */
+    subtitles;
+    /**
+     * @type {number} Identifiant de l'épisode sur thetvdb.com
+     */
+    thetvdb_id;
+    /**
+     * @type {Array<WatchedBy>} Tableau des amis ayant vu l'épisode
+     */
+    watched_by;
+    /**
+     * @type {Array<string>} Tableau des scénaristes de l'épisode
+     */
+    writers;
+    /**
+     * @type {string} Identifiant de la vidéo sur Youtube
+     */
+    youtube_id;
     /**
      * Constructeur de la classe Episode
      * @param   {Obj}       data    Les données provenant de l'API
@@ -3811,6 +4075,38 @@ class Episode extends Base {
 }
 
 class Similar extends Media {
+    /* Interface implMovie */
+    backdrop;
+    director;
+    original_release_date;
+    other_title;
+    platform_links;
+    poster;
+    production_year;
+    release_date;
+    sale_date;
+    tagline;
+    tmdb_id;
+    trailer;
+    url;
+    /* Interface implShow */
+    aliases;
+    creation;
+    country;
+    images;
+    nbEpisodes;
+    network;
+    next_trailer;
+    next_trailer_host;
+    rating;
+    pictures;
+    platforms;
+    seasons;
+    nbSeasons;
+    showrunner;
+    social_links;
+    status;
+    thetvdb_id;
     constructor(data, type) {
         if (type.singular === MediaType.movie) {
             data.in_account = data.user.in_account;
@@ -4179,6 +4475,30 @@ class Similar extends Media {
 
 // eslint-disable-next-line no-unused-vars
 class UpdateAuto {
+    static getValue = function (name, defaultVal) {
+        return Base.cache.getOrDefault(DataTypesCache.updates, 'updateAuto', defaultVal);
+    };
+    static setValue = function (name, val) {
+        Base.cache.set(DataTypesCache.updates, 'updateAuto', val);
+    };
+    static instance;
+    static intervals = [
+        { val: 0, label: 'Jamais' },
+        { val: 1, label: '1 min.' },
+        { val: 5, label: '5 min.' },
+        { val: 10, label: '10 min.' },
+        { val: 15, label: '15 min.' },
+        { val: 30, label: '30 min.' },
+        { val: 45, label: '45 min.' },
+        { val: 60, label: '60 min.' }
+    ];
+    _show;
+    _showId;
+    _exist;
+    _status;
+    _auto;
+    _interval;
+    _timer;
     constructor(show) {
         if (UpdateAuto.instance) {
             return UpdateAuto.instance;
@@ -4404,22 +4724,6 @@ class UpdateAuto {
         return this;
     }
 }
-UpdateAuto.getValue = function (name, defaultVal) {
-    return Base.cache.getOrDefault(DataTypesCache.updates, 'updateAuto', defaultVal);
-};
-UpdateAuto.setValue = function (name, val) {
-    Base.cache.set(DataTypesCache.updates, 'updateAuto', val);
-};
-UpdateAuto.intervals = [
-    { val: 0, label: 'Jamais' },
-    { val: 1, label: '1 min.' },
-    { val: 5, label: '5 min.' },
-    { val: 10, label: '10 min.' },
-    { val: 15, label: '15 min.' },
-    { val: 30, label: '30 min.' },
-    { val: 45, label: '45 min.' },
-    { val: 60, label: '60 min.' }
-];
 
 var DaysOfWeek;
 (function (DaysOfWeek) {
@@ -4432,6 +4736,34 @@ var DaysOfWeek;
     DaysOfWeek["sunday"] = "dimanche";
 })(DaysOfWeek || (DaysOfWeek = {}));
 class Stats {
+    friends;
+    shows;
+    seasons;
+    episodes;
+    comments;
+    progress;
+    episodes_to_watch;
+    time_on_tv;
+    time_to_spend;
+    movies;
+    badges;
+    member_since_days;
+    friends_of_friends;
+    episodes_per_month;
+    favorite_day;
+    five_stars_percent;
+    four_five_stars_total;
+    streak_days;
+    favorite_genre;
+    written_words;
+    without_days;
+    shows_finished;
+    shows_current;
+    shows_to_watch;
+    shows_abandoned;
+    movies_to_watch;
+    time_on_movies;
+    time_to_spend_movies;
     constructor(data) {
         for (let key in Object.keys(data)) {
             this[key] = data[key];
@@ -4439,6 +4771,19 @@ class Stats {
     }
 }
 class Options {
+    downloaded;
+    notation;
+    timelag;
+    global;
+    specials;
+    episodes_tri;
+    friendship;
+    country;
+    language;
+    mail_mois;
+    mail_hebdo;
+    notification_news;
+    twitter_auto;
     constructor(data) {
         for (let key in Object.keys(data)) {
             this[key] = data[key];
@@ -4447,6 +4792,70 @@ class Options {
 }
 /* eslint-disable-next-line no-unused-vars */
 class Member {
+    /**
+     * @type {number} Identifiant du membre
+     */
+    id;
+    /**
+     * @type {number} Identifiant Facebook ?
+     */
+    fb_id;
+    /**
+     * @type {string} Login du membre
+     */
+    login;
+    /**
+     * @type {number} Points d'expérience
+     */
+    xp;
+    /**
+     * @type {string} Locale utiliser par le membre
+     */
+    locale;
+    /**
+     * @type {number} ?
+     */
+    cached;
+    /**
+     * @type {string} URL de l'avatar du membre
+     */
+    avatar;
+    /**
+     * @type {string} URL de la bannière du membre
+     */
+    profile_banner;
+    /**
+     * @type {boolean} ?
+     */
+    in_account;
+    /**
+     * @type {boolean} Membre Administrateur ?
+     */
+    is_admin;
+    /**
+     * @type {number} Année d'inscription
+     */
+    subscription;
+    /**
+     * @type {boolean} Indique si l'adresse mail a été validée
+     */
+    valid_email;
+    /**
+     * @type {Array<string>} ?
+     */
+    screeners;
+    /**
+     * @type {string} Login Twitter
+     */
+    twitterLogin;
+    /**
+     * @type {Stats} Les statistiques du membre
+     */
+    stats;
+    /**
+     * @type {Options} Les options de paramétrage du membre
+     */
+    options;
     /**
      * Constructeur de la classe Membre
      * @param data Les données provenant de l'API
