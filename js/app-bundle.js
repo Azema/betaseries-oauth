@@ -1,4 +1,4 @@
-/*! betaseries_userscript - v1.1.5 - 2021-12-29
+/*! betaseries_userscript - v1.1.5 - 2021-12-30
  * https://github.com/Azema/betaseries
  * Copyright (c) 2021 Azema;
  * Licensed Apache-2.0
@@ -1857,6 +1857,7 @@ var EventTypes;
     EventTypes["SAVE"] = "save";
     EventTypes["ADD"] = "add";
     EventTypes["REMOVE"] = "remove";
+    EventTypes["NOTE"] = "note";
 })(EventTypes = EventTypes || (EventTypes = {}));
 var HTTP_VERBS;
 (function (HTTP_VERBS) {
@@ -2471,7 +2472,7 @@ class Base {
         return new Promise((resolve, reject) => {
             Base.callApi(HTTP_VERBS.POST, this.mediaType.plural, 'note', { id: this.id, note: note })
                 .then((data) => {
-                _this.fill(data[this.mediaType.singular]);
+                _this.fill(data[this.mediaType.singular])._callListeners(EventTypes.NOTE);
                 resolve(true);
             })
                 .catch(err => {
