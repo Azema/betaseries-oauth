@@ -1663,7 +1663,7 @@ class Note {
     /**
      * Crée une popup avec 5 étoiles pour noter le média
      */
-    createPopupForVote() {
+    createPopupForVote(cb = Base.noop) {
         if (Base.debug)
             console.log('objNote createPopupForVote');
         // La popup et ses éléments
@@ -1742,6 +1742,8 @@ class Note {
                 if (result) {
                     // TODO: Mettre à jour la note du média
                     _this._parent.changeTitleNote(true);
+                    if (cb)
+                        cb.call(_this);
                 }
                 else {
                     Base.notification('Erreur Vote', "Une erreur s'est produite durant le vote");
