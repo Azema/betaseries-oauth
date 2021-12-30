@@ -2032,7 +2032,7 @@ class Base {
      * Types d'évenements gérés par cette classe
      * @type {Array}
      */
-    static EventTypes = new Array(EventTypes.UPDATE, EventTypes.SAVE);
+    static EventTypes = new Array(EventTypes.UPDATE, EventTypes.SAVE, EventTypes.NOTE);
     /**
      * Fonction d'authentification sur l'API BetaSeries
      *
@@ -2662,7 +2662,7 @@ class Show extends Media {
      * Types d'évenements gérés par cette classe
      * @type {Array}
      */
-    static EventTypes = new Array(EventTypes.UPDATE, EventTypes.SAVE, EventTypes.ADD, EventTypes.REMOVE);
+    static EventTypes = new Array(EventTypes.UPDATE, EventTypes.SAVE, EventTypes.ADD, EventTypes.REMOVE, EventTypes.NOTE);
     /**
      * Methode static servant à retourner un objet show
      * à partir de son ID
