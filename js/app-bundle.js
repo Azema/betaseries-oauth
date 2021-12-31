@@ -3953,7 +3953,9 @@ class Episode extends Base {
                     .updateRender(status, true)
                     ._callListeners(EventTypes.UPDATE)
                     .save()
-                    ._season.updateShow();
+                    ._season.updateShow(() => {
+                    _this.toggleSpinner(false);
+                });
             })
                 .catch(err => {
                 if (Base.debug)
@@ -3962,6 +3964,7 @@ class Episode extends Base {
                     if (Base.debug)
                         console.log('updateStatus error %s changeStatus', method);
                     _this.updateRender(status);
+                    _this.toggleSpinner(false);
                 }
                 else {
                     _this.toggleSpinner(false);
@@ -4052,7 +4055,6 @@ class Episode extends Base {
                     .addClass('slide--notSeen');
             }
         }
-        this.toggleSpinner(false);
         return this;
     }
     /**
