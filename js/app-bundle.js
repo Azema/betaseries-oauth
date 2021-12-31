@@ -2673,14 +2673,14 @@ class Show extends Media {
     static fetch(id, force = false) {
         return new Promise((resolve, reject) => {
             Base.callApi('GET', 'shows', 'display', { id: id }, force)
-                .then(data => resolve(new Show(data, jQuery('.blockInformations'))))
+                .then(data => resolve(new Show(data.show, jQuery('.blockInformations'))))
                 .catch(err => reject(err));
         });
     }
     static fetchByUrl(url, force = true) {
         return new Promise((resolve, reject) => {
             Base.callApi('GET', 'shows', 'display', { url: url }, force)
-                .then(data => resolve(new Show(data, jQuery('.blockInformations'))))
+                .then(data => resolve(new Show(data.show, jQuery('.blockInformations'))))
                 .catch(err => reject(err));
         });
     }
