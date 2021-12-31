@@ -1,4 +1,4 @@
-/*! betaseries_userscript - v1.1.6 - 2021-12-30
+/*! betaseries_userscript - v1.1.6 - 2021-12-31
  * https://github.com/Azema/betaseries
  * Copyright (c) 2021 Azema;
  * Licensed Apache-2.0
@@ -1884,7 +1884,7 @@ class Base {
     static cache = null;
     /**
      * Objet contenant les informations de l'API
-     * @type {*}
+     * @type {Obj}
      */
     static api = {
         "url": 'https://api.betaseries.com',
@@ -2673,6 +2673,13 @@ class Show extends Media {
     static fetch(id, force = false) {
         return new Promise((resolve, reject) => {
             Base.callApi('GET', 'shows', 'display', { id: id }, force)
+                .then(data => resolve(new Show(data, jQuery('.blockInformations'))))
+                .catch(err => reject(err));
+        });
+    }
+    static fetchByUrl(url, force = true) {
+        return new Promise((resolve, reject) => {
+            Base.callApi('GET', 'shows', 'display', { url: url }, force)
                 .then(data => resolve(new Show(data, jQuery('.blockInformations'))))
                 .catch(err => reject(err));
         });
