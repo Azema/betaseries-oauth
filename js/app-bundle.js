@@ -1446,7 +1446,7 @@ class CommentBS {
             else {
                 // On masque
                 $replies.fadeOut('fast');
-                $btn.find('.btnText').text(Base.trans("comment.button.reply", { "%count%": $replies.length.toString() }));
+                $btn.find('.btnText').text(Base.trans("comment.button.reply", { "%count%": $replies.length.toString() }, $replies.length));
                 $btn.find('svg').attr('style', 'transition: transform 200ms ease 0s;');
                 $btn.data('toggle', '0');
             }
