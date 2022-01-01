@@ -7,7 +7,7 @@
 }
 .it_ix:hover .it_iv, .iv_iz:hover .iv_ix {
     opacity: 1;
-    display: inherit;
+    display: initial;
 }
 .it_iz, .iv_i1 { display:none; }
 .it_ix:hover .it_iz, .iv_iz:hover .iv_i1 { display: inline-block; }
