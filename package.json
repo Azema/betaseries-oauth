@@ -1,0 +1,31 @@
+{
+  "name": "betaseries_oauth",
+  "description": "UserScript pour le site BetaSeries testé avec Tampermonkey sur Chrome",
+  "version": "1.0.0",
+  "author": {
+    "email": "manuel.hervo@gmail.com",
+    "name": "Azema"
+  },
+  "bugs": {
+    "url": "https://github.com/Azema/betaseries-oauth/issues"
+  },
+  "homepage": "https://github.com/Azema/betaseries-oauth",
+  "license": "Apache-2.0",
+  "repository": {
+    "url": "https://github.com/Azema/betaseries-oauth",
+    "type": "git"
+  },
+  "keywords": [
+    "userscript",
+    "tampermonkey",
+    "greasemonkey",
+    "betaseries"
+  ],
+  "browser": "./index.html",
+  "devDependencies": {
+    "@types/grunt": "^0.4.27",
+    "@types/jquery": "^3.5.10",
+    "grunt": "^1.4.1",
+    "grunt-contrib-cssmin": "^4.0.0",
+  }
+}
