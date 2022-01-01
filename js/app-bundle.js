@@ -1852,6 +1852,7 @@ var MediaType;
     MediaType["movie"] = "movie";
     MediaType["episode"] = "episode";
 })(MediaType = MediaType || (MediaType = {}));
+;
 var EventTypes;
 (function (EventTypes) {
     EventTypes["UPDATE"] = "update";
@@ -1859,7 +1860,10 @@ var EventTypes;
     EventTypes["ADD"] = "add";
     EventTypes["REMOVE"] = "remove";
     EventTypes["NOTE"] = "note";
+    EventTypes["ARCHIVE"] = "archive";
+    EventTypes["UNARCHIVE"] = "unarchive";
 })(EventTypes = EventTypes || (EventTypes = {}));
+;
 var HTTP_VERBS;
 (function (HTTP_VERBS) {
     HTTP_VERBS["GET"] = "GET";
@@ -1868,6 +1872,7 @@ var HTTP_VERBS;
     HTTP_VERBS["DELETE"] = "DELETE";
     HTTP_VERBS["OPTIONS"] = "OPTIONS";
 })(HTTP_VERBS = HTTP_VERBS || (HTTP_VERBS = {}));
+;
 class Base {
     /*
                     STATIC
@@ -2345,9 +2350,10 @@ class Base {
      * @sealed
      */
     _callListeners(name) {
+        const event = new CustomEvent('betaseries', { detail: { name: name } });
         if (this._listeners[name] !== undefined) {
             for (let l = 0; l < this._listeners[name].length; l++) {
-                this._listeners[name][l].call(this, this);
+                this._listeners[name][l].call(this, event, this);
             }
         }
         return this;
@@ -2662,7 +2668,7 @@ class Show extends Media {
      * Types d'évenements gérés par cette classe
      * @type {Array}
      */
-    static EventTypes = new Array(EventTypes.UPDATE, EventTypes.SAVE, EventTypes.ADD, EventTypes.REMOVE, EventTypes.NOTE);
+    static EventTypes = new Array(EventTypes.UPDATE, EventTypes.SAVE, EventTypes.ADD, EventTypes.REMOVE, EventTypes.NOTE, EventTypes.ARCHIVE, EventTypes.UNARCHIVE);
     /**
      * Methode static servant à retourner un objet show
      * à partir de son ID
@@ -2809,6 +2815,7 @@ class Show extends Media {
                 .then(data => {
                 _this.fill(data.show);
                 _this.save();
+                _this._callListeners(EventTypes.ARCHIVE);
                 resolve(_this);
             }, err => {
                 reject(err);
@@ -2826,6 +2833,7 @@ class Show extends Media {
                 .then(data => {
                 _this.fill(data.show);
                 _this.save();
+                _this._callListeners(EventTypes.UNARCHIVE);
                 resolve(_this);
             }, err => {
                 reject(err);
@@ -3876,6 +3884,16 @@ class Episode extends Base {
         return `<span style="color: var(--link_color);">Synopsis épisode ${this.code}</span>`;
     }
     /**
+     * Définit le film, sur le compte du membre connecté, comme "vu"
+     * @returns {void}
+     */
+    markAsView() {
+        this.updateStatus('seen', HTTP_VERBS.POST);
+    }
+    markAsUnview() {
+        this.updateStatus('unseen', HTTP_VERBS.DELETE);
+    }
+    /**
      * Modifie le statut d'un épisode sur l'API
      * @param  {String} status    Le nouveau statut de l'épisode
      * @param  {String} method    Verbe HTTP utilisé pour la requête à l'API
@@ -4525,6 +4543,11 @@ class UpdateAuto {
         this.changeColorBtn();
         return this;
     }
+    /**
+     * Retourne l'instance de l'objet de mise à jour auto des épisodes
+     * @param   {Show} s - L'objet de la série
+     * @returns {UpdateAuto}
+     */
     static getInstance(s) {
         if (!UpdateAuto.instance) {
             UpdateAuto.instance = new UpdateAuto(s);
@@ -4669,6 +4692,9 @@ class UpdateAuto {
         if (objUpAuto[this._showId] !== undefined) {
             delete objUpAuto[this._showId];
             UpdateAuto.setValue('objUpAuto', objUpAuto);
+            this._auto = false;
+            this._interval = 0;
+            this._exist = false;
         }
         return this;
     }
@@ -4692,13 +4718,13 @@ class UpdateAuto {
                 this.stop();
                 return this;
             }
-            this.status = true;
             if (this._timer) {
                 if (Base.debug)
                     console.log('close old interval timer');
                 clearInterval(this._timer);
             }
             const _this = this;
+            this.status = true;
             this._timer = setInterval(function () {
                 // if (debug) console.log('UpdateAuto setInterval objShow', Object.assign({}, _this._objShow));
                 if (!_this._auto || _this._show.user.remaining <= 0) {
