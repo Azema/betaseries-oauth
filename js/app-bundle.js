@@ -1,6 +1,6 @@
-/*! betaseries_userscript - v1.1.6 - 2021-12-31
+/*! betaseries_userscript - v1.1.6 - 2022-01-01
  * https://github.com/Azema/betaseries
- * Copyright (c) 2021 Azema;
+ * Copyright (c) 2022 Azema;
  * Licensed Apache-2.0
  */
 "use strict";
@@ -3431,7 +3431,7 @@ class Movie extends Media {
     static fetch(id, force = false) {
         return new Promise((resolve, reject) => {
             Base.callApi('GET', 'movies', 'movie', { id: id }, force)
-                .then(data => resolve(new Movie(data, jQuery('.blockInformations'))))
+                .then(data => resolve(new Movie(data.movie, jQuery('.blockInformations'))))
                 .catch(err => reject(err));
         });
     }
@@ -3491,11 +3491,6 @@ class Movie extends Media {
         super.fill(data);
         return this.save();
     }
-    /*
-    Bouton Vu: $(`.blockInformations__action .label:contains("${Base.trans('film.button.watched.label')}")`).siblings('button')
-    Bouton A voir: $(`.blockInformations__action .label:contains("${Base.trans('film.button.to_watch.label')}")`).siblings('button')
-    Bouton Favori: $(`.blockInformations__action .label:contains("${Base.trans('film.button.favorite.label')}")`).siblings('button')
-    */
     /**
      * Définit le film, sur le compte du membre connecté, comme "vu"
      * @returns {Promise<Movie>}
