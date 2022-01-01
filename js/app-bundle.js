@@ -3455,10 +3455,6 @@ class Movie extends Media {
     /*                      METHODS                    */
     /***************************************************/
     constructor(data, element) {
-        if (data.user.in_account !== undefined) {
-            data.in_account = data.user.in_account;
-            delete data.user.in_account;
-        }
         super(data);
         this.elt = element;
         return this.fill(data);
@@ -3474,6 +3470,8 @@ class Movie extends Media {
             data.in_account = data.user.in_account;
             delete data.user.in_account;
         }
+        data.description = data.synopsis;
+        delete data.synopsis;
         this.backdrop = data.backdrop;
         this.director = data.director;
         this.original_release_date = new Date(data.original_release_date);
