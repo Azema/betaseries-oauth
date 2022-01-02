@@ -1,4 +1,4 @@
-/*! betaseries_userscript - v1.1.6 - 2022-01-01
+/*! betaseries_userscript - v1.1.6 - 2022-01-02
  * https://github.com/Azema/betaseries
  * Copyright (c) 2022 Azema;
  * Licensed Apache-2.0
@@ -3576,14 +3576,19 @@ class Season {
      */
     _show;
     /**
+     * @type {JQuery<HTMLElement>} Le DOMElement jQuery correspondant à la saison
+     */
+    _elt;
+    /**
      * Constructeur de la classe Season
      * @param   {Obj}   data    Les données provenant de l'API
      * @param   {Show}  show    L'objet Show contenant la saison
      * @returns {Season}
      */
-    constructor(data, show) {
+    constructor(data, show, elt = null) {
         this.number = parseInt(data.number, 10);
         this._show = show;
+        this._elt = elt || jQuery(`#seasons .positionRelative > .slides_flex > div[role="button"]:nth-child(${this.number - 1})`);
         if (data.episodes && data.episodes instanceof Array && data.episodes[0] instanceof Episode) {
             this.episodes = data.episodes;
         }
@@ -3655,6 +3660,69 @@ class Season {
      */
     updateShow(cb = Base.noop) {
         this._show.update(true).then(cb);
+        return this;
+    }
+    /**
+     * Change le statut visuel de la saison sur le site
+     * @return {Season}
+     */
+    updateRender() {
+        const self = this;
+        const lenEpisodes = this.episodes.length;
+        const lenSpecials = this.getNbEpisodesSpecial();
+        const lenNotSpecials = lenEpisodes - lenSpecials;
+        const lenSeen = self.getNbEpisodesSeen();
+        if (Base.debug)
+            console.log('Season updateRender', { lenEpisodes, lenSpecials, lenNotSpecials, lenSeen });
+        /**
+         * Change la saison courante pour la suivante
+         */
+        const moveSeason = function () {
+            // On check la saison
+            self._elt.find('.slide__image').prepend('<div class="checkSeen"></div>');
+            self._elt
+                .removeClass('slide--notSeen')
+                .addClass('slide--seen');
+            if (Base.debug)
+                console.log('Tous les épisodes de la saison ont été vus');
+            // Si il y a une saison suivante, on la sélectionne
+            if (self._elt.next().length > 0) {
+                if (Base.debug)
+                    console.log('Il y a une autre saison');
+                self.changeCurrentSeason(self.number + 1);
+                self._elt.removeClass('slide--current');
+                self._elt.next().trigger('click');
+            }
+        };
+        // Si tous les épisodes de la saison ont été vus
+        if (lenSeen === lenEpisodes) {
+            moveSeason();
+        }
+        // Si tous les épisodes de la saison, hors spéciaux, ont été vus
+        else if (lenSpecials > 0 && lenSeen === lenNotSpecials) {
+            // eslint-disable-next-line no-undef
+            new PopupAlert({
+                title: 'Fin de la saison',
+                text: 'Tous les épisodes de la saison, hors spéciaux, ont été vu.<br/>Voulez-vous passer à la saison suivante ?',
+                callback_yes: () => {
+                    moveSeason();
+                },
+                callback_no: () => {
+                    return true;
+                }
+            });
+        }
+        else {
+            const $checkSeen = this._elt.find('.checkSeen');
+            if ($checkSeen.length > 0) {
+                $checkSeen.remove();
+                if (!self._elt.hasClass('slide--notSeen')) {
+                    self._elt
+                        .addClass('slide--notSeen')
+                        .removeClass('slide--seen');
+                }
+            }
+        }
         return this;
     }
     /**
@@ -3890,6 +3958,10 @@ class Episode extends Base {
     markAsView() {
         this.updateStatus('seen', HTTP_VERBS.POST);
     }
+    /**
+     * Définit le film, sur le compte du membre connecté, comme "non vu"
+     * @returns {void}
+     */
     markAsUnview() {
         this.updateStatus('unseen', HTTP_VERBS.DELETE);
     }
@@ -3963,7 +4035,6 @@ class Episode extends Base {
                     .fill(data.episode)
                     .updateRender(status, true)
                     ._callListeners(EventTypes.UPDATE)
-                    .save()
                     ._season.updateShow(() => {
                     _this.toggleSpinner(false);
                 });
@@ -3975,6 +4046,12 @@ class Episode extends Base {
                     if (Base.debug)
                         console.log('updateStatus error %s changeStatus', method);
                     _this.updateRender(status);
+                    if (status === 'seen') {
+                        _this.user.seen = true;
+                    }
+                    else {
+                        _this.user.seen = false;
+                    }
                     _this.toggleSpinner(false);
                 }
                 else {
@@ -3991,10 +4068,7 @@ class Episode extends Base {
      * @return {Episode}
      */
     updateRender(newStatus, update = true) {
-        const _this = this;
         const $elt = this.elt.find('.checkSeen');
-        const lenEpisodes = _this._season.episodes.length;
-        const lenNotSpecial = lenEpisodes - _this._season.getNbEpisodesSpecial();
         if (Base.debug)
             console.log('changeStatus', { elt: $elt, status: newStatus, update: update });
         if (newStatus === 'seen') {
@@ -4004,46 +4078,6 @@ class Episode extends Base {
             // On supprime le voile masquant sur la vignette pour voir l'image de l'épisode
             $elt.parents('div.slide__image').first().find('img').removeAttr('style');
             $elt.parents('div.slide_flex').first().removeClass('slide--notSeen');
-            const moveSeason = function (cb = Base.noop) {
-                const slideCurrent = jQuery('#seasons div.slide--current');
-                // On check la saison
-                slideCurrent.find('.slide__image').prepend('<div class="checkSeen"></div>');
-                slideCurrent
-                    .removeClass('slide--notSeen')
-                    .addClass('slide--seen');
-                if (Base.debug)
-                    console.log('Tous les épisodes de la saison ont été vus', slideCurrent);
-                // Si il y a une saison suivante, on la sélectionne
-                if (slideCurrent.next().length > 0) {
-                    if (Base.debug)
-                        console.log('Il y a une autre saison');
-                    const seasonNumber = _this._season.number + 1;
-                    _this._season.changeCurrentSeason(seasonNumber);
-                    slideCurrent.next().trigger('click');
-                    slideCurrent.removeClass('slide--current');
-                }
-                return cb();
-            };
-            const lenSeen = _this._season.getNbEpisodesSeen();
-            if (Base.debug)
-                console.log('Episode.updateRender', { lenEpisodes: lenEpisodes, lenNotSpecial: lenNotSpecial, lenSeen: lenSeen });
-            // Si tous les épisodes de la saison ont été vus
-            if (lenSeen === lenEpisodes) {
-                moveSeason();
-            }
-            else if (lenSeen === lenNotSpecial) {
-                // eslint-disable-next-line no-undef
-                new PopupAlert({
-                    title: 'Fin de la saison',
-                    text: 'Tous les épisodes de la saison, hors spéciaux, ont été vu.<br/>Voulez-vous passer à la saison suivante ?',
-                    callback_yes: () => {
-                        moveSeason();
-                    },
-                    callback_no: () => {
-                        return true;
-                    }
-                });
-            }
         }
         else {
             $elt.css('background', 'rgba(13,21,28,.2)'); // On enlève le check dans la case à cocher
@@ -4057,15 +4091,8 @@ class Episode extends Base {
             if (!contVignette.hasClass('slide--notSeen')) {
                 contVignette.addClass('slide--notSeen');
             }
-            const lenSeen = _this._season.getNbEpisodesSeen();
-            if (lenSeen < lenEpisodes) {
-                const $seasonCurrent = jQuery('#seasons div.slide--current');
-                $seasonCurrent.find('.checkSeen').remove();
-                $seasonCurrent
-                    .removeClass('slide--seen')
-                    .addClass('slide--notSeen');
-            }
         }
+        this._season.updateRender();
         return this;
     }
     /**
