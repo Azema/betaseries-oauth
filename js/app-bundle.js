@@ -933,7 +933,7 @@ class CommentsBS {
                         <div class="media-body">
                             <div class="displayFlex alignItemsCenter">
                                 ${comment.login}
-                                <span class="stars">${CommentBS.renderNote(comment.user_note)}</span>
+                                <span class="stars">${CommentBS.renderNote(comment.user_note, comment.user_id === Base.userId ? 'blue' : '')}</span>
                             </div>
                             <div>
                                 <time class="u-colorWhiteOpacity05" style="font-size: 14px;">
@@ -1079,7 +1079,7 @@ class CommentBS {
      * @param   {number} note    La note à afficher
      * @returns {string}
      */
-    static renderNote(note) {
+    static renderNote(note, color = '') {
         let typeSvg, template = '';
         note = note || 0;
         Array.from({
@@ -1089,7 +1089,7 @@ class CommentBS {
             template += `
                 <svg viewBox="0 0 100 100" class="star-svg">
                     <use xmlns:xlink="http://www.w3.org/1999/xlink"
-                        xlink:href="#icon-star-${typeSvg}">
+                        xlink:href="#icon-star${color}-${typeSvg}">
                     </use>
                 </svg>
             `;
@@ -1772,7 +1772,7 @@ class Note {
         note = this.mean.toFixed(2);
         let toString = `${total} ${votes} : ${note} / 5`;
         // On ajoute la note du membre connecté, si il a voté
-        if (this.user > 0) {
+        if (Base.userIdentified() && this.user > 0) {
             toString += `, votre note: ${this.user}`;
         }
         return toString;
@@ -2532,17 +2532,7 @@ class Base {
                 $elt.attr('title', 'Aucun vote');
             return;
         }
-        const votes = 'vote' + (this.objNote.total > 1 ? 's' : ''), 
-        // On met en forme le nombre de votes
-        total = new Intl.NumberFormat('fr-FR', { style: 'decimal', useGrouping: true })
-            .format(this.objNote.total), 
-        // On limite le nombre de chiffre après la virgule
-        note = this.objNote.mean.toFixed(1);
-        let title = `${total} ${votes} : ${note} / 5`;
-        // On ajoute la note du membre connecté, si il a voté
-        if (Base.userIdentified() && this.objNote.user > 0) {
-            title += `, votre note: ${this.objNote.user}`;
-        }
+        let title = this.objNote.toString();
         if (change) {
             $elt.attr('title', title);
         }
