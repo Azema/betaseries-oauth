@@ -154,7 +154,7 @@ class CommentsBS {
      * Types d'évenements gérés par cette classe
      * @type {Array}
      */
-    static EventTypes = new Array(EventTypes.UPDATE, EventTypes.SAVE, EventTypes.ADD);
+    static EventTypes = new Array('update', 'save', 'add');
     /**
      * Envoie une réponse de ce commentaire à l'API
      * @param   {Base} media - Le média correspondant à la collection
