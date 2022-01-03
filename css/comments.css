@@ -11,7 +11,7 @@
 }
 .it_iz { display:none; }
 .it_ix:hover .it_iz { display: inline-block; }
-.it_i1 {
+.actionsCmt {
     display: flex;
     align-items: center;
     margin-top: -1px;
@@ -59,7 +59,7 @@
 }
 @media (max-width:424px) {
     .it_i3 { margin-left: 20px; }
-    .it_i1 { flex-wrap: wrap; }
+    .actionsCmt { flex-wrap: wrap; }
     .it_ix img {
         width: 24px;
         height: 24px;
@@ -69,7 +69,7 @@
 @media (min-width:425px) {
     .it_ix { padding-right: 25px; }
     .it_i3 { margin-left: 40px; }
-    .it_i1 {
+    .actionsCmt {
         height: 24px;
         line-height: 24px;
     }
