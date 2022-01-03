@@ -933,7 +933,7 @@ class CommentsBS {
                         <div class="media-body">
                             <div class="displayFlex alignItemsCenter">
                                 ${comment.login}
-                                <span class="stars">${CommentBS.renderNote(comment.user_note, comment.user_id === Base.userId ? 'blue' : '')}</span>
+                                <span class="stars">${Note.renderStars(comment.user_note, comment.user_id === Base.userId ? 'blue' : '')}</span>
                             </div>
                             <div>
                                 <time class="u-colorWhiteOpacity05" style="font-size: 14px;">
@@ -1075,28 +1075,6 @@ class CommentBS {
         return this._parent.isLast(this.id);
     }
     /**
-     * Permet d'afficher une note avec des étoiles
-     * @param   {number} note    La note à afficher
-     * @returns {string}
-     */
-    static renderNote(note, color = '') {
-        let typeSvg, template = '';
-        note = note || 0;
-        Array.from({
-            length: 5
-        }, (_index, number) => {
-            typeSvg = note <= number ? "empty" : (note < number + 1) ? 'half' : "full";
-            template += `
-                <svg viewBox="0 0 100 100" class="star-svg">
-                    <use xmlns:xlink="http://www.w3.org/1999/xlink"
-                        xlink:href="#icon-star${color}-${typeSvg}">
-                    </use>
-                </svg>
-            `;
-        });
-        return template;
-    }
-    /**
      * Renvoie la template HTML pour l'affichage d'un commentaire
      * @param   {CommentBS} comment Le commentaire à afficher
      * @returns {string}
@@ -1157,7 +1135,7 @@ class CommentBS {
                                     Le ${ /* eslint-disable-line no-undef */typeof moment !== 'undefined' ? moment(comment.date).format('DD/MM/YYYY HH:mm') : comment.date.toString()}
                                 </a>
                                 <span class="stars" title="${comment.user_note} / 5">
-                                    ${CommentBS.renderNote(comment.user_note)}
+                                    ${Note.renderStars(comment.user_note)}
                                 </span>
                                 <div class="it_iv">
                                     <button type="button" class="btn-reset btnToggleOptions">
