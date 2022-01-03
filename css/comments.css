@@ -1,3 +1,7 @@
+.it_ix {
+    line-height: initial;
+    height: auto;
+}
 .it_iv {
     display: inline-block;
     position: relative;
