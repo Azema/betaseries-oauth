@@ -1,4 +1,4 @@
-/*! betaseries_userscript - v1.1.6 - 2022-01-02
+/*! betaseries_userscript - v1.1.6 - 2022-01-03
  * https://github.com/Azema/betaseries
  * Copyright (c) 2022 Azema;
  * Licensed Apache-2.0
@@ -151,6 +151,11 @@ class CommentsBS {
     /*                  STATIC                       */
     /*************************************************/
     /**
+     * Types d'évenements gérés par cette classe
+     * @type {Array}
+     */
+    static EventTypes = new Array(EventTypes.UPDATE, EventTypes.SAVE, EventTypes.ADD);
+    /**
      * Envoie une réponse de ce commentaire à l'API
      * @param   {Base} media - Le média correspondant à la collection
      * @param   {string} text - Le texte de la réponse
@@ -183,6 +188,7 @@ class CommentsBS {
     is_subscribed;
     status;
     _events;
+    _listeners;
     /*************************************************/
     /*                  METHODS                      */
     /*************************************************/
@@ -192,6 +198,69 @@ class CommentsBS {
         this.is_subscribed = false;
         this.status = MediaStatusComments.OPEN;
         this.nbComments = nbComments;
+        this._initListeners();
+    }
+    /**
+     * Initialize le tableau des écouteurs d'évènements
+     * @returns {Base}
+     * @sealed
+     */
+    _initListeners() {
+        this._listeners = {};
+        const EvtTypes = CommentsBS.EventTypes;
+        for (let e = 0; e < EvtTypes.length; e++) {
+            this._listeners[EvtTypes[e]] = new Array();
+        }
+        return this;
+    }
+    /**
+     * Permet d'ajouter un listener sur un type d'évenement
+     * @param  {EventTypes} name - Le type d'évenement
+     * @param  {Function}   fn   - La fonction à appeler
+     * @return {Base} L'instance du média
+     * @sealed
+     */
+    addListener(name, fn) {
+        // On vérifie que le type d'event est pris en charge
+        if (this.constructor.EventTypes.indexOf(name) < 0) {
+            throw new Error(`${name} ne fait pas partit des events gérés par cette classe`);
+        }
+        if (this._listeners[name] === undefined) {
+            this._listeners[name] = new Array();
+        }
+        this._listeners[name].push(fn);
+        return this;
+    }
+    /**
+     * Permet de supprimer un listener sur un type d'évenement
+     * @param  {string}   name - Le type d'évenement
+     * @param  {Function} fn   - La fonction qui était appelée
+     * @return {Base} L'instance du média
+     * @sealed
+     */
+    removeListener(name, fn) {
+        if (this._listeners[name] !== undefined) {
+            for (let l = 0; l < this._listeners[name].length; l++) {
+                if (this._listeners[name][l] === fn)
+                    this._listeners[name].splice(l, 1);
+            }
+        }
+        return this;
+    }
+    /**
+     * Appel les listeners pour un type d'évenement
+     * @param  {EventTypes} name - Le type d'évenement
+     * @return {Base} L'instance du média
+     * @sealed
+     */
+    _callListeners(name) {
+        const event = new CustomEvent('betaseries', { detail: { name: name } });
+        if (this._listeners[name] !== undefined) {
+            for (let l = 0; l < this._listeners[name].length; l++) {
+                this._listeners[name][l].call(this, event, this);
+            }
+        }
+        return this;
     }
     /**
      * Retourne la taille de la collection
@@ -608,13 +677,17 @@ class CommentsBS {
                 if ($textarea.data('replyTo')) {
                     comment = self.getComment(parseInt($textarea.data('replyTo'), 10));
                     comment.reply($textarea.val());
+                    $textarea.val('');
+                    $textarea.siblings('button').attr('disabled', 'true');
                 }
                 else {
                     CommentsBS.sendComment(self._parent, $textarea.val())
                         .then((comment) => {
                         if (comment) {
                             $textarea.val('');
-                            $textarea.parents('.writing').siblings('.comments').append(CommentBS.getTemplateComment(comment));
+                            $textarea.siblings('button').attr('disabled', 'true');
+                            $textarea.parents('.comments').append(CommentBS.getTemplateComment(comment));
+                            self.addToPage(comment.id);
                         }
                     });
                 }
@@ -833,6 +906,47 @@ class CommentsBS {
             });
         });
     }
+    /**
+     * Ajoute un commentaire dans la liste des commentaires de la page
+     * @param {number} cmtId - L'identifiant du commentaire
+     */
+    addToPage(cmtId) {
+        const comment = this.getComment(cmtId);
+        const headMsg = comment.text.substring(0, 275);
+        let hideMsg = '';
+        if (comment.text.length > 275)
+            hideMsg = '<span class="u-colorWhiteOpacity05 u-show-fulltext positionRelative zIndex1"></span><span class="sr-only">' + comment.text.substring(275) + '</span>';
+        const avatar = comment.avatar || 'https://img.betaseries.com/NkUiybcFbxbsT_EnzkGza980XP0=/42x42/smart/https%3A%2F%2Fwww.betaseries.com%2Fimages%2Fsite%2Favatar-default.png';
+        const template = `
+            <div class="slide_flex">
+                <div class="slide__comment positionRelative u-insideBorderOpacity u-insideBorderOpacity--01">
+                    <p>${headMsg} ${hideMsg}</p>
+                    <button type="button" class="btn-reset js-popup-comments zIndex10" data-comment-id="${comment.id}"></button>
+                </div>
+                <div class="slide__author">
+                    <div class="media">
+                        <span class="media-left avatar">
+                            <a href="https://www.betaseries.com/membre/${comment.login}">
+                                <img class="js-lazy-image u-opacityBackground js-lazy-image--handled fade-in" src="${avatar}" width="42" height="42" alt="avatar de ${comment.login}" />
+                            </a>
+                        </span>
+                        <div class="media-body">
+                            <div class="displayFlex alignItemsCenter">
+                                ${comment.login}
+                                <span class="stars">${CommentBS.renderNote(comment.user_note)}</span>
+                            </div>
+                            <div>
+                                <time class="u-colorWhiteOpacity05" style="font-size: 14px;">
+                                    ${moment(comment.date).format('DD MMMM YYYY')}
+                                </time>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>`;
+        jQuery('#comments .slides_flex').prepend(template);
+        this._callListeners(EventTypes.ADD);
+    }
 }
 
 class CommentBS {
@@ -965,7 +1079,7 @@ class CommentBS {
      * @param   {number} note    La note à afficher
      * @returns {string}
      */
-    static _renderNote(note) {
+    static renderNote(note) {
         let typeSvg, template = '';
         note = note || 0;
         Array.from({
@@ -1043,7 +1157,7 @@ class CommentBS {
                                     Le ${ /* eslint-disable-line no-undef */typeof moment !== 'undefined' ? moment(comment.date).format('DD/MM/YYYY HH:mm') : comment.date.toString()}
                                 </a>
                                 <span class="stars" title="${comment.user_note} / 5">
-                                    ${CommentBS._renderNote(comment.user_note)}
+                                    ${CommentBS.renderNote(comment.user_note)}
                                 </span>
                                 <div class="it_iv">
                                     <button type="button" class="btn-reset btnToggleOptions">
@@ -1393,9 +1507,12 @@ class CommentBS {
                     }
                 }
                 else {
-                    CommentsBS.sendComment(self._media, msg);
+                    CommentsBS.sendComment(self._media, msg).then((comment) => {
+                        self._parent.addToPage(comment.id);
+                    });
                 }
                 $textarea.val('');
+                $textarea.siblings('button').attr('disabled', 'true');
             }
         });
         this._events.push({ elt: $btnSend, event: 'click' });
@@ -3544,6 +3661,37 @@ class Movie extends Media {
 }
 
 class Subtitle {
+    /**
+     * @type {number} - L'identifiant du subtitle
+     */
+    id;
+    /**
+     * @type {string} - La langue du subtitle
+     */
+    language;
+    /**
+     * @type {string} - La source du subtitle
+     */
+    source;
+    /**
+     * @type {number} - La qualité du subtitle
+     */
+    quality;
+    /**
+     * @type {string} - Le nom du fichier du subtitle
+     */
+    file;
+    /**
+     * @type {string} - L'URL d'accès au subtitle
+     */
+    url;
+    /**
+     * @type {Date} - Date de mise en ligne
+     */
+    date;
+    episode;
+    show;
+    season;
     constructor(data) {
         this.id = parseInt(data.id, 10);
         this.language = data.language;
@@ -3552,14 +3700,80 @@ class Subtitle {
         this.file = data.file;
         this.url = data.url;
         this.date = new Date(data.date);
+        this.show = parseInt(data.show_id, 10);
+        this.episode = parseInt(data.episode_id, 10);
+        this.season = parseInt(data.season, 10);
     }
-    id;
-    language;
-    source;
-    quality;
-    file;
-    url;
-    date;
+}
+var SortTypeSubtitles;
+(function (SortTypeSubtitles) {
+    SortTypeSubtitles["LANGUAGE"] = "language";
+    SortTypeSubtitles["SOURCE"] = "source";
+    SortTypeSubtitles["QUALITY"] = "quality";
+    SortTypeSubtitles["DATE"] = "date";
+})(SortTypeSubtitles = SortTypeSubtitles || (SortTypeSubtitles = {}));
+;
+var SubtitleTypes;
+(function (SubtitleTypes) {
+    SubtitleTypes["EPISODE"] = "episode";
+    SubtitleTypes["SEASON"] = "season";
+    SubtitleTypes["SHOW"] = "show";
+})(SubtitleTypes = SubtitleTypes || (SubtitleTypes = {}));
+;
+var SubtitleLanguages;
+(function (SubtitleLanguages) {
+    SubtitleLanguages["ALL"] = "all";
+    SubtitleLanguages["VOVF"] = "vovf";
+    SubtitleLanguages["VO"] = "vo";
+    SubtitleLanguages["VF"] = "vf";
+})(SubtitleLanguages = SubtitleLanguages || (SubtitleLanguages = {}));
+;
+class Subtitles {
+    /**
+     * @type {Array<Subtitle>} - Collection de subtitles
+     */
+    subtitles;
+    /**
+     * Récupère et retourne une collection de subtitles
+     * @param   {SubtitleTypes} type - Type de média
+     * @param   {ParamsFetchSubtitles} ids - Les identifiants de recherche
+     * @param   {SubtitleLanguages} language - La langue des subtitles recherchés
+     * @returns {Promise<Subtitles>}
+     */
+    static fetch(type, ids, language = SubtitleLanguages.ALL) {
+        const params = { id: ids.id, language: language };
+        if (type === SubtitleTypes.SEASON) {
+            params.season = ids.season;
+        }
+        return Base.callApi(HTTP_VERBS.GET, 'subtitles', type, params)
+            .then((data) => {
+            return new Subtitles(data.subtitles);
+        });
+    }
+    constructor(data) {
+        this.subtitles = new Array();
+        if (data && data.length > 0) {
+            for (let s = 0; s < data.length; s++) {
+                this.subtitles.push(new Subtitle(data[s]));
+            }
+        }
+    }
+    /**
+     * Permet de trier les subtitles
+     * @param   {SortTypeSubtitles} by - Le type de tri
+     * @returns {Array<Subtitle>}
+     */
+    sortBy(by) {
+        const funcCompare = (elt1, elt2) => {
+            if (elt1[by] > elt2[by])
+                return 1;
+            else if (elt1[by] < elt2[by])
+                return -1;
+            else
+                return 0;
+        };
+        return this.subtitles.sort(funcCompare);
+    }
 }
 
 class Season {
@@ -3844,12 +4058,7 @@ class Episode extends Base {
         this.releasesSvod = data.releasesSvod;
         this.seen_total = (data.seen_total !== null) ? parseInt(data.seen_total, 10) : 0;
         this.special = data.special === 1 ? true : false;
-        this.subtitles = new Array();
-        if (data.subtitles !== undefined) {
-            for (let s = 0; s < data.subtitles.length; s++) {
-                this.subtitles.push(new Subtitle(data.subtitles[s]));
-            }
-        }
+        this.subtitles = new Subtitles(data.subtitles || []);
         this.thetvdb_id = parseInt(data.thetvdb_id, 10);
         this.watched_by = data.watched_by;
         this.writers = data.writers;
