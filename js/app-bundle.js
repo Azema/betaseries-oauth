@@ -1872,7 +1872,7 @@ class Note {
         Array.from({
             length: 5
         }, (_index, number) => {
-            typeSvg = note <= number ? "empty" : (note < number + 1) ? 'half' : "full";
+            typeSvg = note <= number ? 'empty' : (note < number + 1) ? 'half' : 'full';
             template += `
                 <svg viewBox="0 0 100 100" class="star-svg">
                     <use xmlns:xlink="http://www.w3.org/1999/xlink"
@@ -3767,10 +3767,11 @@ class Season {
      * @param   {Show}  show    L'objet Show contenant la saison
      * @returns {Season}
      */
-    constructor(data, show, elt = null) {
+    constructor(data, show) {
         this.number = parseInt(data.number, 10);
         this._show = show;
-        this._elt = elt || jQuery(`#seasons .positionRelative > .slides_flex > div[role="button"]:nth-child(${this.number - 1})`);
+        // document.querySelector("#seasons > div > div.positionRelative > div > div:nth-child(2)")
+        this._elt = jQuery(`#seasons .slides_flex .slide_flex:nth-child(${this.number.toString()})`);
         if (data.episodes && data.episodes instanceof Array && data.episodes[0] instanceof Episode) {
             this.episodes = data.episodes;
         }
