@@ -131,6 +131,16 @@
     to { background-position: 600px 0 }
 }
 
+.evaluations {
+    color: #565959!important;
+}
+.evaluations .size-base {
+    font-size: 14px;
+    line-height: 20px;
+}
+.evaluations .average {
+    margin-bottom: 16px;
+}
 .evaluations table {
     margin-bottom: 0!important;
     border-collapse: collapse;
