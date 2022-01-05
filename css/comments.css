@@ -172,4 +172,5 @@
     background-color: #FFA41C;
     border-top-right-radius: 0;
     border-bottom-right-radius: 0;
+    height: inherit;
 }
