@@ -141,11 +141,17 @@
 }
 .evaluations table td {
     vertical-align: middle;
+    padding: 7px 3px;
 }
 .evaluations table td.nowrap {
     white-space: nowrap;
     font-size: 14px!important;
     line-height: 20px!important;
+}
+.evaluations table td.span10 {
+    width: 87.43%;
+    float: none!important;
+    margin-right: 0;
 }
 .evaluations table tr.histogram-row:first-child td {
     padding-top: 0;
