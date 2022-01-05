@@ -982,8 +982,8 @@ class CommentsBS {
              */
             let template = `
                 <div class="evaluations">
-                    <div>${comments.length} évaluation${comments.length > 1 ? 's' : ''}</div>
-                    <div>Note moyenne: ${self._parent.objNote.mean.toFixed(2)}</div>
+                    <div class="size-base">${comments.length} évaluation${comments.length > 1 ? 's' : ''} parmis les commentaires</div>
+                    <div class="size-base average">Note moyenne: ${self._parent.objNote.mean.toFixed(2)}</div>
                     <div><table><tbody>`;
             for (let i = 5; i > 0; i--) {
                 template += buildline(i, notes);
