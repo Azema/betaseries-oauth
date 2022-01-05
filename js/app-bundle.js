@@ -983,7 +983,7 @@ class CommentsBS {
             let template = `
                 <div class="evaluations">
                     <div class="size-base">${comments.length} évaluation${comments.length > 1 ? 's' : ''} parmis les commentaires</div>
-                    <div class="size-base average">Note moyenne: ${self._parent.objNote.mean.toFixed(2)}</div>
+                    <div class="size-base average">Note moyenne globale: ${self._parent.objNote.mean.toFixed(2)}</div>
                     <div><table><tbody>`;
             for (let i = 5; i > 0; i--) {
                 template += buildline(i, notes);
@@ -5093,7 +5093,7 @@ class UpdateAuto {
             }
             const _this = this;
             this.status = true;
-            this._timer = setInterval(function () {
+            const run = function () {
                 // if (debug) console.log('UpdateAuto setInterval objShow', Object.assign({}, _this._objShow));
                 if (!_this._auto || _this._show.user.remaining <= 0) {
                     if (Base.debug)
@@ -5117,7 +5117,9 @@ class UpdateAuto {
                         _this.status = true;
                     }
                 }
-            }, (this._interval * 60) * 1000);
+            };
+            run();
+            this._timer = setInterval(run, (this._interval * 60) * 1000);
         }
         return this;
     }
