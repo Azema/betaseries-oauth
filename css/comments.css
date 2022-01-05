@@ -24,7 +24,7 @@
     margin-top: -1px;
 }
 .comments {
-    margin-bottom: 0px;
+    margin-bottom: 10px;
 }
 .comments .comment {
     animation: 1s ease 0s 1 normal forwards running backgroundFadeOut;
