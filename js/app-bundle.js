@@ -950,6 +950,10 @@ class CommentsBS {
         jQuery('#comments .slides_flex').prepend(template);
         this._callListeners(EventTypes.ADD);
     }
+    /**
+     * Retourne la template affichant les notes associés aux commentaires
+     * @returns {string} La template affichant les évaluations des commentaires
+     */
     showEvaluations() {
         const self = this;
         let promise = Promise.resolve(this);
