@@ -454,21 +454,21 @@ class CommentsBS {
                     console.log('Base fetchComments call');
                 promise = self.fetchComments(nbpp);
             }
-            let comment, template = `
-                    <div data-media-type="${self._parent.mediaType.singular}"
-                         data-media-id="${self._parent.id}"
-                         class="displayFlex flexDirectionColumn"
-                         style="margin-top: 2px; min-height: 0">`;
-            if (Base.userIdentified()) {
-                template += `
-                <button type="button" class="btn-reset btnSubscribe" style="position: absolute; top: 3px; right: 31px; padding: 8px;">
-                    <span class="svgContainer">
-                        <svg></svg>
-                    </span>
-                </button>`;
-            }
-            template += '<div class="comments overflowYScroll">';
             promise.then(async () => {
+                let comment, template = `
+                        <div data-media-type="${self._parent.mediaType.singular}"
+                            data-media-id="${self._parent.id}"
+                            class="displayFlex flexDirectionColumn"
+                            style="margin-top: 2px; min-height: 0">`;
+                if (Base.userIdentified()) {
+                    template += `
+                    <button type="button" class="btn-reset btnSubscribe" style="position: absolute; top: 3px; right: 31px; padding: 8px;">
+                        <span class="svgContainer">
+                            <svg></svg>
+                        </span>
+                    </button>`;
+                }
+                template += '<div class="comments overflowYScroll">';
                 for (let c = 0; c < self.comments.length; c++) {
                     comment = self.comments[c];
                     template += CommentBS.getTemplateComment(comment, true);
@@ -484,9 +484,14 @@ class CommentsBS {
                 }
                 // On ajoute le bouton pour voir plus de commentaires
                 if (self.comments.length < self.nbComments) {
-                    template += `<button type="button" class="btn-reset btn-greyBorder moreComments" style="margin-top: 10px; width: 100%;">${Base.trans("timeline.comments.display_more")}<i class="fa fa-cog fa-spin fa-2x fa-fw" style="display:none;margin-left:15px;vertical-align:middle;"></i><span class="sr-only">Loading...</span></button>`;
+                    template += `
+                        <button type="button" class="btn-reset btn-greyBorder moreComments" style="margin-top: 10px; width: 100%;">
+                            ${Base.trans("timeline.comments.display_more")}
+                            <i class="fa fa-cog fa-spin fa-2x fa-fw" style="display:none;margin-left:15px;vertical-align:middle;"></i>
+                            <span class="sr-only">Loading...</span>
+                        </button>`;
                 }
-                template + '</div>';
+                template += '</div>';
                 if (self.isOpen() && Base.userIdentified()) {
                     template += CommentBS.getTemplateWriting();
                 }
@@ -689,7 +694,7 @@ class CommentsBS {
                         if (comment) {
                             $textarea.val('');
                             $textarea.siblings('button').attr('disabled', 'true');
-                            $textarea.parents('.comments').append(CommentBS.getTemplateComment(comment));
+                            $textarea.parents('.comments').prepend(CommentBS.getTemplateComment(comment));
                             self.addToPage(comment.id);
                         }
                     });
@@ -773,8 +778,11 @@ class CommentsBS {
             const commentId = parseInt($comment.data('commentId'), 10);
             let comment;
             // Si il s'agit d'une réponse, il nous faut le commentaire parent
-            if ($comment.hasClass('iv_i5') || $comment.hasClass('it_i3')) {
-                const $parent = $comment.siblings('.comment:not(.iv_i5)').first();
+            if ($comment.hasClass('reply')) {
+                let $parent = $comment.prev('.comment');
+                while ($parent.hasClass('reply') && $parent.length > 0) {
+                    $parent = $parent.prev('.comment');
+                }
                 const parentId = parseInt($parent.data('commentId'), 10);
                 if (commentId == parentId) {
                     comment = this.getComment(commentId);
@@ -1135,13 +1143,13 @@ class CommentBS {
         let classNames = { reply: 'it_i3', actions: 'it_i1', comment: 'it_ix' };
         let className = (comment.in_reply_to > 0) ? classNames.reply + ' reply' : '';
         let btnToggleReplies = comment.nbReplies > 0 ? `
-        <button type="button" class="btn-reset mainLink mainLink--regular toggleReplies" style="margin-top: 2px; margin-bottom: -3px;" data-toggle="1">
-            <span class="svgContainer" style="display: inline-flex; height: 16px; width: 16px;">
-                <svg width="8" height="6" xmlns="http://www.w3.org/2000/svg" style="transition: transform 200ms ease 0s; transform: rotate(180deg);">
-                    <path d="M4 5.667l4-4-.94-.94L4 3.78.94.727l-.94.94z" fill="#54709D" fill-rule="nonzero"></path>
-                </svg>
-            </span>&nbsp;<span class="btnText">${Base.trans("comment.hide_answers")}</span>
-        </button>` : '';
+            <button type="button" class="btn-reset mainLink mainLink--regular toggleReplies" style="margin-top: 2px; margin-bottom: -3px;" data-toggle="1">
+                <span class="svgContainer" style="display: inline-flex; height: 16px; width: 16px;">
+                    <svg width="8" height="6" xmlns="http://www.w3.org/2000/svg" style="transition: transform 200ms ease 0s; transform: rotate(180deg);">
+                        <path d="M4 5.667l4-4-.94-.94L4 3.78.94.727l-.94.94z" fill="#54709D" fill-rule="nonzero"></path>
+                    </svg>
+                </span>&nbsp;<span class="btnText">${Base.trans("comment.hide_answers")}</span>
+            </button>` : '';
         return `
             <div class="comment ${className} positionRelative ${CommentBS.classNamesCSS.comment}" data-comment-id="${comment.id}" ${comment.in_reply_to > 0 ? 'data-comment-reply="' + comment.in_reply_to + '"' : ''} data-comment-inner="${comment.inner_id}">
                 <div class="media">
