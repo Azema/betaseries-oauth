@@ -1,4 +1,4 @@
-/*! betaseries_userscript - v1.1.6 - 2022-01-03
+/*! betaseries_userscript - v1.1.6 - 2022-01-05
  * https://github.com/Azema/betaseries
  * Copyright (c) 2022 Azema;
  * Licensed Apache-2.0
@@ -141,6 +141,9 @@ class Character {
     movie_id;
 }
 
+/* interface JQuery<TElement = HTMLElement> extends Iterable<TElement> {
+    popover?(params: any): this;
+} */
 var MediaStatusComments;
 (function (MediaStatusComments) {
     MediaStatusComments["OPEN"] = "open";
@@ -946,6 +949,47 @@ class CommentsBS {
             </div>`;
         jQuery('#comments .slides_flex').prepend(template);
         this._callListeners(EventTypes.ADD);
+    }
+    showEvaluations() {
+        const self = this;
+        let promise = Promise.resolve(this);
+        if (this.length <= 0) {
+            promise = this.fetchComments(this.nbComments);
+        }
+        return promise.then(() => {
+            const comments = self.comments.filter((comment) => { return comment.user_note > 0; });
+            let notes = { 1: 0, 2: 0, 3: 0, 4: 0, 5: 0 };
+            for (let c = 0; c < comments.length; c++) {
+                notes[comments[c].user_note]++;
+            }
+            const buildline = function (index, notes) {
+                const percent = (notes[index] * 100) / comments.length;
+                return `<tr class="histogram-row">
+                    <td class="nowrap">${index} étoile${index > 1 ? 's' : ''}</td>
+                    <td class="span10">
+                        <div class="meter" role="progressbar" aria-valuenow="${percent.toFixed(0)}%">
+                            <div class="meter-filled" style="width: ${percent.toFixed(0)}%"></div>
+                        </div>
+                    </td>
+                    <td class="nowrap">${percent.toFixed(0)}%</td>
+                </tr>`;
+            };
+            /*
+             * Construction de la template
+             *  - Le nombre de notes
+             *  - La note moyenne
+             *  - Les barres de progression par note
+             */
+            let template = `
+                <div class="evaluations">
+                    <div>${comments.length} évaluation${comments.length > 1 ? 's' : ''}</div>
+                    <div>Note moyenne: ${self._parent.objNote.mean.toFixed(2)}</div>
+                    <div><table><tbody>`;
+            for (let i = 1; i <= 5; i++) {
+                template += buildline(i, notes);
+            }
+            return template + '</tbody></table></div>';
+        });
     }
 }
 
@@ -2576,17 +2620,56 @@ class Base {
 }
 
 class Media extends Base {
+    /**
+     * @type {number} Nombre de membres ayant ce média sur leur compte
+     */
     followers;
+    /**
+     * @type {Array<string>} Les genres attribués à ce média
+     */
     genres;
+    /**
+     * @type {string} Identifiant IMDB
+     */
     imdb_id;
+    /**
+     * @type {string} Langue originale du média
+     */
     language;
+    /**
+     * @type {number} Durée du média en minutes
+     */
     length;
+    /**
+     * @type {string} Titre original du média
+     */
     original_title;
+    /**
+     * @type {Array<Similar>} Tableau des médias similaires
+     */
     similars;
+    /**
+     * @type {number} Nombre de médias similaires
+     */
     nbSimilars;
+    /**
+     * @type {boolean} Indique si le média se trouve sur le compte du membre connecté
+     */
     _in_account;
-    constructor(data) {
+    /**
+     * @type {string} slug - Identifiant du média servant pour l'URL
+     */
+    slug;
+    /**
+     * Constructeur de la classe Media
+     * @param   {Obj} data - Les données du média
+     * @param   {JQuery<HTMLElement>} [element] - Le DOMElement associé au média
+     * @returns {Media}
+     */
+    constructor(data, element) {
         super(data);
+        if (element)
+            this.elt = element;
         return this;
     }
     /**
@@ -2621,7 +2704,8 @@ class Media extends Base {
                 this.genres.push(data.genres[g]);
             }
         }
-        this.in_account = data.in_account;
+        this.in_account = !!data.in_account;
+        this.slug = data.slug;
         super.fill(data);
         return this;
     }
@@ -2755,52 +2839,127 @@ class Show extends Media {
      */
     static EventTypes = new Array(EventTypes.UPDATE, EventTypes.SAVE, EventTypes.ADD, EventTypes.REMOVE, EventTypes.NOTE, EventTypes.ARCHIVE, EventTypes.UNARCHIVE);
     /**
-     * Methode static servant à retourner un objet show
-     * à partir de son ID
-     * @param  {number} id             L'identifiant de la série
-     * @param  {boolean} [force=false] Indique si on utilise le cache ou non
+     * Méthode static servant à récupérer une série sur l'API BS
+     * @param  {Obj} params - Critères de recherche de la série
+     * @param  {boolean} [force=false] - Indique si on utilise le cache ou non
      * @return {Promise<Show>}
      */
-    static fetch(id, force = false) {
+    static _fetch(params, force = false) {
         return new Promise((resolve, reject) => {
-            Base.callApi('GET', 'shows', 'display', { id: id }, force)
+            Base.callApi('GET', 'shows', 'display', params, force)
                 .then(data => resolve(new Show(data.show, jQuery('.blockInformations'))))
                 .catch(err => reject(err));
         });
     }
+    /**
+     * Methode static servant à récupérer une série par son identifiant BS
+     * @param  {number} id - L'identifiant de la série
+     * @param  {boolean} [force=false] - Indique si on utilise le cache ou non
+     * @return {Promise<Show>}
+     */
+    static fetch(id, force = false) {
+        return this._fetch({ id: id }, force);
+    }
+    /**
+     * Methode static servant à récupérer une série par son identifiant TheTVDB
+     * @param  {number} id - L'identifiant TheTVDB de la série
+     * @param  {boolean} [force=false] - Indique si on utilise le cache ou non
+     * @return {Promise<Show>}
+     */
+    static fetchByTvdb(id, force = false) {
+        return this._fetch({ thetvdb_id: id }, force);
+    }
+    /**
+     * Méthode static servant à récupérer une série par son identifiant URL
+     * @param   {string} url - Identifiant URL (slug) de la série recherchée
+     * @param   {boolean} force - Indique si on doit ignorer les données dans le cache
+     * @returns {Promise<Show>}
+     */
     static fetchByUrl(url, force = true) {
-        return new Promise((resolve, reject) => {
-            Base.callApi('GET', 'shows', 'display', { url: url }, force)
-                .then(data => resolve(new Show(data.show, jQuery('.blockInformations'))))
-                .catch(err => reject(err));
-        });
+        return this._fetch({ url: url }, force);
     }
     /***************************************************/
     /*                  PROPERTIES                     */
     /***************************************************/
+    /**
+     * @type {object} Contient les alias de la série
+     */
     aliases;
+    /**
+     * @type {string} Année de création de la série
+     */
     creation;
+    /**
+     * @type {string} Pays d'origine de la série
+     */
     country;
+    /**
+     * @type {Season} Pointeur vers la saison courante
+     */
     currentSeason;
+    /**
+     * @type {Images} Contient les URLs d'accès aux images de la série
+     */
     images;
+    /**
+     * @type {number} Nombre total d'épisodes dans la série
+     */
     nbEpisodes;
+    /**
+     * @type {string} Chaîne TV ayant produit la série
+     */
     network;
+    /**
+     * @type {string}
+     */
     next_trailer;
+    /**
+     * @type {string}
+     */
     next_trailer_host;
+    /**
+     * @type {string} Code de classification TV parental
+     */
     rating;
+    /**
+     * @type {Array<Picture>} Tableau des images uploadées par les membres
+     */
     pictures;
+    /**
+     * @type {Platforms} Plateformes de diffusion
+     */
     platforms;
+    /**
+     * @type {Array<Season>} Tableau des saisons de la série
+     */
     seasons;
+    /**
+     * @type {Showrunner}
+     */
     showrunner;
+    /**
+     * @type {Array<string>} Tableau des liens sociaux de la série
+     */
     social_links;
+    /**
+     * @type {string} Status de la série sur le compte du membre
+     */
     status;
+    /**
+     * @type {number} Identifiant TheTVDB de la série
+     */
     thetvdb_id;
     /***************************************************/
     /*                      METHODS                    */
     /***************************************************/
+    /**
+     * Constructeur de la classe Show
+     * @param   {Obj} data - Les données du média
+     * @param   {JQuery<HTMLElement>} element - Le DOMElement associé au média
+     * @returns {Media}
+     */
     constructor(data, element) {
-        super(data);
-        this.elt = element;
+        super(data, element);
         return this.fill(data)._init();
     }
     /**
@@ -3132,7 +3291,7 @@ class Show extends Media {
      * @returns {void}
      */
     addShowClick(trigEpisode = false) {
-        const _this = this;
+        const self = this;
         const vignettes = $('#episodes .slide__image');
         // Vérifier si le membre a ajouter la série à son compte
         if (!this.in_account) {
@@ -3156,14 +3315,14 @@ class Show extends Media {
                     console.groupCollapsed('AddShow');
                 const done = function () {
                     // On met à jour les boutons Archiver et Favori
-                    changeBtnAdd(_this);
+                    changeBtnAdd(self);
                     // On met à jour le bloc du prochain épisode à voir
-                    _this.updateNextEpisode(function () {
+                    self.updateNextEpisode(function () {
                         if (Base.debug)
                             console.groupEnd();
                     });
                 };
-                _this.addToAccount()
+                self.addToAccount()
                     .then(() => done(), err => {
                     if (err && err.code !== undefined && err.code === 2003) {
                         done();
@@ -3221,14 +3380,10 @@ class Show extends Media {
             // On remplace le bouton Ajouter par les boutons Archiver et Favoris
             const divs = jQuery('#reactjs-show-actions > div');
             if (divs.length === 1) {
-                jQuery('#reactjs-show-actions').remove();
-                let $container = jQuery('.blockInformations__actions'), method = 'prepend';
-                // Si le bouton VOD est présent, on place les boutons après
-                if ($('#dropdownWatchOn').length > 0) {
-                    $container = jQuery('#dropdownWatchOn').parent();
-                    method = 'after';
-                }
-                $container[method](`
+                const $reactjs = jQuery('#reactjs-show-actions');
+                $reactjs
+                    .empty()
+                    .append(`
                         <div class="displayFlex alignItemsFlexStart"
                                 id="reactjs-show-actions"
                                 data-show-id="${show.id}"
@@ -3257,7 +3412,6 @@ class Show extends Media {
                             <div class="label">${Base.trans('show.button.favorite.label')}</div>
                             </div>
                         </div>`);
-                show.elt = jQuery('reactjs-show-actions');
                 // On ofusque l'image des épisodes non-vu
                 let vignette;
                 for (let v = 0; v < vignettes.length; v++) {
@@ -3274,11 +3428,11 @@ class Show extends Media {
                             ${$stars.html()}
                         </span>
                     </button>`);
-                _this.elt = $('.blockInformations');
-                _this.addNumberVoters();
+                self.elt = $('.blockInformations');
+                self.addNumberVoters();
             }
-            _this.addEventBtnsArchiveAndFavoris();
-            _this.deleteShowClick();
+            self.addEventBtnsArchiveAndFavoris();
+            self.deleteShowClick();
         }
         if (trigEpisode) {
             this.update(true).then(show => {
@@ -3543,13 +3697,17 @@ class Movie extends Media {
     tagline;
     tmdb_id;
     trailer;
-    url;
     /***************************************************/
     /*                      METHODS                    */
     /***************************************************/
+    /**
+     * Constructeur de la classe Movie
+     * @param   {Obj} data - Les données du média
+     * @param   {JQuery<HTMLElement>} element - Le DOMElement associé au média
+     * @returns {Media}
+     */
     constructor(data, element) {
-        super(data);
-        this.elt = element;
+        super(data, element);
         return this.fill(data);
     }
     /**
@@ -3565,6 +3723,8 @@ class Movie extends Media {
         }
         data.description = data.synopsis;
         delete data.synopsis;
+        data.slug = data.url;
+        delete data.url;
         this.backdrop = data.backdrop;
         this.director = data.director;
         this.original_release_date = new Date(data.original_release_date);
@@ -3577,7 +3737,6 @@ class Movie extends Media {
         this.tagline = data.tagline;
         this.tmdb_id = parseInt(data.tmdb_id);
         this.trailer = data.trailer;
-        this.url = data.url;
         this.mediaType = { singular: MediaType.movie, plural: 'movies', className: Movie };
         super.fill(data);
         return this.save();
@@ -3858,9 +4017,10 @@ class Season {
         if (Base.debug)
             console.log('Season updateRender', { lenEpisodes, lenSpecials, lenNotSpecials, lenSeen });
         /**
-         * Change la saison courante pour la suivante
+         * Met à jour la vignette de la saison courante
+         * et change de saison, si il y en a une suivante
          */
-        const moveSeason = function () {
+        const seasonViewed = function () {
             // On check la saison
             self._elt.find('.slide__image').prepend('<div class="checkSeen"></div>');
             self._elt
@@ -3879,7 +4039,7 @@ class Season {
         };
         // Si tous les épisodes de la saison ont été vus
         if (lenSeen === lenEpisodes) {
-            moveSeason();
+            seasonViewed();
         }
         // Si tous les épisodes de la saison, hors spéciaux, ont été vus
         else if (lenSpecials > 0 && lenSeen === lenNotSpecials) {
@@ -3888,7 +4048,7 @@ class Season {
                 title: 'Fin de la saison',
                 text: 'Tous les épisodes de la saison, hors spéciaux, ont été vu.<br/>Voulez-vous passer à la saison suivante ?',
                 callback_yes: () => {
-                    moveSeason();
+                    seasonViewed();
                 },
                 callback_no: () => {
                     return true;
@@ -4389,6 +4549,10 @@ class Similar extends Media {
                 data.description = data.synopsis;
                 delete data.synopsis;
             }
+            if (data.url !== undefined) {
+                data.slug = data.url;
+                delete data.url;
+            }
             this.backdrop = data.backdrop;
             this.director = data.director;
             this.original_release_date = new Date(data.original_release_date);
@@ -4401,7 +4565,6 @@ class Similar extends Media {
             this.tagline = data.tagline;
             this.tmdb_id = parseInt(data.tmdb_id);
             this.trailer = data.trailer;
-            this.url = data.url;
         }
         super.fill(data);
         return this;
