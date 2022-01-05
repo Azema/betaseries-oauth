@@ -5076,6 +5076,7 @@ class UpdateAuto {
             this._auto = false;
             this._interval = 0;
             this._exist = false;
+            this.changeColorBtn();
         }
         return this;
     }
