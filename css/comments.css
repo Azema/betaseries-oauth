@@ -33,6 +33,9 @@
     line-height: 15px;
     word-break: break-word;
 }
+.comments .comment .mainTime {
+    vertical-align: middle;
+}
 .comment .btnThumb:hover:nth-child(1) .SvgLikeStroke {
     stroke: var(--success);
 }
