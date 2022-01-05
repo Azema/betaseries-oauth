@@ -985,7 +985,7 @@ class CommentsBS {
                     <div>${comments.length} évaluation${comments.length > 1 ? 's' : ''}</div>
                     <div>Note moyenne: ${self._parent.objNote.mean.toFixed(2)}</div>
                     <div><table><tbody>`;
-            for (let i = 1; i <= 5; i++) {
+            for (let i = 5; i > 0; i--) {
                 template += buildline(i, notes);
             }
             return template + '</tbody></table></div>';
