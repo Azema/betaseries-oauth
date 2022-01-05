@@ -695,6 +695,7 @@ class CommentsBS {
                             $textarea.val('');
                             $textarea.siblings('button').attr('disabled', 'true');
                             $textarea.parents('.comments').prepend(CommentBS.getTemplateComment(comment));
+                            $textarea.parents('.comments').find(`.comment[data-comment-id="${comment.id}"]`).get(0).scrollIntoView();
                             self.addToPage(comment.id);
                         }
                     });
@@ -1191,7 +1192,7 @@ class CommentBS {
                                     Le ${ /* eslint-disable-line no-undef */typeof moment !== 'undefined' ? moment(comment.date).format('DD/MM/YYYY HH:mm') : comment.date.toString()}
                                 </a>
                                 <span class="stars" title="${comment.user_note} / 5">
-                                    ${Note.renderStars(comment.user_note)}
+                                    ${Note.renderStars(comment.user_note, comment.user_id === Base.userId ? 'blue' : '')}
                                 </span>
                                 <div class="it_iv">
                                     <button type="button" class="btn-reset btnToggleOptions">
