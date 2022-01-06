@@ -3027,17 +3027,23 @@ class Show extends Media {
      * @return {Promise<Show>} Promise of show
      */
     addToAccount() {
-        const _this = this;
+        const self = this;
         if (this.in_account)
-            return new Promise(resolve => resolve(_this));
+            return new Promise(resolve => resolve(self));
         return new Promise((resolve, reject) => {
-            Base.callApi('POST', 'shows', 'show', { id: _this.id })
+            Base.callApi('POST', 'shows', 'show', { id: self.id })
                 .then(data => {
-                _this.fill(data.show);
-                _this._callListeners(EventTypes.ADD);
-                _this.save();
-                resolve(_this);
+                self.fill(data.show);
+                self._callListeners(EventTypes.ADD);
+                self.save();
+                resolve(self);
             }, err => {
+                // Si la série est déjà sur le compte du membre
+                if (err.code !== undefined && err.code === 2003) {
+                    self.update(true).then((show) => {
+                        return resolve(show);
+                    });
+                }
                 reject(err);
             });
         });
@@ -3047,17 +3053,23 @@ class Show extends Media {
      * @return {Promise<Show>} Promise of show
      */
     removeFromAccount() {
-        const _this = this;
+        const self = this;
         if (!this.in_account)
-            return new Promise(resolve => resolve(_this));
+            return new Promise(resolve => resolve(self));
         return new Promise((resolve, reject) => {
-            Base.callApi('DELETE', 'shows', 'show', { id: _this.id })
+            Base.callApi('DELETE', 'shows', 'show', { id: self.id })
                 .then(data => {
-                _this.fill(data.show);
-                _this._callListeners(EventTypes.REMOVE);
-                _this.save();
-                resolve(this);
+                self.fill(data.show);
+                self._callListeners(EventTypes.REMOVE);
+                self.save();
+                resolve(self);
             }, err => {
+                // Si la série n'est plus sur le compte du membre
+                if (err.code !== undefined && err.code === 2004) {
+                    self.update(true).then((show) => {
+                        return resolve(show);
+                    });
+                }
                 reject(err);
             });
         });
