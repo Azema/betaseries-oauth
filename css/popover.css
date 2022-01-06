@@ -1,3 +1,6 @@
+#comments .popover {
+  cursor: initial;
+}
 #episodes .slide__image .popover.bs-popover-right {
   left: 250px;
 }

@@ -1,3 +1,6 @@
+#comments h2.blockTitle {
+    cursor: pointer;
+}
 .comment.it_ix {
     line-height: initial;
     height: auto;
