@@ -144,11 +144,18 @@ class Character {
 /* interface JQuery<TElement = HTMLElement> extends Iterable<TElement> {
     popover?(params: any): this;
 } */
+var OrderComments;
+(function (OrderComments) {
+    OrderComments["DESC"] = "desc";
+    OrderComments["ASC"] = "asc";
+})(OrderComments = OrderComments || (OrderComments = {}));
+;
 var MediaStatusComments;
 (function (MediaStatusComments) {
     MediaStatusComments["OPEN"] = "open";
     MediaStatusComments["CLOSED"] = "close";
 })(MediaStatusComments = MediaStatusComments || (MediaStatusComments = {}));
+;
 class CommentsBS {
     /*************************************************/
     /*                  STATIC                       */
@@ -172,7 +179,7 @@ class CommentsBS {
         };
         return Base.callApi(HTTP_VERBS.POST, 'comments', 'comment', params)
             .then((data) => {
-            const comment = new CommentBS(data.comment, media.comments, media);
+            const comment = new CommentBS(data.comment, media.comments);
             media.comments.addComment(comment);
             media.comments.nbComments++;
             return comment;
@@ -185,13 +192,38 @@ class CommentsBS {
     /*************************************************/
     /*                  PROPERTIES                   */
     /*************************************************/
-    _parent;
+    /**
+     * @type {Array<CommentBS>} Tableau des commentaires
+     */
     comments;
+    /**
+     * @type {number} Nombre total de commentaires du média
+     */
     nbComments;
+    /**
+     * @type {boolean} Indique si le membre à souscrit aux alertes commentaires du média
+     */
     is_subscribed;
+    /**
+     * @type {string} Indique si les commentaires sont ouverts ou fermés
+     */
     status;
+    /**
+     * @type {Base} Le média auquel sont associés les commentaires
+     * @private
+     */
+    _parent;
+    /**
+     * @type {Array<CustomEvent>} Tableau des events déclarés par la fonction loadEvents
+     * @private
+     */
     _events;
+    /**
+     * @type {object} Objet contenant les fonctions à l'écoute des changements
+     * @private
+     */
     _listeners;
+    _order;
     /*************************************************/
     /*                  METHODS                      */
     /*************************************************/
@@ -201,12 +233,13 @@ class CommentsBS {
         this.is_subscribed = false;
         this.status = MediaStatusComments.OPEN;
         this.nbComments = nbComments;
+        this._order = OrderComments.DESC;
         this._initListeners();
     }
     /**
      * Initialize le tableau des écouteurs d'évènements
      * @returns {Base}
-     * @sealed
+     * @private
      */
     _initListeners() {
         this._listeners = {};
@@ -221,7 +254,6 @@ class CommentsBS {
      * @param  {EventTypes} name - Le type d'évenement
      * @param  {Function}   fn   - La fonction à appeler
      * @return {Base} L'instance du média
-     * @sealed
      */
     addListener(name, fn) {
         // On vérifie que le type d'event est pris en charge
@@ -239,7 +271,6 @@ class CommentsBS {
      * @param  {string}   name - Le type d'évenement
      * @param  {Function} fn   - La fonction qui était appelée
      * @return {Base} L'instance du média
-     * @sealed
      */
     removeListener(name, fn) {
         if (this._listeners[name] !== undefined) {
@@ -254,7 +285,6 @@ class CommentsBS {
      * Appel les listeners pour un type d'évenement
      * @param  {EventTypes} name - Le type d'évenement
      * @return {Base} L'instance du média
-     * @sealed
      */
     _callListeners(name) {
         const event = new CustomEvent('betaseries', { detail: { name: name } });
@@ -273,12 +303,29 @@ class CommentsBS {
         return this.comments.length;
     }
     /**
+     * Retourne le média auxquels sont associés les commentaires
+     * @readonly
+     */
+    get media() {
+        return this._parent;
+    }
+    get order() {
+        return this._order;
+    }
+    set order(o) {
+        this._order = o;
+    }
+    /**
      * Récupère les commentaires du média sur l'API
      * @param   {number} [nbpp=50] - Le nombre de commentaires à récupérer
      * @param   {number} [since=0] - L'identifiant du dernier commentaire reçu
+     * @param   {OrderComments} [order='desc'] - Ordre de tri des commentaires
      * @returns {Promise<CommentsBS>}
      */
-    fetchComments(nbpp = 50, since = 0) {
+    fetchComments(nbpp = 50, since = 0, order = OrderComments.DESC) {
+        if (order !== this._order) {
+            this.order = order;
+        }
         const self = this;
         return new Promise((resolve, reject) => {
             let params = {
@@ -286,7 +333,7 @@ class CommentsBS {
                 id: self._parent.id,
                 nbpp: nbpp,
                 replies: 0,
-                order: 'desc'
+                order: self.order
             };
             if (since > 0) {
                 params.since_id = since;
@@ -319,11 +366,12 @@ class CommentsBS {
      * @returns {CommentsBS}
      */
     addComment(data) {
+        const method = this._order === OrderComments.DESC ? Array.prototype.unshift : Array.prototype.push;
         if (data instanceof CommentBS) {
-            this.comments.push(data);
+            method.call(this.comments, data);
         }
         else {
-            this.comments.push(new CommentBS(data, this, this._parent));
+            method.call(this.comments, new CommentBS(data, this));
         }
         return this;
     }
@@ -409,14 +457,18 @@ class CommentsBS {
     /**
      * Retourne les réponses d'un commentaire
      * @param   {number} commentId - Identifiant du commentaire original
+     * @param   {OrderComments} [order='desc'] - Ordre de tri des réponses
      * @returns {Promise<Array<CommentBS>>} Tableau des réponses
      */
-    async fetchReplies(commentId) {
-        const data = await Base.callApi(HTTP_VERBS.GET, 'comments', 'replies', { id: commentId, order: 'desc' });
+    async fetchReplies(commentId, order = OrderComments.DESC) {
+        if (order !== this.order) {
+            this.order = order;
+        }
+        const data = await Base.callApi(HTTP_VERBS.GET, 'comments', 'replies', { id: commentId, order: this.order });
         const replies = new Array();
         if (data.comments) {
             for (let c = 0; c < data.comments.length; c++) {
-                replies.push(new CommentBS(data.comments[c], this, this._parent));
+                replies.push(new CommentBS(data.comments[c], this));
             }
         }
         return replies;
@@ -596,7 +648,7 @@ class CommentsBS {
          *  - btnDownVote: Voter contre ce commentaire
          */
         const $btnThumb = $container.find('.comments .comment .btnThumb');
-        $btnThumb.click((e) => {
+        $btnThumb.click(async (e) => {
             e.stopPropagation();
             e.preventDefault();
             if (!Base.userIdentified()) {
@@ -619,7 +671,7 @@ class CommentsBS {
                 }
                 else {
                     const cmtParent = this.getComment(parentId);
-                    comment = cmtParent.getReply(commentId);
+                    comment = await cmtParent.getReply(commentId);
                 }
             }
             else {
@@ -695,7 +747,12 @@ class CommentsBS {
                             $textarea.val('');
                             $textarea.siblings('button').attr('disabled', 'true');
                             const $comments = $textarea.parents('.writing').prev('.comments');
-                            $comments.prepend(CommentBS.getTemplateComment(comment));
+                            if (this.order === OrderComments.DESC) {
+                                $comments.prepend(CommentBS.getTemplateComment(comment));
+                            }
+                            else {
+                                $comments.append(CommentBS.getTemplateComment(comment));
+                            }
                             $comments.find(`.comment[data-comment-id="${comment.id}"]`).get(0).scrollIntoView();
                             self.addToPage(comment.id);
                         }
@@ -768,7 +825,7 @@ class CommentsBS {
         /**
          * Permet de créer une réponse à un commentaire
          */
-        $btnResponse.click((e) => {
+        $btnResponse.click(async (e) => {
             e.stopPropagation();
             e.preventDefault();
             if (!Base.userIdentified()) {
@@ -791,7 +848,7 @@ class CommentsBS {
                 }
                 else {
                     const cmtParent = this.getComment(parentId);
-                    comment = cmtParent.getReply(commentId);
+                    comment = await cmtParent.getReply(commentId);
                 }
             }
             else {
@@ -1091,12 +1148,16 @@ class CommentBS {
      * ???
      */
     user_rank;
+    /**
+     * @type {CommentsBS} La collection de commentaires
+     */
     _parent;
-    _media;
+    /**
+     * @type {Array<CustomEvent>} Liste des events déclarés par la fonction loadEvents
+     */
     _events;
-    constructor(data, parent, media) {
+    constructor(data, parent) {
         this._parent = parent;
-        this._media = media;
         this.id = parseInt(data.id, 10);
         this.reference = data.reference;
         this.type = data.type;
@@ -1117,6 +1178,22 @@ class CommentBS {
         this.replies = new Array();
         this.from_admin = data.from_admin;
         this.user_rank = data.user_rank;
+    }
+    /**
+     * Récupère les réponses du commentaire
+     * @returns {Promise<CommentBS>}
+     */
+    async fetchReplies() {
+        if (this.nbReplies <= 0)
+            return this;
+        const data = await Base.callApi(HTTP_VERBS.GET, 'comments', 'replies', { id: this.id, order: 'desc' });
+        this.replies = new Array();
+        if (data.comments) {
+            for (let c = 0; c < data.comments.length; c++) {
+                this.replies.push(new CommentBS(data.comments[c], this._parent));
+            }
+        }
+        return this;
     }
     /**
      * Indique si le commentaire est le premier de la liste
@@ -1284,9 +1361,12 @@ class CommentBS {
      * @param   {number} commentId L'identifiant de la réponse
      * @returns {boolean}
      */
-    isReply(commentId) {
-        if (this.replies.length <= 0)
+    async isReply(commentId) {
+        if (this.replies.length <= 0 && this.nbReplies <= 0)
             return false;
+        else if (this.replies.length <= 0) {
+            await this.fetchReplies();
+        }
         for (let r = 0; r < this.replies.length; r++) {
             if (this.replies[r].id == commentId) {
                 return true;
@@ -1297,9 +1377,14 @@ class CommentBS {
     /**
      * Retourne la réponse correspondant à l'identifiant fournit
      * @param   {number} commentId L'identifiant de la réponse
-     * @returns {CommentBS} La réponse
+     * @returns {CommentBS | void} La réponse
      */
-    getReply(commentId) {
+    async getReply(commentId) {
+        if (this.replies.length <= 0 && this.nbReplies <= 0)
+            return null;
+        else if (this.replies.length <= 0) {
+            await this.fetchReplies();
+        }
         for (let r = 0; r < this.replies.length; r++) {
             if (this.replies[r].id == commentId) {
                 return this.replies[r];
@@ -1362,7 +1447,7 @@ class CommentBS {
                 return;
             }
             const $btn = $(e.currentTarget);
-            let params = { type: self._media.mediaType.singular, id: self._media.id };
+            let params = { type: self._parent.media.mediaType.singular, id: self._parent.media.id };
             if ($btn.hasClass('active')) {
                 Base.callApi(HTTP_VERBS.DELETE, 'comments', 'subscription', params)
                     .then((data) => {
@@ -1456,14 +1541,14 @@ class CommentBS {
                 return;
             }
             Base.callApi(verb, 'comments', 'thumb', params)
-                .then((data) => {
+                .then(async (data) => {
                 if (commentId == self.id) {
                     self.thumbs = parseInt(data.comment.thumbs, 10);
                     self.thumbed = data.comment.thumbed ? parseInt(data.comment.thumbed, 10) : 0;
                     self.updateRenderThumbs(vote);
                 }
-                else if (self.isReply(commentId)) {
-                    const reply = self.getReply(commentId);
+                else if (await self.isReply(commentId)) {
+                    const reply = await self.getReply(commentId);
                     reply.thumbs = parseInt(data.comment.thumbs, 10);
                     reply.thumbed = data.comment.thumbed ? parseInt(data.comment.thumbed, 10) : 0;
                     reply.updateRenderThumbs(vote);
@@ -1508,7 +1593,7 @@ class CommentBS {
          * On envoie la réponse à ce commentaire à l'API
          */
         const $btnSend = $container.find('.sendComment');
-        $btnSend.click((e) => {
+        $btnSend.click(async (e) => {
             e.stopPropagation();
             e.preventDefault();
             if (!Base.userIdentified()) {
@@ -1528,7 +1613,7 @@ class CommentBS {
                     });
                 }
                 else if (replyId) {
-                    const reply = self.getReply(replyId);
+                    const reply = await self.getReply(replyId);
                     if (reply) {
                         reply.reply(msg).then(comment => {
                             if (comment) {
@@ -1543,7 +1628,7 @@ class CommentBS {
                     }
                 }
                 else {
-                    CommentsBS.sendComment(self._media, msg).then((comment) => {
+                    CommentsBS.sendComment(self._parent.media, msg).then((comment) => {
                         self._parent.addToPage(comment.id);
                     });
                 }
@@ -1606,7 +1691,7 @@ class CommentBS {
         });
         this._events.push({ elt: $btnReplies, event: 'click' });
         const $btnResponse = $container.find('.btnResponse');
-        $btnResponse.click((e) => {
+        $btnResponse.click(async (e) => {
             e.stopPropagation();
             e.preventDefault();
             if (!Base.userIdentified()) {
@@ -1626,7 +1711,7 @@ class CommentBS {
                 }
                 else {
                     const cmtParent = self._parent.getComment(parentId);
-                    comment = cmtParent.getReply(commentId);
+                    comment = await cmtParent.getReply(commentId);
                 }
             }
             else {
@@ -1699,8 +1784,8 @@ class CommentBS {
         $contentReact.append(templateLoader + '</div>');
         showPopup();
         let template = `
-            <div data-media-type="${self._media.mediaType.singular}"
-                            data-media-id="${self._media.id}"
+            <div data-media-type="${self._parent.media.mediaType.singular}"
+                            data-media-id="${self._parent.media.id}"
                             class="displayFlex flexDirectionColumn"
                             style="margin-top: 2px; min-height: 0">`;
         if (Base.userIdentified()) {
@@ -1752,14 +1837,14 @@ class CommentBS {
     reply(text) {
         const _this = this;
         const params = {
-            type: this._media.mediaType.singular,
-            id: this._media.id,
+            type: this._parent.media.mediaType.singular,
+            id: this._parent.media.id,
             in_reply_to: this.inner_id,
             text: text
         };
         return Base.callApi(HTTP_VERBS.POST, 'comments', 'comment', params)
             .then((data) => {
-            const comment = new CommentBS(data.comment, _this._parent, _this._media);
+            const comment = new CommentBS(data.comment, _this._parent);
             _this.replies.push(comment);
             // _this._parent.comments.push(comment);
             return comment;
@@ -1952,7 +2037,7 @@ class Next {
     constructor(data) {
         this.id = (data.id !== undefined) ? parseInt(data.id, 10) : NaN;
         this.code = data.code;
-        this.date = new Date(data.date);
+        this.date = new Date(data.date) || null;
         this.title = data.title;
         this.image = data.image;
     }
@@ -1974,24 +2059,24 @@ class User {
     tags;
     twitter;
     constructor(data) {
-        this.archived = data.archived || false;
-        this.downloaded = data.downloaded || false;
-        this.favorited = data.favorited || false;
+        this.archived = !!data.archived || false;
+        this.downloaded = !!data.downloaded || false;
+        this.favorited = !!data.favorited || false;
         this.friends_want_to_watch = data.friends_want_to_watch || [];
         this.friends_watched = data.friends_watched || [];
-        this.hidden = data.hidden || false;
+        this.hidden = !!data.hidden || false;
         this.last = data.last || '';
-        this.mail = data.mail || false;
+        this.mail = !!data.mail || false;
         this.next = null;
         if (data.next !== undefined) {
             this.next = new Next(data.next);
         }
         this.profile = data.profile || '';
         this.remaining = data.remaining || 0;
-        this.seen = data.seen || false;
+        this.seen = !!data.seen || false;
         this.status = (data.status !== undefined) ? parseInt(data.status, 10) : 0;
         this.tags = data.tags || '';
-        this.twitter = data.twitter || false;
+        this.twitter = !!data.twitter || false;
     }
 }
 
