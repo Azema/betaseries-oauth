@@ -1,4 +1,4 @@
-/*! betaseries_userscript - v1.1.6 - 2022-01-05
+/*! betaseries_userscript - v1.1.6 - 2022-01-06
  * https://github.com/Azema/betaseries
  * Copyright (c) 2022 Azema;
  * Licensed Apache-2.0
@@ -694,8 +694,9 @@ class CommentsBS {
                         if (comment) {
                             $textarea.val('');
                             $textarea.siblings('button').attr('disabled', 'true');
-                            $textarea.parents('.comments').prepend(CommentBS.getTemplateComment(comment));
-                            $textarea.parents('.comments').find(`.comment[data-comment-id="${comment.id}"]`).get(0).scrollIntoView();
+                            const $comments = $textarea.parents('.writing').prev('.comments');
+                            $comments.prepend(CommentBS.getTemplateComment(comment));
+                            $comments.find(`.comment[data-comment-id="${comment.id}"]`).get(0).scrollIntoView();
                             self.addToPage(comment.id);
                         }
                     });
