@@ -182,6 +182,7 @@ class CommentsBS {
             const comment = new CommentBS(data.comment, media.comments);
             media.comments.addComment(comment);
             media.comments.nbComments++;
+            media.comments.is_subscribed = true;
             return comment;
         })
             .catch(err => {
@@ -223,6 +224,9 @@ class CommentsBS {
      * @private
      */
     _listeners;
+    /**
+     * @type {OrderComments} Ordre de tri des commentaires et des réponses
+     */
     _order;
     /*************************************************/
     /*                  METHODS                      */
@@ -309,9 +313,17 @@ class CommentsBS {
     get media() {
         return this._parent;
     }
+    /**
+     * Retourne l'ordre de tri des commentaires
+     * @returns {OrderComments}
+     */
     get order() {
         return this._order;
     }
+    /**
+     * Définit l'ordre de tri des commentaires
+     * @param {OrderComments} o - Ordre de tri
+     */
     set order(o) {
         this._order = o;
     }
@@ -362,7 +374,7 @@ class CommentsBS {
     }
     /**
      * Ajoute un commentaire à la collection
-     * @param   {Obj} data - Les données du commentaire provenant de l'API
+     * @param   {any} data - Les données du commentaire provenant de l'API
      * @returns {CommentsBS}
      */
     addComment(data) {
@@ -373,6 +385,7 @@ class CommentsBS {
         else {
             method.call(this.comments, new CommentBS(data, this));
         }
+        this.nbComments++;
         return this;
     }
     /**
@@ -736,7 +749,7 @@ class CommentsBS {
                 let comment;
                 if ($textarea.data('replyTo')) {
                     comment = self.getComment(parseInt($textarea.data('replyTo'), 10));
-                    comment.reply($textarea.val());
+                    comment.sendReply($textarea.val());
                     $textarea.val('');
                     $textarea.siblings('button').attr('disabled', 'true');
                 }
@@ -1015,6 +1028,8 @@ class CommentsBS {
                 </div>
             </div>`;
         jQuery('#comments .slides_flex').prepend(template);
+        // On met à jour le nombre de commentaires
+        jQuery('#comments .blockTitle').text(jQuery('#comments .blockTitle').text().replace(/\d+/, this.nbComments.toString()));
         this._callListeners(EventTypes.ADD);
     }
     /**
@@ -1181,12 +1196,13 @@ class CommentBS {
     }
     /**
      * Récupère les réponses du commentaire
+     * @param   {OrderComments} order - Ordre de tri des réponses
      * @returns {Promise<CommentBS>}
      */
-    async fetchReplies() {
+    async fetchReplies(order = OrderComments.DESC) {
         if (this.nbReplies <= 0)
             return this;
-        const data = await Base.callApi(HTTP_VERBS.GET, 'comments', 'replies', { id: this.id, order: 'desc' });
+        const data = await Base.callApi(HTTP_VERBS.GET, 'comments', 'replies', { id: this.id, order: order });
         this.replies = new Array();
         if (data.comments) {
             for (let c = 0; c < data.comments.length; c++) {
@@ -1605,7 +1621,7 @@ class CommentBS {
                 const replyId = parseInt($textarea.data('replyTo'), 10);
                 const msg = $textarea.val();
                 if (replyId && replyId == self.id) {
-                    self.reply(msg).then(comment => {
+                    self.sendReply(msg).then(comment => {
                         if (comment) {
                             let template = CommentBS.getTemplateComment(comment);
                             $container.find('.comments').append(template);
@@ -1615,7 +1631,7 @@ class CommentBS {
                 else if (replyId) {
                     const reply = await self.getReply(replyId);
                     if (reply) {
-                        reply.reply(msg).then(comment => {
+                        reply.sendReply(msg).then(comment => {
                             if (comment) {
                                 let template = CommentBS.getTemplateComment(comment);
                                 $container.find(`.comments .comment[data-comment-id="${reply.id}"]`)
@@ -1834,8 +1850,8 @@ class CommentBS {
      * @param   {string} text        Le texte de la réponse
      * @returns {Promise<void | CommentBS>}
      */
-    reply(text) {
-        const _this = this;
+    sendReply(text) {
+        const self = this;
         const params = {
             type: this._parent.media.mediaType.singular,
             id: this._parent.media.id,
@@ -1844,9 +1860,9 @@ class CommentBS {
         };
         return Base.callApi(HTTP_VERBS.POST, 'comments', 'comment', params)
             .then((data) => {
-            const comment = new CommentBS(data.comment, _this._parent);
-            _this.replies.push(comment);
-            // _this._parent.comments.push(comment);
+            const comment = new CommentBS(data.comment, self._parent);
+            const method = self._parent.order === OrderComments.DESC ? Array.prototype.unshift : Array.prototype.push;
+            method.call(self.replies, comment);
             return comment;
         })
             .catch(err => {
