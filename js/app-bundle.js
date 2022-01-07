@@ -1,4 +1,4 @@
-/*! betaseries_userscript - v1.1.6 - 2022-01-06
+/*! betaseries_userscript - v1.1.6 - 2022-01-07
  * https://github.com/Azema/betaseries
  * Copyright (c) 2022 Azema;
  * Licensed Apache-2.0
@@ -2958,11 +2958,30 @@ class Show extends Media {
      * @param  {Obj} params - Critères de recherche de la série
      * @param  {boolean} [force=false] - Indique si on utilise le cache ou non
      * @return {Promise<Show>}
+     * @private
      */
     static _fetch(params, force = false) {
         return new Promise((resolve, reject) => {
             Base.callApi('GET', 'shows', 'display', params, force)
                 .then(data => resolve(new Show(data.show, jQuery('.blockInformations'))))
+                .catch(err => reject(err));
+        });
+    }
+    /**
+     * Méthode static servant à récupérer plusieurs séries sur l'API BS
+     * @param  {Array<number>} ids - Les identifiants des séries recherchées
+     * @return {Promise<Array<Show>>}
+     */
+    static fetchMulti(ids) {
+        return new Promise((resolve, reject) => {
+            Base.callApi(HTTP_VERBS.GET, 'shows', 'display', { id: ids.join(',') })
+                .then((data) => {
+                const shows = Array();
+                for (let s = 0; s < data.shows.length; s++) {
+                    shows.push(new Show(data.shows[s], jQuery('.blockInformations')));
+                }
+                resolve(shows);
+            })
                 .catch(err => reject(err));
         });
     }
