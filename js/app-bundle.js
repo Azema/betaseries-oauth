@@ -292,7 +292,7 @@ class CommentsBS {
      */
     _callListeners(name) {
         const event = new CustomEvent('betaseries', { detail: { name: name } });
-        if (this._listeners[name] !== undefined) {
+        if (this._listeners[name] !== undefined && this._listeners[name].length > 0) {
             for (let l = 0; l < this._listeners[name].length; l++) {
                 this._listeners[name][l].call(this, event, this);
             }
@@ -2605,7 +2605,7 @@ class Base {
      */
     _callListeners(name) {
         const event = new CustomEvent('betaseries', { detail: { name: name } });
-        if (this._listeners[name] !== undefined) {
+        if (this._listeners[name] !== undefined && this._listeners[name].length > 0) {
             if (Base.debug)
                 console.log('call %d Listeners on event %s', this._listeners[name].length, name);
             for (let l = 0; l < this._listeners[name].length; l++) {
