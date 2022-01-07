@@ -293,6 +293,8 @@ class CommentsBS {
     _callListeners(name) {
         const event = new CustomEvent('betaseries', { detail: { name: name } });
         if (this._listeners[name] !== undefined && this._listeners[name].length > 0) {
+            if (Base.debug)
+                console.log('Comments call %d Listeners on event %s', this._listeners[name].length, name);
             for (let l = 0; l < this._listeners[name].length; l++) {
                 this._listeners[name][l].call(this, event, this);
             }
@@ -378,7 +380,9 @@ class CommentsBS {
      * @returns {CommentsBS}
      */
     addComment(data) {
-        const method = this._order === OrderComments.DESC ? Array.prototype.unshift : Array.prototype.push;
+        const method = this.order == OrderComments.DESC ? Array.prototype.unshift : Array.prototype.push;
+        if (Base.debug)
+            console.log('addComment order: %s - method: %s', this.order, method.name);
         if (data instanceof CommentBS) {
             method.call(this.comments, data);
         }
@@ -1588,8 +1592,7 @@ class CommentBS {
          * On affiche/masque les options du commentaire
          */
         const $btnOptions = $container.find('.btnToggleOptions');
-        if (Base.debug)
-            console.log('Comment loadEvents toggleOptions.length', $btnOptions.length);
+        // if (Base.debug) console.log('Comment loadEvents toggleOptions.length', $btnOptions.length);
         $btnOptions.click((e) => {
             e.stopPropagation();
             e.preventDefault();
@@ -2607,7 +2610,7 @@ class Base {
         const event = new CustomEvent('betaseries', { detail: { name: name } });
         if (this._listeners[name] !== undefined && this._listeners[name].length > 0) {
             if (Base.debug)
-                console.log('call %d Listeners on event %s', this._listeners[name].length, name);
+                console.log('Base call %d Listeners on event %s', this._listeners[name].length, name);
             for (let l = 0; l < this._listeners[name].length; l++) {
                 this._listeners[name][l].call(this, event, this);
             }
