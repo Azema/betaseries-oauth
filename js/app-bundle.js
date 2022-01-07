@@ -2618,6 +2618,7 @@ class Base {
         }
         return this;
     }
+    init() { }
     /**
      * Sauvegarde l'objet en cache
      * @return {Base} L'instance du média
@@ -3105,13 +3106,13 @@ class Show extends Media {
      */
     constructor(data, element) {
         super(data, element);
-        return this.fill(data)._init();
+        return this.fill(data);
     }
     /**
      * Initialise l'objet lors de sa construction et après son remplissage
      * @returns {Show}
      */
-    _init() {
+    init() {
         // On gère l'ajout et la suppression de la série dans le compte utilisateur
         if (this.in_account) {
             this.deleteShowClick();
