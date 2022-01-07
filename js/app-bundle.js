@@ -2977,8 +2977,13 @@ class Show extends Media {
             Base.callApi(HTTP_VERBS.GET, 'shows', 'display', { id: ids.join(',') })
                 .then((data) => {
                 const shows = Array();
-                for (let s = 0; s < data.shows.length; s++) {
-                    shows.push(new Show(data.shows[s], jQuery('.blockInformations')));
+                if (ids.length > 1) {
+                    for (let s = 0; s < data.shows.length; s++) {
+                        shows.push(new Show(data.shows[s], jQuery('.blockInformations')));
+                    }
+                }
+                else {
+                    shows.push(new Show(data.show, jQuery('.blockInformations')));
                 }
                 resolve(shows);
             })
