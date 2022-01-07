@@ -359,7 +359,8 @@ class CommentsBS {
                         self.comments = new Array();
                     }
                     for (let c = 0; c < data.comments.length; c++) {
-                        self.addComment(data.comments[c]);
+                        self.comments.push(new CommentBS(data.comments[c], self));
+                        // self.addComment(data.comments[c]);
                     }
                 }
                 self.nbComments = parseInt(data.total, 10);
