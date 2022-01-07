@@ -2606,6 +2606,8 @@ class Base {
     _callListeners(name) {
         const event = new CustomEvent('betaseries', { detail: { name: name } });
         if (this._listeners[name] !== undefined) {
+            if (Base.debug)
+                console.log('call %d Listeners on event %s', this._listeners[name].length, name);
             for (let l = 0; l < this._listeners[name].length; l++) {
                 this._listeners[name][l].call(this, event, this);
             }
