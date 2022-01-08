@@ -1335,7 +1335,7 @@ class CommentBS {
         this.replies = new Array();
         if (data.comments) {
             for (let c = 0; c < data.comments.length; c++) {
-                this.replies.push(new CommentBS(data.comments[c], this._parent));
+                this.replies.push(new CommentBS(data.comments[c], this));
             }
         }
         return this;
@@ -2074,19 +2074,13 @@ class CommentBS {
         // Récupération des réponses sur l'API
         // On ajoute les réponses, par ordre décroissant à la template
         if (this.nbReplies > 0 && this.replies.length <= 0) {
-            const replies = await this.getCollectionComments().fetchReplies(this.id);
-            if (replies && replies.length > 0) {
-                this.replies = replies;
-            }
+            await this.fetchReplies();
         }
         const getTemplateReplies = async function (template, replies) {
             for (let r = 0; r < replies.length; r++) {
                 template += CommentBS.getTemplateComment(replies[r]);
                 if (replies[r].nbReplies > 0 && replies[r].replies.length <= 0) {
-                    const subReplies = await self.getCollectionComments().fetchReplies(replies[r].id);
-                    if (subReplies && subReplies.length > 0) {
-                        replies[r].replies = subReplies;
-                    }
+                    await replies[r].fetchReplies();
                 }
                 if (replies[r].nbReplies > 0) {
                     template += await getTemplateReplies(template, replies[r].replies);
