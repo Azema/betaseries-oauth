@@ -628,15 +628,15 @@ class CommentsBS {
                 }
                 const parentId = parseInt($parent.data('commentId'), 10);
                 if (commentId == parentId) {
-                    comment = this.getComment(commentId);
+                    comment = self.getComment(commentId);
                 }
                 else {
-                    const cmtParent = this.getComment(parentId);
+                    const cmtParent = self.getComment(parentId);
                     comment = await cmtParent.getReply(commentId);
                 }
             }
             else {
-                comment = this.getComment(commentId);
+                comment = self.getComment(commentId);
             }
             return comment;
         };
