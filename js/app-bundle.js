@@ -571,6 +571,8 @@ class CommentsBS {
                     // Si le commentaires à des réponses et qu'elles ne sont pas chargées
                     if (comment.nbReplies > 0 && comment.replies.length <= 0) {
                         // On récupère les réponses
+                        if (Base.debug)
+                            console.log('Comments render getTemplate fetchReplies');
                         comment.replies = await self.fetchReplies(comment.id);
                         // On ajoute un boutton pour afficher/masquer les réponses
                     }
@@ -587,7 +589,7 @@ class CommentsBS {
                             <span class="sr-only">Loading...</span>
                         </button>`;
                 }
-                template += '</div>';
+                template += '</div>'; // Close div.comments
                 if (self.isOpen() && Base.userIdentified()) {
                     template += CommentBS.getTemplateWriting();
                 }
@@ -1020,6 +1022,7 @@ class CommentsBS {
                 $contentReact.find('.loaderCmt').remove();
                 $contentReact.append(template);
                 $contentReact.fadeIn();
+                self.cleanEvents();
                 self.loadEvents($contentReact, nbCmts, { hidePopup, showPopup });
             });
         });
