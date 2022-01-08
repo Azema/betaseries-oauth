@@ -566,7 +566,7 @@ class CommentsBS {
                 template += '<div class="comments overflowYScroll">';
                 for (let c = 0; c < self.comments.length; c++) {
                     comment = self.comments[c];
-                    template += CommentBS.getTemplateComment(comment, true);
+                    template += CommentBS.getTemplateComment(comment);
                     // Si le commentaires à des réponses et qu'elles ne sont pas chargées
                     if (comment.nbReplies > 0 && comment.replies.length <= 0) {
                         // On récupère les réponses
@@ -576,7 +576,7 @@ class CommentsBS {
                         // On ajoute un boutton pour afficher/masquer les réponses
                     }
                     for (let r = 0; r < comment.replies.length; r++) {
-                        template += CommentBS.getTemplateComment(comment.replies[r], true);
+                        template += CommentBS.getTemplateComment(comment.replies[r]);
                     }
                 }
                 // On ajoute le bouton pour voir plus de commentaires
@@ -943,7 +943,7 @@ class CommentsBS {
                 let template = '', comment, firstCmtId = self.comments[oldLastCmtIndex + 1].id;
                 for (let c = oldLastCmtIndex + 1; c < self.comments.length; c++) {
                     comment = self.comments[c];
-                    template += CommentBS.getTemplateComment(comment, true);
+                    template += CommentBS.getTemplateComment(comment);
                     // Si le commentaires à des réponses et qu'elles ne sont pas chargées
                     if (comment.nbReplies > 0 && comment.replies.length <= 0) {
                         // On récupère les réponses
@@ -951,7 +951,7 @@ class CommentsBS {
                         // On ajoute un boutton pour afficher/masquer les réponses
                     }
                     for (let r = 0; r < comment.replies.length; r++) {
-                        template += CommentBS.getTemplateComment(comment.replies[r], true);
+                        template += CommentBS.getTemplateComment(comment.replies[r]);
                     }
                 }
                 $btn.before(template);
@@ -1392,7 +1392,7 @@ class CommentBS {
      * @param   {CommentBS} comment Le commentaire à afficher
      * @returns {string}
      */
-    static getTemplateComment(comment, all = false) {
+    static getTemplateComment(comment, sub = false) {
         let text = new Option(comment.text).innerHTML;
         if (/@\w+/.test(text)) {
             text = text.replace(/@(\w+)/g, '<a href="/membre/$1" class="mainLink mainLink--regular">@$1</a>');
@@ -1400,8 +1400,8 @@ class CommentBS {
         const spoiler = /\[spoiler\]/.test(text);
         let btnSpoiler = spoiler ? `<button type="button" class="btn-reset mainLink view-spoiler" style="vertical-align: 0px;">${Base.trans("comment.button.display_spoiler")}</button>` : '';
         // let classNames = {reply: 'iv_i5', actions: 'iv_i3', comment: 'iv_iz'};
-        let classNames = { reply: 'it_i3', actions: 'it_i1', comment: 'it_ix' };
-        let className = (comment.in_reply_to > 0) ? classNames.reply + ' reply' : '';
+        let classNames = { reply: 'it_i3', actions: 'it_i1', comment: 'it_ix', sub: 'it_i5' };
+        let className = (comment.in_reply_to > 0) ? (sub ? classNames.sub + ' reply sub' : classNames.reply + ' reply') : '';
         let btnToggleReplies = comment.nbReplies > 0 ? `
             <button type="button" class="btn-reset mainLink mainLink--regular toggleReplies" style="margin-top: 2px; margin-bottom: -3px;" data-toggle="1">
                 <span class="svgContainer" style="display: inline-flex; height: 16px; width: 16px;">
@@ -1422,6 +1422,9 @@ class CommentBS {
                 <button type="button" class="btn-reset mainLink btnDeleteComment">Supprimer</button>
             `;
         }
+        let btnResponse = `<button type="button" class="btn-reset mainLink mainLink--regular btnResponse" style="vertical-align: 0px;${!Base.userIdentified() ? 'display:none;' : ''}">${Base.trans("timeline.comment.reply")}</button>`;
+        if (sub)
+            btnResponse = '';
         return `
             <div class="comment ${className} positionRelative ${CommentBS.classNamesCSS.comment}" data-comment-id="${comment.id}" ${comment.in_reply_to > 0 ? 'data-comment-reply="' + comment.in_reply_to + '"' : ''} data-comment-inner="${comment.inner_id}">
                 <div class="media">
@@ -1457,7 +1460,7 @@ class CommentBS {
                                 </button>
                                 <strong class="mainLink thumbs" style="margin-left: 5px;">${comment.thumbs > 0 ? '+' + comment.thumbs : (comment.thumbs < 0) ? '-' + comment.thumbs : comment.thumbs}</strong>
                                 <span class="mainLink">&nbsp;∙&nbsp;</span>
-                                <button type="button" class="btn-reset mainLink mainLink--regular btnResponse" style="vertical-align: 0px;${!Base.userIdentified() ? 'display:none;' : ''}">${Base.trans("timeline.comment.reply")}</button>
+                                ${btnResponse}
                                 <a href="#c_1269819" class="mainTime">
                                     <span class="mainLink">&nbsp;∙&nbsp;</span>
                                     Le ${ /* eslint-disable-line no-undef */typeof moment !== 'undefined' ? moment(comment.date).format('DD/MM/YYYY HH:mm') : comment.date.toString()}
