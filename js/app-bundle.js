@@ -256,7 +256,8 @@ class CommentsBS {
             }
         };
         if (this.comments.length <= 0 && this.nbComments > 0) {
-            this.fetchComments(this.nbComments)
+            const $vignettes = jQuery('#comments .slides_flex .slide_flex');
+            this.fetchComments($vignettes.length)
                 .then(addCommentId);
         }
         else {
