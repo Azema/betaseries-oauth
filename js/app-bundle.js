@@ -413,6 +413,7 @@ class CommentsBS {
             method.call(this.comments, new CommentBS(data, this));
         }
         this.nbComments++;
+        this.media.nbComments++;
         return this;
     }
     /**
@@ -1087,7 +1088,7 @@ class CommentsBS {
             type: this.media.mediaType.singular,
             id: this.media.id,
             replies: 1,
-            nbpp: this.nbComments
+            nbpp: this.media.nbComments
         };
         return Base.callApi(HTTP_VERBS.GET, 'comments', 'comments', params)
             .then((data) => {
@@ -2652,6 +2653,7 @@ class Base {
     description;
     characters;
     comments;
+    nbComments;
     id;
     objNote;
     resource_url;
@@ -2684,21 +2686,14 @@ class Base {
                 this.characters.push(new Character(data.characters[c]));
             }
         }
-        const nbComments = data.comments ? parseInt(data.comments, 10) : 0;
-        this.comments = new CommentsBS(nbComments, this);
+        this.nbComments = data.comments ? parseInt(data.comments, 10) : 0;
+        this.comments = new CommentsBS(this.nbComments, this);
         this.objNote = (data.note) ? new Note(data.note, this) : new Note(data.notes, this);
         this.resource_url = data.resource_url;
         this.title = data.title;
         this.user = new User(data.user);
         this.description = data.description;
         return this;
-    }
-    /**
-     * Retourne le nombre de commentaires pour ce média sur l'API
-     * @readonly
-     */
-    get nbComments() {
-        return this.comments.nbComments;
     }
     /**
      * Initialize le tableau des écouteurs d'évènements
