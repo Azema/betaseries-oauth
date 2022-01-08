@@ -1398,7 +1398,7 @@ class CommentBS {
     static getTemplateComment(comment, all = false) {
         let text = new Option(comment.text).innerHTML;
         if (/@\w+/.test(text)) {
-            text.replace(/@(\w+)/g, '<a href="/membre/$1" class="mainLink mainLink--regular">@$1</a>');
+            text = text.replace(/@(\w+)/g, '<a href="/membre/$1" class="mainLink mainLink--regular">@$1</a>');
         }
         const spoiler = /\[spoiler\]/.test(text);
         let btnSpoiler = spoiler ? `<button type="button" class="btn-reset mainLink view-spoiler" style="vertical-align: 0px;">${Base.trans("comment.button.display_spoiler")}</button>` : '';
