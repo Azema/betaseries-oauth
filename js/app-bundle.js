@@ -428,6 +428,8 @@ class CommentsBS {
                 this.comments.splice(c, 1);
                 // retire le commentaire de la liste des commentaires
                 this.removeFromPage(cmtId);
+                this.nbComments--;
+                this.media.nbComments--;
                 this._callListeners('delete');
                 break;
             }
