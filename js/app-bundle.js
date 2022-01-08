@@ -2082,9 +2082,20 @@ class CommentBS {
                 this.replies = replies;
             }
         }
-        for (let r = this.replies.length - 1; r >= 0; r--) {
-            template += CommentBS.getTemplateComment(this.replies[r]);
-        }
+        const getTemplateReplies = async function (template, replies) {
+            for (let r = replies.length - 1; r >= 0; r--) {
+                template += CommentBS.getTemplateComment(replies[r]);
+                if (replies[r].nbReplies > 0) {
+                    const subReplies = await this.getCollectionComments().fetchReplies(replies[r].id);
+                    if (subReplies && subReplies.length > 0) {
+                        replies[r].replies = subReplies;
+                        template += getTemplateReplies(template, subReplies);
+                    }
+                }
+            }
+            return template;
+        };
+        template += await getTemplateReplies(template, this.replies);
         template += '</div>';
         if (this.getCollectionComments().isOpen() && Base.userIdentified()) {
             template += CommentBS.getTemplateWriting();
