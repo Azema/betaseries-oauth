@@ -1927,6 +1927,7 @@ class CommentBS {
             const $replies = $comment.parents('.comments').find(`.comment[data-comment-reply="${inner}"]`);
             if (state == '0') {
                 // On affiche
+                $replies.nextAll('.sub').fadeIn('fast');
                 $replies.fadeIn('fast');
                 $btn.find('.btnText').text(Base.trans("comment.hide_answers"));
                 $btn.find('svg').attr('style', 'transition: transform 200ms ease 0s; transform: rotate(180deg);');
@@ -1934,6 +1935,7 @@ class CommentBS {
             }
             else {
                 // On masque
+                $replies.nextAll('.sub').fadeOut('fast');
                 $replies.fadeOut('fast');
                 $btn.find('.btnText').text(Base.trans("comment.button.reply", { "%count%": $replies.length.toString() }, $replies.length));
                 $btn.find('svg').attr('style', 'transition: transform 200ms ease 0s;');
@@ -2079,15 +2081,15 @@ class CommentBS {
         if (this.nbReplies > 0 && this.replies.length <= 0) {
             await this.fetchReplies();
         }
-        const getTemplateReplies = async function (replies) {
+        const getTemplateReplies = async function (replies, sub = false) {
             let temp = '';
             for (let r = 0; r < replies.length; r++) {
-                temp += CommentBS.getTemplateComment(replies[r]);
+                temp += CommentBS.getTemplateComment(replies[r], sub);
                 if (replies[r].nbReplies > 0 && replies[r].replies.length <= 0) {
                     await replies[r].fetchReplies();
                 }
                 if (replies[r].nbReplies > 0) {
-                    temp += await getTemplateReplies(replies[r].replies);
+                    temp += await getTemplateReplies(replies[r].replies, true);
                 }
             }
             return temp;
