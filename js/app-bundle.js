@@ -817,18 +817,20 @@ class CommentsBS {
                 const action = $textarea.data('action');
                 const msg = $textarea.val();
                 let comment;
+                let promise;
                 if ($textarea.data('replyTo')) {
                     comment = self.getComment(parseInt($textarea.data('replyTo'), 10));
-                    comment.sendReply($textarea.val());
-                    $textarea.val('');
-                    $textarea.siblings('button').attr('disabled', 'true');
-                    $textarea.removeAttr('data-reply-to');
+                    promise = comment.sendReply($textarea.val()).then(() => {
+                        $textarea.val('');
+                        $textarea.siblings('button').attr('disabled', 'true');
+                        $textarea.removeAttr('data-reply-to');
+                    });
                 }
                 else if (action && action === 'edit') {
                     const cmtId = parseInt($textarea.data('commentId'), 10);
                     let $comment = jQuery(e.currentTarget).parents('.writing').prev('.comments').find(`.comment[data-comment-id="${cmtId.toString()}"]`);
                     const comment = await getObjComment($comment);
-                    comment.edit(msg).then((comment) => {
+                    promise = comment.edit(msg).then((comment) => {
                         $comment.find('.comment-text').text(comment.text);
                         $comment = jQuery(`#comments .slide_flex .slide__comment[data-comment-id="${cmtId}"]`);
                         $comment.find('p').text(comment.text);
@@ -839,7 +841,7 @@ class CommentsBS {
                     });
                 }
                 else {
-                    CommentsBS.sendComment(self._parent, $textarea.val())
+                    promise = CommentsBS.sendComment(self._parent, $textarea.val())
                         .then((comment) => {
                         if (comment) {
                             $textarea.val('');
@@ -856,8 +858,10 @@ class CommentsBS {
                         }
                     });
                 }
-                self.cleanEvents(() => {
-                    self.loadEvents($container, nbpp, funcPopup);
+                promise.then(() => {
+                    self.cleanEvents(() => {
+                        self.loadEvents($container, nbpp, funcPopup);
+                    });
                 });
             }
         });
