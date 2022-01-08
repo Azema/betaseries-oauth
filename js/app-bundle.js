@@ -1422,7 +1422,7 @@ class CommentBS {
                 <button type="button" class="btn-reset mainLink btnDeleteComment">Supprimer</button>
             `;
         }
-        let btnResponse = `<button type="button" class="btn-reset mainLink mainLink--regular btnResponse" style="vertical-align: 0px;${!Base.userIdentified() ? 'display:none;' : ''}">${Base.trans("timeline.comment.reply")}</button>`;
+        let btnResponse = `<span class="mainLink">&nbsp;∙&nbsp;</span><button type="button" class="btn-reset mainLink mainLink--regular btnResponse" style="vertical-align: 0px;${!Base.userIdentified() ? 'display:none;' : ''}">${Base.trans("timeline.comment.reply")}</button>`;
         if (sub)
             btnResponse = '';
         return `
@@ -1459,7 +1459,6 @@ class CommentBS {
                                     </svg>
                                 </button>
                                 <strong class="mainLink thumbs" style="margin-left: 5px;">${comment.thumbs > 0 ? '+' + comment.thumbs : (comment.thumbs < 0) ? '-' + comment.thumbs : comment.thumbs}</strong>
-                                <span class="mainLink">&nbsp;∙&nbsp;</span>
                                 ${btnResponse}
                                 <a href="#c_1269819" class="mainTime">
                                     <span class="mainLink">&nbsp;∙&nbsp;</span>
