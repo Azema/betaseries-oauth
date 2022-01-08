@@ -2076,19 +2076,20 @@ class CommentBS {
         if (this.nbReplies > 0 && this.replies.length <= 0) {
             await this.fetchReplies();
         }
-        const getTemplateReplies = async function (temp, replies) {
+        const getTemplateReplies = async function (replies) {
+            let temp = '';
             for (let r = 0; r < replies.length; r++) {
                 temp += CommentBS.getTemplateComment(replies[r]);
                 if (replies[r].nbReplies > 0 && replies[r].replies.length <= 0) {
                     await replies[r].fetchReplies();
                 }
                 if (replies[r].nbReplies > 0) {
-                    temp += await getTemplateReplies(temp, replies[r].replies);
+                    temp += await getTemplateReplies(replies[r].replies);
                 }
             }
             return temp;
         };
-        template += await getTemplateReplies(template, this.replies);
+        template += await getTemplateReplies(this.replies);
         template += '</div>';
         if (this.getCollectionComments().isOpen() && Base.userIdentified()) {
             template += CommentBS.getTemplateWriting();
