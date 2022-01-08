@@ -856,6 +856,9 @@ class CommentsBS {
                         }
                     });
                 }
+                self.cleanEvents(() => {
+                    self.loadEvents($container, nbpp, funcPopup);
+                });
             }
         });
         this._events.push({ elt: $btnSend, event: 'click' });
