@@ -247,12 +247,10 @@ class CommentsBS {
         const self = this;
         const addCommentId = function () {
             const $vignettes = jQuery('#comments .slides_flex .slide_flex .slide__comment');
-            if ($vignettes.length == self.comments.length) {
-                let vignette;
-                for (let v = 0; v < $vignettes.length; v++) {
-                    vignette = jQuery($vignettes.get(v));
-                    vignette.attr('data-comment-id', self.comments[v].id);
-                }
+            let vignette;
+            for (let v = 0; v < $vignettes.length; v++) {
+                vignette = jQuery($vignettes.get(v));
+                vignette.attr('data-comment-id', self.comments[v].id);
             }
         };
         if (this.comments.length <= 0 && this.nbComments > 0) {
