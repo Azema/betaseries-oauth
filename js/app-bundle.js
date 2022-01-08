@@ -1176,11 +1176,11 @@ class CommentsBS {
                 return `<tr class="histogram-row">
                     <td class="nowrap">${index} étoile${index > 1 ? 's' : ''}</td>
                     <td class="span10">
-                        <div class="meter" role="progressbar" aria-valuenow="${percent.toFixed(0)}%">
-                            <div class="meter-filled" style="width: ${percent.toFixed(0)}%"></div>
+                        <div class="meter" role="progressbar" aria-valuenow="${percent.toFixed(1)}%">
+                            <div class="meter-filled" style="width: ${percent.toFixed(1)}%"></div>
                         </div>
                     </td>
-                    <td class="nowrap">${percent.toFixed(0)}%</td>
+                    <td class="nowrap">${percent.toFixed(1)}%</td>
                 </tr>`;
             };
             /*
@@ -1396,7 +1396,10 @@ class CommentBS {
      * @returns {string}
      */
     static getTemplateComment(comment, all = false) {
-        const text = new Option(comment.text).innerHTML;
+        let text = new Option(comment.text).innerHTML;
+        if (/@\w+/.test(text)) {
+            text.replace(/@(\w+)/g, '<a href="/membre/$1" class="mainLink mainLink--regular">@$1</a>');
+        }
         const spoiler = /\[spoiler\]/.test(text);
         let btnSpoiler = spoiler ? `<button type="button" class="btn-reset mainLink view-spoiler" style="vertical-align: 0px;">${Base.trans("comment.button.display_spoiler")}</button>` : '';
         // let classNames = {reply: 'iv_i5', actions: 'iv_i3', comment: 'iv_iz'};
