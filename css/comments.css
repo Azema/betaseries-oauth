@@ -35,10 +35,14 @@
 .comments .comment .comment-text {
     line-height: 15px;
     word-break: break-word;
+    margin-left: 5px;
+}
+.comment .options-comment > a,
+.comment .options-comment > button {
+    vertical-align: 0px;
 }
 .comments .comment .mainTime,
-.comments .comment .options-comment > a,
-.comments .comment .options-comment > button,
+.comments .comment .options-comment > button.btnToggleOptions,
 .comments .comment .options-comment > span,
 .comments .comment .options-comment > strong
 {
@@ -52,6 +56,8 @@
 }
 .comment button.view-spoiler {
     color: var(--danger);
+    margin-left: 5px;
+    vertical-align: 0px;
 }
 .comment .toggleReplies {
     margin-top: 2px;
