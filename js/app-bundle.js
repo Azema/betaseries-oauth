@@ -2194,6 +2194,7 @@ class CommentBS {
             const comment = new CommentBS(data.comment, self);
             const method = self.getCollectionComments().order === OrderComments.DESC ? Array.prototype.unshift : Array.prototype.push;
             method.call(self.replies, comment);
+            self.nbReplies++;
             return comment;
         })
             .catch(err => {
