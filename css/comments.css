@@ -50,6 +50,24 @@
 .comment .btnThumb:hover:nth-child(2) .SvgLikeStroke {
     stroke: var(--danger);
 }
+.comment button.view-spoiler {
+    color: var(--danger);
+}
+.comment .toggleReplies {
+    margin-top: 2px;
+    margin-bottom: -3px;
+}
+.comment .toggleReplies .svgContainer {
+    display: inline-flex;
+    height: 16px;
+    width: 16px;
+}
+.comment .thumb {
+    margin-left: 5px;
+}
+.comment .options-options .btnToggleOptions {
+    margin-left: 4px;
+}
 .writing {
     border-top: 0px;
 }
