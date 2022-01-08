@@ -1732,7 +1732,7 @@ class CommentBS {
                 }
                 else if (action === 'edit') {
                     self.edit(msg);
-                    const $parent = $(e.currentTarget).parents('.comment');
+                    const $parent = $(e.currentTarget).parents('.writing').siblings('.comments').children('.comment');
                     $parent.find('.comment-text').text(self.text);
                 }
                 else {
