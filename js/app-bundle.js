@@ -1077,15 +1077,24 @@ class CommentsBS {
      */
     showEvaluations() {
         const self = this;
-        let promise = Promise.resolve(this);
-        if (this.length <= 0) {
-            promise = this.fetchComments(this.nbComments);
-        }
-        return promise.then(() => {
-            const comments = self.comments.filter((comment) => { return comment.user_note > 0; });
+        const params = {
+            type: this.media.mediaType.singular,
+            id: this.media.id,
+            replies: 1,
+            nbpp: this.nbComments
+        };
+        return Base.callApi(HTTP_VERBS.GET, 'comments', 'comments', params)
+            .then((data) => {
+            let comments = data.comments || [];
+            comments = comments.filter((comment) => { return comment.user_note > 0; });
             let notes = { 1: 0, 2: 0, 3: 0, 4: 0, 5: 0 };
+            const userIds = new Array();
             for (let c = 0; c < comments.length; c++) {
-                notes[comments[c].user_note]++;
+                // Pour éviter les doublons
+                if (!userIds.includes(comments[c].user_id)) {
+                    userIds.push(comments[c].user_id);
+                    notes[comments[c].user_note]++;
+                }
             }
             const buildline = function (index, notes) {
                 const percent = (notes[index] * 100) / comments.length;
