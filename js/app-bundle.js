@@ -572,7 +572,7 @@ class CommentsBS {
                         // On récupère les réponses
                         if (Base.debug)
                             console.log('Comments render getTemplate fetchReplies');
-                        comment.replies = await self.fetchReplies(comment.id);
+                        await comment.fetchReplies();
                         // On ajoute un boutton pour afficher/masquer les réponses
                     }
                     for (let r = 0; r < comment.replies.length; r++) {
@@ -1015,6 +1015,11 @@ class CommentsBS {
                 e.stopPropagation();
                 e.preventDefault();
                 comment.delete();
+                let $next = $comment.next();
+                while ($next.hasClass('reply')) {
+                    $next.remove();
+                    $next = $next.next();
+                }
                 $comment.remove();
             });
             $btnNo.click((e) => {
@@ -1378,14 +1383,22 @@ class CommentBS {
      */
     delete() {
         const self = this;
-        Base.callApi(HTTP_VERBS.DELETE, 'comments', 'comment', { id: this.id })
-            .then((data) => {
-            if (self._parent instanceof CommentsBS) {
-                self._parent.removeComment(self.id);
+        const promises = new Array();
+        if (this.nbReplies > 0) {
+            for (let r = 0; r < this.replies.length; r++) {
+                promises.push(Base.callApi(HTTP_VERBS.DELETE, 'comments', 'comment', { id: this.replies[r].id }));
             }
-            else if (self._parent instanceof CommentBS) {
-                self._parent.removeReply(self.id);
-            }
+        }
+        Promise.all(promises).then(() => {
+            Base.callApi(HTTP_VERBS.DELETE, 'comments', 'comment', { id: this.id })
+                .then((data) => {
+                if (self._parent instanceof CommentsBS) {
+                    self._parent.removeComment(self.id);
+                }
+                else if (self._parent instanceof CommentBS) {
+                    self._parent.removeReply(self.id);
+                }
+            });
         });
     }
     /**
@@ -1407,7 +1420,7 @@ class CommentBS {
      * @param   {CommentBS} comment Le commentaire à afficher
      * @returns {string}
      */
-    static getTemplateComment(comment, sub = false) {
+    static getTemplateComment(comment) {
         let text = new Option(comment.text).innerHTML;
         if (/@\w+/.test(text)) {
             text = text.replace(/@(\w+)/g, '<a href="/membre/$1" class="mainLink mainLink--regular">@$1</a>');
@@ -1416,8 +1429,9 @@ class CommentBS {
         let btnSpoiler = spoiler ? `<button type="button" class="btn-reset mainLink view-spoiler">${Base.trans("comment.button.display_spoiler")}</button>` : '';
         text = text.replace(/\[spoiler\](.*)\[\/spoiler\]/g, '<span class="spoiler" style="display:none">$1</span>');
         // let classNames = {reply: 'iv_i5', actions: 'iv_i3', comment: 'iv_iz'};
-        let classNames = { reply: 'it_i3', actions: 'it_i1', comment: 'it_ix', sub: 'it_i5' };
-        let className = (comment.in_reply_to > 0) ? (sub ? classNames.sub + ' reply sub' : classNames.reply + ' reply') : '';
+        let classNames = { reply: 'it_i3', actions: 'it_i1', comment: 'it_ix' };
+        const isReply = comment.in_reply_to > 0 ? true : false;
+        let className = isReply ? CommentBS.classNamesCSS.reply + ' reply ' : '';
         let btnToggleReplies = comment.nbReplies > 0 ? `
             <button type="button" class="btn-reset mainLink mainLink--regular toggleReplies" data-toggle="1">
                 <span class="svgContainer">
@@ -1439,10 +1453,10 @@ class CommentBS {
             `;
         }
         let btnResponse = `<span class="mainLink">&nbsp;∙&nbsp;</span><button type="button" class="btn-reset mainLink mainLink--regular btnResponse" ${!Base.userIdentified() ? 'style="display:none;"' : ''}>${Base.trans("timeline.comment.reply")}</button>`;
-        if (sub)
+        if (isReply)
             btnResponse = '';
         return `
-            <div class="comment ${className} positionRelative ${CommentBS.classNamesCSS.comment}" data-comment-id="${comment.id}" ${comment.in_reply_to > 0 ? 'data-comment-reply="' + comment.in_reply_to + '"' : ''} data-comment-inner="${comment.inner_id}">
+            <div class="comment ${className}positionRelative ${CommentBS.classNamesCSS.comment}" data-comment-id="${comment.id}" ${comment.in_reply_to > 0 ? 'data-comment-reply="' + comment.in_reply_to + '"' : ''} data-comment-inner="${comment.inner_id}">
                 <div class="media">
                     <div class="media-left">
                         <a href="/membre/${comment.login}" class="avatar">
@@ -1865,6 +1879,7 @@ class CommentBS {
                         if (comment) {
                             let template = CommentBS.getTemplateComment(comment);
                             $container.find('.comments').append(template);
+                            $textarea.removeAttr('data-reply-to');
                             self.cleanEvents(() => {
                                 self.loadEvents($container, funcPopup);
                             });
@@ -1879,6 +1894,7 @@ class CommentBS {
                                 let template = CommentBS.getTemplateComment(comment);
                                 $container.find(`.comments .comment[data-comment-id="${reply.id}"]`)
                                     .after(template);
+                                $textarea.removeAttr('data-reply-to');
                                 self.cleanEvents(() => {
                                     self.loadEvents($container, funcPopup);
                                 });
@@ -1897,6 +1913,7 @@ class CommentBS {
                         // TODO: modifier le texte de la vignette du commentaire
                         $comment = jQuery(`#comments .slide_flex .slide__comment[data-comment-id="${cmtId}"]`);
                         $comment.find('p').text(msg);
+                        $textarea.removeAttr('data-action').removeAttr('data-comment-id');
                     });
                 }
                 else {
@@ -2105,20 +2122,9 @@ class CommentBS {
         if (this.nbReplies > 0 && this.replies.length <= 0) {
             await this.fetchReplies();
         }
-        const getTemplateReplies = async function (replies, sub = false) {
-            let temp = '';
-            for (let r = 0; r < replies.length; r++) {
-                temp += CommentBS.getTemplateComment(replies[r], sub);
-                if (replies[r].nbReplies > 0 && replies[r].replies.length <= 0) {
-                    await replies[r].fetchReplies();
-                }
-                if (replies[r].nbReplies > 0) {
-                    temp += await getTemplateReplies(replies[r].replies, true);
-                }
-            }
-            return temp;
-        };
-        template += await getTemplateReplies(this.replies);
+        for (let r = 0; r < this.replies.length; r++) {
+            template += CommentBS.getTemplateComment(this.replies[r]);
+        }
         template += '</div>';
         if (this.getCollectionComments().isOpen() && Base.userIdentified()) {
             template += CommentBS.getTemplateWriting();
