@@ -1162,15 +1162,17 @@ class CommentsBS {
             comments = comments.filter((comment) => { return comment.user_note > 0; });
             let notes = { 1: 0, 2: 0, 3: 0, 4: 0, 5: 0 };
             const userIds = new Array();
+            let nbEvaluations = 0;
             for (let c = 0; c < comments.length; c++) {
                 // Pour éviter les doublons
                 if (!userIds.includes(comments[c].user_id)) {
                     userIds.push(comments[c].user_id);
+                    nbEvaluations++;
                     notes[comments[c].user_note]++;
                 }
             }
             const buildline = function (index, notes) {
-                const percent = (notes[index] * 100) / comments.length;
+                const percent = (notes[index] * 100) / nbEvaluations;
                 return `<tr class="histogram-row">
                     <td class="nowrap">${index} étoile${index > 1 ? 's' : ''}</td>
                     <td class="span10">
@@ -1189,7 +1191,7 @@ class CommentsBS {
              */
             let template = `
                 <div class="evaluations">
-                    <div class="size-base">${comments.length} évaluation${comments.length > 1 ? 's' : ''} parmis les commentaires</div>
+                    <div class="size-base">${nbEvaluations} évaluation${nbEvaluations > 1 ? 's' : ''} parmis les commentaires</div>
                     <div class="size-base average">Note moyenne globale: ${self._parent.objNote.mean.toFixed(2)}</div>
                     <div><table><tbody>`;
             for (let i = 5; i > 0; i--) {
