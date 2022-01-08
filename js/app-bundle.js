@@ -830,7 +830,19 @@ class CommentsBS {
                             $textarea.val('');
                             $textarea.siblings('button').attr('disabled', 'true');
                             $textarea.removeAttr('data-reply-to');
-                            $comment.after(CommentBS.getTemplateComment(reply));
+                            const template = CommentBS.getTemplateComment(reply);
+                            if ($comment.next('.comment').hasClass('reply')) {
+                                let $next = $comment.next('.comment');
+                                let $prev;
+                                while ($next.hasClass('reply')) {
+                                    $prev = $next;
+                                    $next = $next.next('.comment');
+                                }
+                                $prev.after(template);
+                            }
+                            else {
+                                $comment.after(template);
+                            }
                         }
                     });
                 }
