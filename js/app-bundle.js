@@ -936,7 +936,9 @@ class CommentsBS {
                 }
                 $btn.before(template);
                 jQuery(`.comment[data-comment-id="${firstCmtId.toString()}"]`).get(0).scrollIntoView();
-                self.loadEvents($container, nbpp, funcPopup);
+                self.cleanEvents(() => {
+                    self.loadEvents($container, nbpp, funcPopup);
+                });
                 if (self.comments.length >= self.nbComments) {
                     $btn.hide();
                 }
