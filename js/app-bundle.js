@@ -2086,7 +2086,7 @@ class CommentBS {
             for (let r = replies.length - 1; r >= 0; r--) {
                 template += CommentBS.getTemplateComment(replies[r]);
                 if (replies[r].nbReplies > 0) {
-                    const subReplies = await this.getCollectionComments().fetchReplies(replies[r].id);
+                    const subReplies = await self.getCollectionComments().fetchReplies(replies[r].id);
                     if (subReplies && subReplies.length > 0) {
                         replies[r].replies = subReplies;
                         template += getTemplateReplies(template, subReplies);
