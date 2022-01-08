@@ -615,6 +615,34 @@ class CommentsBS {
         const self = this;
         const $popup = jQuery('#popin-dialog');
         const $btnClose = jQuery("#popin-showClose");
+        /**
+         * Retourne l'objet CommentBS associé au DOMElement fournit en paramètre
+         * @param   {JQuery<HTMLElement>} $comment - Le DOMElement contenant le commentaire
+         * @returns {Promise<CommentBS>}
+         */
+        const getObjComment = async function ($comment) {
+            const commentId = parseInt($comment.data('commentId'), 10);
+            let comment;
+            // Si il s'agit d'une réponse, il nous faut le commentaire parent
+            if ($comment.hasClass('reply')) {
+                let $parent = $comment.prev();
+                while ($parent.hasClass('reply')) {
+                    $parent = $parent.prev();
+                }
+                const parentId = parseInt($parent.data('commentId'), 10);
+                if (commentId == parentId) {
+                    comment = this.getComment(commentId);
+                }
+                else {
+                    const cmtParent = this.getComment(parentId);
+                    comment = await cmtParent.getReply(commentId);
+                }
+            }
+            else {
+                comment = this.getComment(commentId);
+            }
+            return comment;
+        };
         // On ajoute les templates HTML du commentaire,
         // des réponses et du formulaire de d'écriture
         // On active le bouton de fermeture de la popup
@@ -772,7 +800,7 @@ class CommentsBS {
          * On envoie la réponse à ce commentaire à l'API
          */
         const $btnSend = $container.find('.sendComment');
-        $btnSend.click((e) => {
+        $btnSend.click(async (e) => {
             e.stopPropagation();
             e.preventDefault();
             if (!Base.userIdentified()) {
@@ -781,12 +809,22 @@ class CommentsBS {
             }
             const $textarea = $(e.currentTarget).siblings('textarea');
             if ($textarea.val().length > 0) {
+                const action = $textarea.data('action');
+                const msg = $textarea.val();
                 let comment;
                 if ($textarea.data('replyTo')) {
                     comment = self.getComment(parseInt($textarea.data('replyTo'), 10));
                     comment.sendReply($textarea.val());
                     $textarea.val('');
                     $textarea.siblings('button').attr('disabled', 'true');
+                }
+                else if (action && action === 'edit') {
+                    const cmtId = parseInt($textarea.data('commentId'), 10);
+                    const $comment = jQuery(e.currentTarget).parents('.writing').prev('.comments').find(`.comment[data-comment-id="${cmtId.toString()}"]`);
+                    const comment = await getObjComment($comment);
+                    comment.edit(msg).then((comment) => {
+                        $comment.find('.comment-text').text(comment.text);
+                    });
                 }
                 else {
                     CommentsBS.sendComment(self._parent, $textarea.val())
@@ -882,26 +920,7 @@ class CommentsBS {
             }
             const $btn = $(e.currentTarget);
             const $comment = $btn.parents('.comment');
-            const commentId = parseInt($comment.data('commentId'), 10);
-            let comment;
-            // Si il s'agit d'une réponse, il nous faut le commentaire parent
-            if ($comment.hasClass('reply')) {
-                let $parent = $comment.prev('.comment');
-                while ($parent.hasClass('reply') && $parent.length > 0) {
-                    $parent = $parent.prev('.comment');
-                }
-                const parentId = parseInt($parent.data('commentId'), 10);
-                if (commentId == parentId) {
-                    comment = this.getComment(commentId);
-                }
-                else {
-                    const cmtParent = this.getComment(parentId);
-                    comment = await cmtParent.getReply(commentId);
-                }
-            }
-            else {
-                comment = this.getComment(commentId);
-            }
+            const comment = await getObjComment($comment);
             $container.find('textarea')
                 .val('@' + comment.login)
                 .attr('data-reply-to', comment.id);
@@ -951,6 +970,51 @@ class CommentsBS {
             });
         });
         this._events.push({ elt: $btnMore, event: 'click' });
+        const $btnEdit = $container.find('.btnEditComment');
+        $btnEdit.click(async (e) => {
+            e.stopPropagation();
+            e.preventDefault();
+            const $comment = jQuery(e.currentTarget).parents('.comment');
+            const commentId = parseInt($comment.data('commentId'), 10);
+            const comment = await getObjComment($comment);
+            $textarea.val(comment.text);
+            $textarea.attr('data-action', 'edit');
+            $textarea.attr('data-comment-id', commentId);
+        });
+        this._events.push({ elt: $btnEdit, event: 'click' });
+        const $btnDelete = $container.find('.btnDeleteComment');
+        $btnDelete.click(async (e) => {
+            e.stopPropagation();
+            e.preventDefault();
+            const $comment = jQuery(e.currentTarget).parents('.comment');
+            const $options = jQuery(e.currentTarget).parents('.options-options');
+            let template = `
+                <div class="options-delete">
+                    <span class="mainTime">Supprimer mon commentaire :</span>
+                    <button type="button" class="btn-reset fontWeight700 btnYes" style="vertical-align: 0px; padding-left: 10px; padding-right: 10px; color: rgb(208, 2, 27);">Oui</button>
+                    <button type="button" class="btn-reset mainLink btnNo" style="vertical-align: 0px;">Non</button>
+                </div>
+            `;
+            $options.hide().after(template);
+            const $btnYes = $comment.find('.options-delete .btnYes');
+            const $btnNo = $comment.find('.options-delete .btnNo');
+            const comment = await getObjComment($comment);
+            $btnYes.click((e) => {
+                e.stopPropagation();
+                e.preventDefault();
+                comment.delete();
+                $comment.remove();
+            });
+            $btnNo.click((e) => {
+                e.stopPropagation();
+                e.preventDefault();
+                $comment.find('.options-delete').remove();
+                $options.show();
+                $btnYes.off('click');
+                $btnNo.off('click');
+            });
+        });
+        this._events.push({ elt: $btnDelete, event: 'click' });
     }
     /**
      * Nettoie les events créer par la fonction loadEvents
@@ -1302,7 +1366,12 @@ class CommentBS {
         const self = this;
         Base.callApi(HTTP_VERBS.DELETE, 'comments', 'comment', { id: this.id })
             .then((data) => {
-            self._parent.removeComment(self.id);
+            if (self._parent instanceof CommentsBS) {
+                self._parent.removeComment(self.id);
+            }
+            else if (self._parent instanceof CommentBS) {
+                self._parent.removeReply(self.id);
+            }
         });
     }
     /**
@@ -1513,6 +1582,33 @@ class CommentBS {
         return null;
     }
     /**
+     * Supprime une réponse
+     * @param   {number} cmtId - L'identifiant de la réponse
+     * @returns {boolean}
+     */
+    removeReply(cmtId) {
+        for (let r = 0; r < this.replies.length; r++) {
+            if (this.replies[r].id == cmtId) {
+                this.replies.splice(r, 1);
+                return true;
+            }
+        }
+        return false;
+    }
+    /**
+     * Retourne l'objet CommentsBS
+     * @returns {CommentsBS}
+     */
+    getCollectionComments() {
+        if (this._parent instanceof CommentsBS) {
+            return this._parent;
+        }
+        else if (this._parent instanceof CommentBS) {
+            return this._parent._parent;
+        }
+        return null;
+    }
+    /**
      * Ajoute les évènements sur les commentaires lors du rendu
      * @param   {JQuery<HTMLElement>} $container - Le conteneur des éléments d'affichage
      * @param   {Obj} funcPopup - Objet des fonctions d'affichage/ de masquage de la popup
@@ -1524,6 +1620,20 @@ class CommentBS {
         const $popup = jQuery('#popin-dialog');
         const $btnClose = jQuery("#popin-showClose");
         const $title = $container.find('.title');
+        /**
+         * Retourne l'objet CommentBS associé au DOMElement fournit en paramètre
+         * @param   {JQuery<HTMLElement>} $comment - Le DOMElement contenant le commentaire
+         * @returns {Promise<CommentBS>}
+         */
+        const getObjComment = async function ($comment) {
+            const commentId = parseInt($comment.data('commentId'), 10);
+            if (commentId === self.id)
+                return self;
+            else if (self.isReply(commentId))
+                return await self.getReply(commentId);
+            else
+                return self.getCollectionComments().getComment(commentId);
+        };
         $btnClose.click(() => {
             funcPopup.hidePopup();
             $popup.removeAttr('data-popin-type');
@@ -1537,7 +1647,8 @@ class CommentBS {
          * @returns {void}
          */
         function displaySubscription($btn) {
-            if (!self._parent.is_subscribed) {
+            const collection = self.getCollectionComments();
+            if (!collection.is_subscribed) {
                 $btn.removeClass('active');
                 $btn.attr('title', "Recevoir les commentaires par e-mail");
                 $btn.find('svg').replaceWith(`
@@ -1546,7 +1657,7 @@ class CommentBS {
                     </svg>
                 `);
             }
-            else if (self._parent.is_subscribed) {
+            else if (collection.is_subscribed) {
                 $btn.addClass('active');
                 $btn.attr('title', "Ne plus recevoir les commentaires par e-mail");
                 $btn.find('svg').replaceWith(`
@@ -1567,18 +1678,18 @@ class CommentBS {
                 return;
             }
             const $btn = $(e.currentTarget);
-            let params = { type: self._parent.media.mediaType.singular, id: self._parent.media.id };
+            let params = { type: self.getCollectionComments().media.mediaType.singular, id: self.getCollectionComments().media.id };
             if ($btn.hasClass('active')) {
                 Base.callApi(HTTP_VERBS.DELETE, 'comments', 'subscription', params)
                     .then((data) => {
-                    self._parent.is_subscribed = false;
+                    self.getCollectionComments().is_subscribed = false;
                     displaySubscription($btn);
                 });
             }
             else {
                 Base.callApi(HTTP_VERBS.POST, 'comments', 'subscription', params)
                     .then((data) => {
-                    self._parent.is_subscribed = true;
+                    self.getCollectionComments().is_subscribed = true;
                     displaySubscription($btn);
                 });
             }
@@ -1600,7 +1711,7 @@ class CommentBS {
                 // Il faut tout nettoyer, comme pour la fermeture
                 self.cleanEvents();
                 // Il faut demander au parent d'afficher le commentaire précédent
-                self._parent.getPrevComment(self.id).render();
+                self.getCollectionComments().getPrevComment(self.id).render();
             });
             this._events.push({ elt: $prevCmt, event: 'click' });
         }
@@ -1618,7 +1729,7 @@ class CommentBS {
                 // Il faut tout nettoyer, comme pour la fermeture
                 self.cleanEvents();
                 // Il faut demander au parent d'afficher le commentaire suivant
-                self._parent.getNextComment(self.id).render();
+                self.getCollectionComments().getNextComment(self.id).render();
             });
             this._events.push({ elt: $nextCmt, event: 'click' });
         }
@@ -1676,7 +1787,7 @@ class CommentBS {
                 else {
                     // Demander au parent d'incrémenter les thumbs du commentaire
                     const thumbed = data.comment.thumbed ? parseInt(data.comment.thumbed, 10) : 0;
-                    self._parent.changeThumbs(commentId, data.comment.thumbs, thumbed);
+                    self.getCollectionComments().changeThumbs(commentId, data.comment.thumbs, thumbed);
                 }
                 // Petite animation pour le nombre de votes
                 $btn.siblings('strong.thumbs')
@@ -1754,8 +1865,8 @@ class CommentBS {
                     $parent.find('.comment-text').text(self.text);
                 }
                 else {
-                    CommentsBS.sendComment(self._parent.media, msg).then((comment) => {
-                        self._parent.addToPage(comment.id);
+                    CommentsBS.sendComment(self.getCollectionComments().media, msg).then((comment) => {
+                        self.getCollectionComments().addToPage(comment.id);
                     });
                 }
                 $textarea.val('');
@@ -1826,23 +1937,7 @@ class CommentBS {
             }
             const $btn = $(e.currentTarget);
             const $comment = $btn.parents('.comment');
-            const commentId = parseInt($comment.data('commentId'), 10);
-            let comment;
-            // Si il s'agit d'une réponse, il nous faut le commentaire parent
-            if ($comment.hasClass('iv_i5') || $comment.hasClass('it_i3')) {
-                const $parent = $comment.siblings('.comment:not(.iv_i5)').first();
-                const parentId = parseInt($parent.data('commentId'), 10);
-                if (commentId == parentId) {
-                    comment = self._parent.getComment(commentId);
-                }
-                else {
-                    const cmtParent = self._parent.getComment(parentId);
-                    comment = await cmtParent.getReply(commentId);
-                }
-            }
-            else {
-                comment = self._parent.getComment(commentId);
-            }
+            const comment = await getObjComment($comment);
             $container.find('textarea')
                 .val('@' + comment.login)
                 .attr('data-reply-to', comment.id);
@@ -1953,8 +2048,8 @@ class CommentBS {
         $contentReact.append(templateLoader + '</div>');
         showPopup();
         let template = `
-            <div data-media-type="${self._parent.media.mediaType.singular}"
-                            data-media-id="${self._parent.media.id}"
+            <div data-media-type="${self.getCollectionComments().media.mediaType.singular}"
+                            data-media-id="${self.getCollectionComments().media.id}"
                             class="displayFlex flexDirectionColumn"
                             style="margin-top: 2px; min-height: 0">`;
         if (Base.userIdentified()) {
@@ -1968,7 +2063,7 @@ class CommentBS {
         // Récupération des réponses sur l'API
         // On ajoute les réponses, par ordre décroissant à la template
         if (this.nbReplies > 0 && this.replies.length <= 0) {
-            const replies = await this._parent.fetchReplies(this.id);
+            const replies = await this.getCollectionComments().fetchReplies(this.id);
             if (replies && replies.length > 0) {
                 this.replies = replies;
             }
@@ -1977,7 +2072,7 @@ class CommentBS {
             template += CommentBS.getTemplateComment(this.replies[r]);
         }
         template += '</div>';
-        if (this._parent.isOpen() && Base.userIdentified()) {
+        if (this.getCollectionComments().isOpen() && Base.userIdentified()) {
             template += CommentBS.getTemplateWriting();
         }
         template += '</div>';
@@ -2006,15 +2101,15 @@ class CommentBS {
     sendReply(text) {
         const self = this;
         const params = {
-            type: this._parent.media.mediaType.singular,
-            id: this._parent.media.id,
+            type: this.getCollectionComments().media.mediaType.singular,
+            id: this.getCollectionComments().media.id,
             in_reply_to: this.inner_id,
             text: text
         };
         return Base.callApi(HTTP_VERBS.POST, 'comments', 'comment', params)
             .then((data) => {
-            const comment = new CommentBS(data.comment, self._parent);
-            const method = self._parent.order === OrderComments.DESC ? Array.prototype.unshift : Array.prototype.push;
+            const comment = new CommentBS(data.comment, self);
+            const method = self.getCollectionComments().order === OrderComments.DESC ? Array.prototype.unshift : Array.prototype.push;
             method.call(self.replies, comment);
             return comment;
         })
