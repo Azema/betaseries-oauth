@@ -506,11 +506,8 @@ class CommentsBS {
      * @param   {OrderComments} [order='desc'] - Ordre de tri des réponses
      * @returns {Promise<Array<CommentBS>>} Tableau des réponses
      */
-    async fetchReplies(commentId, order = OrderComments.DESC) {
-        if (order !== this.order) {
-            this.order = order;
-        }
-        const data = await Base.callApi(HTTP_VERBS.GET, 'comments', 'replies', { id: commentId, order: this.order });
+    async fetchReplies(commentId, order = OrderComments.ASC) {
+        const data = await Base.callApi(HTTP_VERBS.GET, 'comments', 'replies', { id: commentId, order });
         const replies = new Array();
         if (data.comments) {
             for (let c = 0; c < data.comments.length; c++) {
@@ -2083,14 +2080,16 @@ class CommentBS {
             }
         }
         const getTemplateReplies = async function (template, replies) {
-            for (let r = replies.length - 1; r >= 0; r--) {
+            for (let r = 0; r < replies.length; r++) {
                 template += CommentBS.getTemplateComment(replies[r]);
-                if (replies[r].nbReplies > 0) {
+                if (replies[r].nbReplies > 0 && replies[r].replies.length <= 0) {
                     const subReplies = await self.getCollectionComments().fetchReplies(replies[r].id);
                     if (subReplies && subReplies.length > 0) {
                         replies[r].replies = subReplies;
-                        template += getTemplateReplies(template, subReplies);
                     }
+                }
+                if (replies[r].nbReplies > 0) {
+                    template += await getTemplateReplies(template, replies[r].replies);
                 }
             }
             return template;
