@@ -1245,13 +1245,13 @@ class CommentsBS {
              */
             let template = `
                 <div class="evaluations">
-                    <div class="size-base">${nbEvaluations} évaluation${nbEvaluations > 1 ? 's' : ''} parmis les commentaires</div>
-                    <div class="size-base average">Note moyenne globale: ${self._parent.objNote.mean.toFixed(2)}</div>
+                    <div class="size-base">${nbEvaluations} évaluation${nbEvaluations > 1 ? 's' : ''} parmis les commentaires et ${this.media.objNote.total} au total</div>
+                    <div class="size-base average">Note globale: ${self._parent.objNote.mean.toFixed(2)}</div>
                     <div><table><tbody>`;
             for (let i = 5; i > 0; i--) {
                 template += buildline(i, notes);
             }
-            return template + '</tbody></table></div>';
+            return template + '</tbody></table><p class="alert alert-info"><small>Les pourcentages sont calculés uniquement sur les évaluations dans les commentaires.</small></p></div>';
         });
     }
 }
