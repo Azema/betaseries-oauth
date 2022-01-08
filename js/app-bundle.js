@@ -1436,8 +1436,7 @@ class CommentBS {
                     </div>
                     <div class="media-body">
                         <a href="/membre/${comment.login}">
-                            <span class="mainLink">${comment.login}</span>&nbsp;
-                            <span class="mainLink mainLink--regular">&nbsp;</span>
+                            <span class="mainLink">${comment.login}</span>
                         </a>
                         ${btnSpoiler}
                         <span class="comment-text">${text}</span>
@@ -1742,7 +1741,7 @@ class CommentBS {
             $btnSpoiler.click((e) => {
                 e.stopPropagation();
                 e.preventDefault();
-                const $spoiler = $(e.currentTarget).next('.comment-text .spoiler');
+                const $spoiler = $(e.currentTarget).next('.comment-text').find('.spoiler');
                 if ($spoiler.is(':visible')) {
                     $spoiler.fadeOut('fast');
                 }
