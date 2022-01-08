@@ -1846,6 +1846,9 @@ class CommentBS {
                         if (comment) {
                             let template = CommentBS.getTemplateComment(comment);
                             $container.find('.comments').append(template);
+                            self.cleanEvents(() => {
+                                self.loadEvents($container, funcPopup);
+                            });
                         }
                     });
                 }
@@ -1857,6 +1860,9 @@ class CommentBS {
                                 let template = CommentBS.getTemplateComment(comment);
                                 $container.find(`.comments .comment[data-comment-id="${reply.id}"]`)
                                     .after(template);
+                                self.cleanEvents(() => {
+                                    self.loadEvents($container, funcPopup);
+                                });
                             }
                         });
                     }
@@ -1872,6 +1878,9 @@ class CommentBS {
                 else {
                     CommentsBS.sendComment(self.getCollectionComments().media, msg).then((comment) => {
                         self.getCollectionComments().addToPage(comment.id);
+                        self.cleanEvents(() => {
+                            self.loadEvents($container, funcPopup);
+                        });
                     });
                 }
                 $textarea.val('');
