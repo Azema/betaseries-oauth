@@ -1852,7 +1852,6 @@ class CommentBS {
             if ($textarea.val().length > 0) {
                 const replyId = parseInt($textarea.data('replyTo'), 10);
                 const action = $textarea.data('action');
-                const cmtId = parseInt($textarea.data('commentId'), 10);
                 const msg = $textarea.val();
                 if (replyId && replyId == self.id) {
                     self.sendReply(msg).then(comment => {
@@ -1885,8 +1884,9 @@ class CommentBS {
                 }
                 else if (action === 'edit') {
                     self.edit(msg);
-                    const $parent = $(e.currentTarget).parents('.writing').siblings('.comments').children('.comment');
-                    $parent.find('.comment-text').text(self.text);
+                    const cmtId = parseInt($textarea.data('commentId'), 10);
+                    const $comment = $(e.currentTarget).parents('.writing').siblings('.comments').children(`.comment[data-comment-id="${cmtId.toString()}"]`);
+                    $comment.find('.comment-text').text(self.text);
                 }
                 else {
                     CommentsBS.sendComment(self.getCollectionComments().media, msg).then((comment) => {
