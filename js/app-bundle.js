@@ -1138,7 +1138,7 @@ class CommentsBS {
             </div>`;
         jQuery('#comments .slides_flex').prepend(template);
         // On met à jour le nombre de commentaires
-        jQuery('#comments .blockTitle').text(jQuery('#comments .blockTitle').text().replace(/\d+/, this.nbComments.toString()));
+        jQuery('#comments .blockTitle').text(jQuery('#comments .blockTitle').text().replace(/\d+/, this._parent.nbComments.toString()));
         this._callListeners(EventTypes.ADD);
     }
     /**
