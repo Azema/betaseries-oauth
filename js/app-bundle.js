@@ -600,6 +600,13 @@ class CommentsBS {
         });
     }
     /**
+     * Met à jour le nombre de commentaires sur la page
+     */
+    updateCounter() {
+        const $counter = jQuery('#comments .blockTitle');
+        $counter.text($counter.text().replace(/\d+/, this.nbComments.toString()));
+    }
+    /**
      * Ajoute les évènements sur les commentaires lors du rendu
      * @param   {JQuery<HTMLElement>} $container - Le conteneur des éléments d'affichage
      * @param   {number} nbpp - Le nombre de commentaires à récupérer sur l'API
@@ -1050,6 +1057,7 @@ class CommentsBS {
                     $prev.remove();
                 }
                 $comment.remove();
+                self.updateCounter();
             });
             $btnNo.click((e) => {
                 e.stopPropagation();
@@ -1427,6 +1435,7 @@ class CommentBS {
                 else if (self._parent instanceof CommentBS) {
                     self._parent.removeReply(self.id);
                 }
+                self.getCollectionComments().nbComments = self.getCollectionComments().nbComments - (promises.length + 1);
             });
         });
     }
@@ -2195,6 +2204,7 @@ class CommentBS {
             const method = self.getCollectionComments().order === OrderComments.DESC ? Array.prototype.unshift : Array.prototype.push;
             method.call(self.replies, comment);
             self.nbReplies++;
+            self.getCollectionComments().nbComments++;
             return comment;
         })
             .catch(err => {
