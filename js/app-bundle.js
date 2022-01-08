@@ -1460,10 +1460,8 @@ class CommentBS {
                                 </button>
                                 <strong class="mainLink thumbs" style="margin-left: 5px;">${comment.thumbs > 0 ? '+' + comment.thumbs : (comment.thumbs < 0) ? '-' + comment.thumbs : comment.thumbs}</strong>
                                 ${btnResponse}
-                                <a href="#c_1269819" class="mainTime">
-                                    <span class="mainLink">&nbsp;∙&nbsp;</span>
-                                    Le ${ /* eslint-disable-line no-undef */typeof moment !== 'undefined' ? moment(comment.date).format('DD/MM/YYYY HH:mm') : comment.date.toString()}
-                                </a>
+                                <span class="mainLink">&nbsp;∙&nbsp;</span>
+                                <span class="mainTime">Le ${ /* eslint-disable-line no-undef */typeof moment !== 'undefined' ? moment(comment.date).format('DD/MM/YYYY HH:mm') : comment.date.toString()}</span>
                                 <span class="stars" title="${comment.user_note} / 5">
                                     ${Note.renderStars(comment.user_note, comment.user_id === Base.userId ? 'blue' : '')}
                                 </span>
