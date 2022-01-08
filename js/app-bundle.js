@@ -1398,13 +1398,13 @@ class CommentBS {
             text = text.replace(/@(\w+)/g, '<a href="/membre/$1" class="mainLink mainLink--regular">@$1</a>');
         }
         const spoiler = /\[spoiler\]/.test(text);
-        let btnSpoiler = spoiler ? `<button type="button" class="btn-reset mainLink view-spoiler" style="vertical-align: 0px;">${Base.trans("comment.button.display_spoiler")}</button>` : '';
+        let btnSpoiler = spoiler ? `<button type="button" class="btn-reset mainLink view-spoiler">${Base.trans("comment.button.display_spoiler")}</button>` : '';
         // let classNames = {reply: 'iv_i5', actions: 'iv_i3', comment: 'iv_iz'};
         let classNames = { reply: 'it_i3', actions: 'it_i1', comment: 'it_ix', sub: 'it_i5' };
         let className = (comment.in_reply_to > 0) ? (sub ? classNames.sub + ' reply sub' : classNames.reply + ' reply') : '';
         let btnToggleReplies = comment.nbReplies > 0 ? `
-            <button type="button" class="btn-reset mainLink mainLink--regular toggleReplies" style="margin-top: 2px; margin-bottom: -3px;" data-toggle="1">
-                <span class="svgContainer" style="display: inline-flex; height: 16px; width: 16px;">
+            <button type="button" class="btn-reset mainLink mainLink--regular toggleReplies" data-toggle="1">
+                <span class="svgContainer">
                     <svg width="8" height="6" xmlns="http://www.w3.org/2000/svg" style="transition: transform 200ms ease 0s; transform: rotate(180deg);">
                         <path d="M4 5.667l4-4-.94-.94L4 3.78.94.727l-.94.94z" fill="#54709D" fill-rule="nonzero"></path>
                     </svg>
@@ -1413,7 +1413,7 @@ class CommentBS {
         let templateOptions = `
             <a href="/messages/nouveau?login=${comment.login}" class="mainLink">Envoyer un message</a>
             <span class="mainLink">&nbsp;∙&nbsp;</span>
-            <button type="button" class="btn-reset mainLink btnSignal" style="vertical-align: 0px;">Signaler</button>
+            <button type="button" class="btn-reset mainLink btnSignal">Signaler</button>
         `;
         if (comment.user_id === Base.userId) {
             templateOptions = `
@@ -1422,7 +1422,7 @@ class CommentBS {
                 <button type="button" class="btn-reset mainLink btnDeleteComment">Supprimer</button>
             `;
         }
-        let btnResponse = `<span class="mainLink">&nbsp;∙&nbsp;</span><button type="button" class="btn-reset mainLink mainLink--regular btnResponse" style="vertical-align: 0px;${!Base.userIdentified() ? 'display:none;' : ''}">${Base.trans("timeline.comment.reply")}</button>`;
+        let btnResponse = `<span class="mainLink">&nbsp;∙&nbsp;</span><button type="button" class="btn-reset mainLink mainLink--regular btnResponse" ${!Base.userIdentified() ? 'style="display:none;"' : ''}>${Base.trans("timeline.comment.reply")}</button>`;
         if (sub)
             btnResponse = '';
         return `
@@ -1458,7 +1458,7 @@ class CommentBS {
                                         </g>
                                     </svg>
                                 </button>
-                                <strong class="mainLink thumbs" style="margin-left: 5px;">${comment.thumbs > 0 ? '+' + comment.thumbs : (comment.thumbs < 0) ? '-' + comment.thumbs : comment.thumbs}</strong>
+                                <strong class="mainLink thumbs">${comment.thumbs > 0 ? '+' + comment.thumbs : (comment.thumbs < 0) ? '-' + comment.thumbs : comment.thumbs}</strong>
                                 ${btnResponse}
                                 <span class="mainLink">&nbsp;∙&nbsp;</span>
                                 <span class="mainTime">Le ${ /* eslint-disable-line no-undef */typeof moment !== 'undefined' ? moment(comment.date).format('DD/MM/YYYY HH:mm') : comment.date.toString()}</span>
@@ -1480,7 +1480,7 @@ class CommentBS {
                             </div>
                             <div class="options-options options-comment" style="display:none;">
                                 ${templateOptions}
-                                <button type="button" class="btn-reset btnToggleOptions" style="margin-left: 4px;">
+                                <button type="button" class="btn-reset btnToggleOptions">
                                     <span class="svgContainer">
                                         <svg fill="${Base.theme === 'dark' ? "rgba(255, 255, 255, .5)" : "#333"}" width="9" height="9" viewBox="0 0 14 14" xmlns="http://www.w3.org/2000/svg">
                                             <path d="M14 1.41l-1.41-1.41-5.59 5.59-5.59-5.59-1.41 1.41 5.59 5.59-5.59 5.59 1.41 1.41 5.59-5.59 5.59 5.59 1.41-1.41-5.59-5.59z"></path>
