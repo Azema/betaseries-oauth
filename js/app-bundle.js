@@ -1,4 +1,4 @@
-/*! betaseries_userscript - v1.1.6 - 2022-01-07
+/*! betaseries_userscript - v1.1.6 - 2022-01-08
  * https://github.com/Azema/betaseries
  * Copyright (c) 2022 Azema;
  * Licensed Apache-2.0
@@ -164,7 +164,7 @@ class CommentsBS {
      * Types d'évenements gérés par cette classe
      * @type {Array}
      */
-    static EventTypes = new Array('update', 'save', 'add');
+    static EventTypes = new Array('update', 'save', 'add', 'delete');
     /**
      * Envoie une réponse de ce commentaire à l'API
      * @param   {Base} media - Le média correspondant à la collection
@@ -239,6 +239,29 @@ class CommentsBS {
         this.nbComments = nbComments;
         this._order = OrderComments.DESC;
         this._initListeners();
+    }
+    /**
+     * Initialise la collection de commentaires
+     */
+    init() {
+        const self = this;
+        const addCommentId = function () {
+            const $vignettes = jQuery('#comments .slides_flex .slide_flex .slide__comment');
+            if ($vignettes.length == self.comments.length) {
+                let vignette;
+                for (let v = 0; v < $vignettes.length; v++) {
+                    vignette = jQuery($vignettes.get(v));
+                    vignette.attr('data-comment-id', self.comments[v].id);
+                }
+            }
+        };
+        if (this.comments.length <= 0 && this.nbComments > 0) {
+            this.fetchComments(this.nbComments)
+                .then(addCommentId);
+        }
+        else {
+            addCommentId();
+        }
     }
     /**
      * Initialize le tableau des écouteurs d'évènements
@@ -377,6 +400,7 @@ class CommentsBS {
     }
     /**
      * Ajoute un commentaire à la collection
+     * /!\ (Ne l'ajoute pas sur l'API) /!\
      * @param   {any} data - Les données du commentaire provenant de l'API
      * @returns {CommentsBS}
      */
@@ -403,6 +427,9 @@ class CommentsBS {
         for (let c = 0; c < this.comments.length; c++) {
             if (this.comments[c].id === cmtId) {
                 this.comments.splice(c, 1);
+                // retire le commentaire de la liste des commentaires
+                this.removeFromPage(cmtId);
+                this._callListeners('delete');
                 break;
             }
         }
@@ -1007,7 +1034,7 @@ class CommentsBS {
         const avatar = comment.avatar || 'https://img.betaseries.com/NkUiybcFbxbsT_EnzkGza980XP0=/42x42/smart/https%3A%2F%2Fwww.betaseries.com%2Fimages%2Fsite%2Favatar-default.png';
         const template = `
             <div class="slide_flex">
-                <div class="slide__comment positionRelative u-insideBorderOpacity u-insideBorderOpacity--01">
+                <div class="slide__comment positionRelative u-insideBorderOpacity u-insideBorderOpacity--01" data-comment-id="${comment.id}">
                     <p>${headMsg} ${hideMsg}</p>
                     <button type="button" class="btn-reset js-popup-comments zIndex10" data-comment-id="${comment.id}"></button>
                 </div>
@@ -1036,6 +1063,14 @@ class CommentsBS {
         // On met à jour le nombre de commentaires
         jQuery('#comments .blockTitle').text(jQuery('#comments .blockTitle').text().replace(/\d+/, this.nbComments.toString()));
         this._callListeners(EventTypes.ADD);
+    }
+    /**
+     * Supprime un commentaire dans la liste des commentaires de la page
+     * @param {number} cmtId - L'identifiant du commentaire
+     */
+    removeFromPage(cmtId) {
+        const $vignette = jQuery(`#comments .slides_flex .slide__comment[data-comment-id="${cmtId}"]`);
+        $vignette.parents('.slide_flex').remove();
     }
     /**
      * Retourne la template affichant les notes associés aux commentaires
@@ -1178,6 +1213,14 @@ class CommentBS {
     _events;
     constructor(data, parent) {
         this._parent = parent;
+        return this.fill(data);
+    }
+    /**
+     * Remplit l'objet CommentBS avec les données provenant de l'API
+     * @param   {Obj} data - Les données provenant de l'API
+     * @returns {CommentBS}
+     */
+    fill(data) {
         this.id = parseInt(data.id, 10);
         this.reference = data.reference;
         this.type = data.type;
@@ -1198,6 +1241,7 @@ class CommentBS {
         this.replies = new Array();
         this.from_admin = data.from_admin;
         this.user_rank = data.user_rank;
+        return this;
     }
     /**
      * Récupère les réponses du commentaire
@@ -1215,6 +1259,34 @@ class CommentBS {
             }
         }
         return this;
+    }
+    /**
+     * Modifie le texte du commentaire
+     * @param   {string} msg - Le nouveau message du commentaire
+     * @returns {CommentBS}
+     */
+    edit(msg) {
+        const self = this;
+        this.text = msg;
+        const params = {
+            edit_id: this.id,
+            text: msg
+        };
+        return Base.callApi(HTTP_VERBS.POST, 'comments', 'comment', params)
+            .then((data) => {
+            return self.fill(data.comment);
+        });
+    }
+    /**
+     * Supprime le commentaire sur l'API
+     * @returns
+     */
+    delete() {
+        const self = this;
+        Base.callApi(HTTP_VERBS.DELETE, 'comments', 'comment', { id: this.id })
+            .then((data) => {
+            self._parent.removeComment(self.id);
+        });
     }
     /**
      * Indique si le commentaire est le premier de la liste
@@ -1250,6 +1322,18 @@ class CommentBS {
                     </svg>
                 </span>&nbsp;<span class="btnText">${Base.trans("comment.hide_answers")}</span>
             </button>` : '';
+        let templateOptions = `
+            <a href="/messages/nouveau?login=${comment.login}" class="mainLink">Envoyer un message</a>
+            <span class="mainLink">&nbsp;∙&nbsp;</span>
+            <button type="button" class="btn-reset mainLink btnSignal" style="vertical-align: 0px;">Signaler</button>
+        `;
+        if (comment.user_id === Base.userId) {
+            templateOptions = `
+                <button type="button" class="btn-reset mainLink btnEditComment">Éditer</button>
+                <span class="mainLink">&nbsp;∙&nbsp;</span>
+                <button type="button" class="btn-reset mainLink btnDeleteComment">Supprimer</button>
+            `;
+        }
         return `
             <div class="comment ${className} positionRelative ${CommentBS.classNamesCSS.comment}" data-comment-id="${comment.id}" ${comment.in_reply_to > 0 ? 'data-comment-reply="' + comment.in_reply_to + '"' : ''} data-comment-inner="${comment.inner_id}">
                 <div class="media">
@@ -1307,9 +1391,7 @@ class CommentBS {
                                 </div>
                             </div>
                             <div class="options-options options-comment" style="display:none;">
-                                <a href="/messages/nouveau?login=${comment.login}" class="mainLink">Envoyer un message</a>
-                                <span class="mainLink">&nbsp;∙&nbsp;</span>
-                                <button type="button" class="btn-reset mainLink btnSignal" style="vertical-align: 0px;">Signaler</button>
+                                ${templateOptions}
                                 <button type="button" class="btn-reset btnToggleOptions" style="margin-left: 4px;">
                                     <span class="svgContainer">
                                         <svg fill="${Base.theme === 'dark' ? "rgba(255, 255, 255, .5)" : "#333"}" width="9" height="9" viewBox="0 0 14 14" xmlns="http://www.w3.org/2000/svg">
@@ -1623,6 +1705,8 @@ class CommentBS {
             const $textarea = $(e.currentTarget).siblings('textarea');
             if ($textarea.val().length > 0) {
                 const replyId = parseInt($textarea.data('replyTo'), 10);
+                const action = $textarea.data('action');
+                const cmtId = parseInt($textarea.data('commentId'), 10);
                 const msg = $textarea.val();
                 if (replyId && replyId == self.id) {
                     self.sendReply(msg).then(comment => {
@@ -1646,6 +1730,11 @@ class CommentBS {
                     else {
                         // Allo Houston, on a un problème
                     }
+                }
+                else if (action === 'edit') {
+                    self.edit(msg);
+                    const $parent = $(e.currentTarget).parents('.comment');
+                    $parent.find('.comment-text').text(self.text);
                 }
                 else {
                     CommentsBS.sendComment(self._parent.media, msg).then((comment) => {
@@ -1742,6 +1831,49 @@ class CommentBS {
                 .attr('data-reply-to', comment.id);
         });
         this._events.push({ elt: $btnResponse, event: 'click' });
+        const $btnEdit = $container.find('.btnEditComment');
+        $btnEdit.click((e) => {
+            e.stopPropagation();
+            e.preventDefault();
+            const $parent = $(e.currentTarget).parents('.comment');
+            const commentId = parseInt($parent.data('commentId'), 10);
+            $textarea.val(self.text);
+            $textarea.attr('data-action', 'edit');
+            $textarea.attr('data-comment-id', commentId);
+        });
+        this._events.push({ elt: $btnEdit, event: 'click' });
+        const $btnDelete = $container.find('.btnDeleteComment');
+        $btnDelete.click((e) => {
+            e.stopPropagation();
+            e.preventDefault();
+            const $parent = $(e.currentTarget).parents('.comment');
+            const $options = $(e.currentTarget).parents('.options-options');
+            let template = `
+                <div class="options-delete">
+                    <span class="mainTime">Supprimer mon commentaire :</span>
+                    <button type="button" class="btn-reset fontWeight700 btnYes" style="vertical-align: 0px; padding-left: 10px; padding-right: 10px; color: rgb(208, 2, 27);">Oui</button>
+                    <button type="button" class="btn-reset mainLink btnNo" style="vertical-align: 0px;">Non</button>
+                </div>
+            `;
+            $options.hide().after(template);
+            const $btnYes = $parent.find('.options-delete .btnYes');
+            const $btnNo = $parent.find('.options-delete .btnNo');
+            $btnYes.click((e) => {
+                e.stopPropagation();
+                e.preventDefault();
+                self.delete();
+                $btnClose.trigger('click');
+            });
+            $btnNo.click((e) => {
+                e.stopPropagation();
+                e.preventDefault();
+                $parent.find('.options-delete').remove();
+                $options.show();
+                $btnYes.off('click');
+                $btnNo.off('click');
+            });
+        });
+        this._events.push({ elt: $btnDelete, event: 'click' });
     }
     /**
      * Nettoie les events créer par la fonction loadEvents
@@ -4893,7 +5025,7 @@ class Similar extends Media {
         // if (Base.debug) console.log('getTitlePopup', this);
         let title = this.title;
         if (this.objNote.total > 0) {
-            title += ' <span style="font-size: 0.8em;color:#000;">' +
+            title += ' <span style="font-size: 0.8em;color:var(--link_color);">' +
                 this.objNote.mean.toFixed(2) + ' / 5</span>';
         }
         return title;
