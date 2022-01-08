@@ -181,7 +181,6 @@ class CommentsBS {
             .then((data) => {
             const comment = new CommentBS(data.comment, media.comments);
             media.comments.addComment(comment);
-            media.comments.nbComments++;
             media.comments.is_subscribed = true;
             return comment;
         })
