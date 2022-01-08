@@ -825,10 +825,12 @@ class CommentsBS {
                 }
                 else if (action && action === 'edit') {
                     const cmtId = parseInt($textarea.data('commentId'), 10);
-                    const $comment = jQuery(e.currentTarget).parents('.writing').prev('.comments').find(`.comment[data-comment-id="${cmtId.toString()}"]`);
+                    let $comment = jQuery(e.currentTarget).parents('.writing').prev('.comments').find(`.comment[data-comment-id="${cmtId.toString()}"]`);
                     const comment = await getObjComment($comment);
                     comment.edit(msg).then((comment) => {
                         $comment.find('.comment-text').text(comment.text);
+                        $comment = jQuery(`#comments .slide_flex .slide__comment[data-comment-id="${cmtId}"]`);
+                        $comment.find('p').text(comment.text);
                     });
                 }
                 else {
@@ -1883,10 +1885,14 @@ class CommentBS {
                     }
                 }
                 else if (action === 'edit') {
-                    self.edit(msg);
-                    const cmtId = parseInt($textarea.data('commentId'), 10);
-                    const $comment = $(e.currentTarget).parents('.writing').siblings('.comments').children(`.comment[data-comment-id="${cmtId.toString()}"]`);
-                    $comment.find('.comment-text').text(self.text);
+                    self.edit(msg).then(() => {
+                        const cmtId = parseInt($textarea.data('commentId'), 10);
+                        let $comment = $(e.currentTarget).parents('.writing').siblings('.comments').children(`.comment[data-comment-id="${cmtId.toString()}"]`);
+                        $comment.find('.comment-text').text(self.text);
+                        // TODO: modifier le texte de la vignette du commentaire
+                        $comment = jQuery(`#comments .slide_flex .slide__comment[data-comment-id="${cmtId}"]`);
+                        $comment.find('p').text(msg);
+                    });
                 }
                 else {
                     CommentsBS.sendComment(self.getCollectionComments().media, msg).then((comment) => {
