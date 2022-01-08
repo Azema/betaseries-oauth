@@ -812,6 +812,9 @@ class CommentsBS {
                 faceboxDisplay('inscription', {}, function () { });
                 return;
             }
+            const getNodeCmt = function (cmtId) {
+                return jQuery(e.currentTarget).parents('.writing').prev('.comments').find(`.comment[data-comment-id="${cmtId.toString()}"]`);
+            };
             const $textarea = $(e.currentTarget).siblings('textarea');
             if ($textarea.val().length > 0) {
                 const action = $textarea.data('action');
@@ -819,16 +822,21 @@ class CommentsBS {
                 let comment;
                 let promise;
                 if ($textarea.data('replyTo')) {
-                    comment = self.getComment(parseInt($textarea.data('replyTo'), 10));
-                    promise = comment.sendReply($textarea.val()).then(() => {
-                        $textarea.val('');
-                        $textarea.siblings('button').attr('disabled', 'true');
-                        $textarea.removeAttr('data-reply-to');
+                    const cmtId = parseInt($textarea.data('replyTo'), 10);
+                    comment = self.getComment(cmtId);
+                    let $comment = getNodeCmt(cmtId);
+                    promise = comment.sendReply($textarea.val()).then((reply) => {
+                        if (reply instanceof CommentBS) {
+                            $textarea.val('');
+                            $textarea.siblings('button').attr('disabled', 'true');
+                            $textarea.removeAttr('data-reply-to');
+                            $comment.after(CommentBS.getTemplateComment(reply));
+                        }
                     });
                 }
                 else if (action && action === 'edit') {
                     const cmtId = parseInt($textarea.data('commentId'), 10);
-                    let $comment = jQuery(e.currentTarget).parents('.writing').prev('.comments').find(`.comment[data-comment-id="${cmtId.toString()}"]`);
+                    let $comment = getNodeCmt(cmtId);
                     const comment = await getObjComment($comment);
                     promise = comment.edit(msg).then((comment) => {
                         $comment.find('.comment-text').text(comment.text);
