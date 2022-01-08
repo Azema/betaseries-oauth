@@ -1413,13 +1413,13 @@ class CommentBS {
             </button>` : '';
         let templateOptions = `
             <a href="/messages/nouveau?login=${comment.login}" class="mainLink">Envoyer un message</a>
-            <span class="mainLink">&nbsp;∙&nbsp;</span>
+            <span class="mainLink">∙</span>
             <button type="button" class="btn-reset mainLink btnSignal">Signaler</button>
         `;
         if (comment.user_id === Base.userId) {
             templateOptions = `
                 <button type="button" class="btn-reset mainLink btnEditComment">Éditer</button>
-                <span class="mainLink">&nbsp;∙&nbsp;</span>
+                <span class="mainLink">∙</span>
                 <button type="button" class="btn-reset mainLink btnDeleteComment">Supprimer</button>
             `;
         }
@@ -1460,7 +1460,7 @@ class CommentBS {
                                 </button>
                                 <strong class="mainLink thumbs">${comment.thumbs > 0 ? '+' + comment.thumbs : (comment.thumbs < 0) ? '-' + comment.thumbs : comment.thumbs}</strong>
                                 ${btnResponse}
-                                <span class="mainLink">&nbsp;∙&nbsp;</span>
+                                <span class="mainLink">∙</span>
                                 <span class="mainTime">Le ${ /* eslint-disable-line no-undef */typeof moment !== 'undefined' ? moment(comment.date).format('DD/MM/YYYY HH:mm') : comment.date.toString()}</span>
                                 <span class="stars" title="${comment.user_note} / 5">
                                     ${Note.renderStars(comment.user_note, comment.user_id === Base.userId ? 'blue' : '')}
@@ -1741,12 +1741,15 @@ class CommentBS {
             $btnSpoiler.click((e) => {
                 e.stopPropagation();
                 e.preventDefault();
-                const $spoiler = $(e.currentTarget).next('.comment-text').find('.spoiler');
+                const $btn = jQuery(e.currentTarget);
+                const $spoiler = $btn.next('.comment-text').find('.spoiler');
                 if ($spoiler.is(':visible')) {
                     $spoiler.fadeOut('fast');
+                    $btn.text('Voir le spoiler');
                 }
                 else {
                     $spoiler.fadeIn('fast');
+                    $btn.text('Cacher le spoiler');
                 }
                 // $(e.currentTarget).fadeOut();
             });
