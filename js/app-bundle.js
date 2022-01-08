@@ -710,8 +710,16 @@ class CommentsBS {
             $btnSpoiler.click((e) => {
                 e.stopPropagation();
                 e.preventDefault();
-                $(e.currentTarget).prev('span.comment-text').fadeIn();
-                $(e.currentTarget).fadeOut();
+                const $btn = jQuery(e.currentTarget);
+                const $spoiler = $btn.next('.comment-text').find('.spoiler');
+                if ($spoiler.is(':visible')) {
+                    $spoiler.fadeOut('fast');
+                    $btn.text('Voir le spoiler');
+                }
+                else {
+                    $spoiler.fadeIn('fast');
+                    $btn.text('Cacher le spoiler');
+                }
             });
         }
         this._events.push({ elt: $btnSpoiler, event: 'click' });
@@ -1751,7 +1759,6 @@ class CommentBS {
                     $spoiler.fadeIn('fast');
                     $btn.text('Cacher le spoiler');
                 }
-                // $(e.currentTarget).fadeOut();
             });
             this._events.push({ elt: $btnSpoiler, event: 'click' });
         }
