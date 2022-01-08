@@ -822,6 +822,7 @@ class CommentsBS {
                     comment.sendReply($textarea.val());
                     $textarea.val('');
                     $textarea.siblings('button').attr('disabled', 'true');
+                    $textarea.removeAttr('data-reply-to');
                 }
                 else if (action && action === 'edit') {
                     const cmtId = parseInt($textarea.data('commentId'), 10);
@@ -831,6 +832,10 @@ class CommentsBS {
                         $comment.find('.comment-text').text(comment.text);
                         $comment = jQuery(`#comments .slide_flex .slide__comment[data-comment-id="${cmtId}"]`);
                         $comment.find('p').text(comment.text);
+                        $textarea.removeAttr('data-action');
+                        $textarea.removeAttr('data-comment-id');
+                        $textarea.val('');
+                        $textarea.siblings('button').attr('disabled', 'true');
                     });
                 }
                 else {
