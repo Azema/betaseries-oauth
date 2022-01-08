@@ -1042,10 +1042,12 @@ class CommentsBS {
                 e.stopPropagation();
                 e.preventDefault();
                 comment.delete();
-                let $next = $comment.next();
+                let $next = $comment.next('.comment');
+                let $prev;
                 while ($next.hasClass('reply')) {
-                    $next.remove();
-                    $next = $next.next();
+                    $prev = $next;
+                    $next = $next.next('.comment');
+                    $prev.remove();
                 }
                 $comment.remove();
             });
