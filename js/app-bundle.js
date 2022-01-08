@@ -936,7 +936,7 @@ class CommentsBS {
                 }
                 $btn.before(template);
                 jQuery(`.comment[data-comment-id="${firstCmtId.toString()}"]`).get(0).scrollIntoView();
-                self.cleanEvents(self.loadEvents);
+                self.loadEvents($container, nbpp, funcPopup);
                 if (self.comments.length >= self.nbComments) {
                     $btn.hide();
                 }
@@ -956,9 +956,11 @@ class CommentsBS {
             let data;
             for (let e = 0; e < this._events.length; e++) {
                 data = this._events[e];
-                data.elt.off(data.event);
+                if (data.elt.length > 0)
+                    data.elt.off(data.event);
             }
         }
+        this._events = new Array();
         onComplete();
     }
     /**
