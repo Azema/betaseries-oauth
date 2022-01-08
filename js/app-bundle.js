@@ -1399,6 +1399,7 @@ class CommentBS {
         }
         const spoiler = /\[spoiler\]/.test(text);
         let btnSpoiler = spoiler ? `<button type="button" class="btn-reset mainLink view-spoiler">${Base.trans("comment.button.display_spoiler")}</button>` : '';
+        text = text.replace(/\[spoiler\](.*)\[\/spoiler\]/g, '<span class="spoiler" style="display:none">$1</span>');
         // let classNames = {reply: 'iv_i5', actions: 'iv_i3', comment: 'iv_iz'};
         let classNames = { reply: 'it_i3', actions: 'it_i1', comment: 'it_ix', sub: 'it_i5' };
         let className = (comment.in_reply_to > 0) ? (sub ? classNames.sub + ' reply sub' : classNames.reply + ' reply') : '';
@@ -1438,8 +1439,8 @@ class CommentBS {
                             <span class="mainLink">${comment.login}</span>&nbsp;
                             <span class="mainLink mainLink--regular">&nbsp;</span>
                         </a>
-                        <span style="${spoiler ? 'display:none;' : ''}" class="comment-text">${text}</span>
                         ${btnSpoiler}
+                        <span class="comment-text">${text}</span>
                         <div class="${CommentBS.classNamesCSS.actions} actionsCmt">
                             <div class="options-main options-comment">
                                 <button type="button" class="btn-reset btnUpVote btnThumb" title="+1 pour ce commentaire">
@@ -1741,8 +1742,14 @@ class CommentBS {
             $btnSpoiler.click((e) => {
                 e.stopPropagation();
                 e.preventDefault();
-                $(e.currentTarget).prev('span.comment-text').fadeIn();
-                $(e.currentTarget).fadeOut();
+                const $spoiler = $(e.currentTarget).next('.comment-text .spoiler');
+                if ($spoiler.is(':visible')) {
+                    $spoiler.fadeOut('fast');
+                }
+                else {
+                    $spoiler.fadeIn('fast');
+                }
+                // $(e.currentTarget).fadeOut();
             });
             this._events.push({ elt: $btnSpoiler, event: 'click' });
         }
