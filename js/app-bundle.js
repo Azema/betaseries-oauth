@@ -658,7 +658,7 @@ class CommentsBS {
         const $btnAllReplies = $container.find('.toggleAllReplies');
         $btnAllReplies.click((e) => {
             const $btn = jQuery(e.currentTarget);
-            const stateReplies = $btn.data('toggle'); // 0: Etat masqué, 1: Etat affiché
+            const stateReplies = $btn.attr('data-toggle'); // 0: Etat masqué, 1: Etat affiché
             const $btnReplies = $container.find(`.toggleReplies[data-toggle="${stateReplies}"]`);
             if (stateReplies == '1') {
                 $btnReplies.trigger('click');
@@ -950,7 +950,7 @@ class CommentsBS {
             e.stopPropagation();
             e.preventDefault();
             const $btn = jQuery(e.currentTarget);
-            const state = $btn.data('toggle'); // 0: Etat masqué, 1: Etat affiché
+            const state = $btn.attr('data-toggle'); // 0: Etat masqué, 1: Etat affiché
             const $comment = $btn.parents('.comment');
             const inner = $comment.data('commentInner');
             const $replies = $comment.parents('.comments').find(`.comment[data-comment-reply="${inner}"]`);
