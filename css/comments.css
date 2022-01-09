@@ -74,6 +74,9 @@
 .comment .thumbs.negative {
     color: var(--danger);
 }
+.comment .thumbs.positive {
+    color: var(--success);
+}
 .comment .options-options .btnToggleOptions {
     margin-left: 4px;
 }
