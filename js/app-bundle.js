@@ -657,15 +657,16 @@ class CommentsBS {
         this._events.push({ elt: $btnClose, event: 'click' });
         const $btnAllReplies = $container.find('.toggleAllReplies');
         $btnAllReplies.click((e) => {
-            const $btn = $(e.currentTarget);
+            const $btn = jQuery(e.currentTarget);
             const stateReplies = $btn.data('toggle'); // 0: Etat masqué, 1: Etat affiché
+            const $btnReplies = $container.find(`.toggleReplies[data-toggle="${stateReplies}"]`);
             if (stateReplies == '1') {
-                $container.find('.comments .toggleReplies[data-toggle="1"]').trigger('click');
+                $btnReplies.trigger('click');
                 $btn.data('toggle', '0');
                 $btn.text('Afficher toutes les réponses');
             }
             else {
-                $container.find('.comments .toggleReplies[data-toggle="0"]').trigger('click');
+                $btnReplies.trigger('click');
                 $btn.data('toggle', '1');
                 $btn.text('Masquer toutes les réponses');
             }
@@ -948,7 +949,7 @@ class CommentsBS {
         $btnReplies.click((e) => {
             e.stopPropagation();
             e.preventDefault();
-            const $btn = $(e.currentTarget);
+            const $btn = jQuery(e.currentTarget);
             const state = $btn.data('toggle'); // 0: Etat masqué, 1: Etat affiché
             const $comment = $btn.parents('.comment');
             const inner = $comment.data('commentInner');
