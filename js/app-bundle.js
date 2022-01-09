@@ -655,6 +655,22 @@ class CommentsBS {
             $popup.removeAttr('data-popin-type');
         });
         this._events.push({ elt: $btnClose, event: 'click' });
+        const $btnAllReplies = $container.find('.toggleAllReplies');
+        $btnAllReplies.click((e) => {
+            const $btn = $(e.currentTarget);
+            const stateReplies = $btn.data('toggle'); // 0: Etat masqué, 1: Etat affiché
+            if (stateReplies == '1') {
+                $container.find('.comments .toggleReplies[data-toggle="1"]').trigger('click');
+                $btn.data('toggle', '0');
+                $btn.text('Afficher toutes les réponses');
+            }
+            else {
+                $container.find('.comments .toggleReplies[data-toggle="0"]').trigger('click');
+                $btn.data('toggle', '1');
+                $btn.text('Masquer toutes les réponses');
+            }
+        });
+        this._events.push({ elt: $btnAllReplies, event: 'click' });
         const $btnSubscribe = $container.find('.btnSubscribe');
         /**
          * Met à jour l'affichage du bouton de souscription
@@ -1117,6 +1133,7 @@ class CommentsBS {
         // On ajoute le loader dans la popup et on l'affiche
         $contentReact.empty().append(`<div class="title" id="dialog-title" tabindex="0">${Base.trans("blog.title.comments")}</div>`);
         const $title = $contentReact.find('.title');
+        $title.append(`<button type="button" class="btn-reset toggleAllReplies" data-toggle="1">Cacher toutes les réponses</button>`);
         let templateLoader = `
             <div class="loaderCmt">
                 <svg class="sr-only">
