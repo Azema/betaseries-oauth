@@ -662,12 +662,12 @@ class CommentsBS {
             const $btnReplies = $container.find(`.toggleReplies[data-toggle="${stateReplies}"]`);
             if (stateReplies == '1') {
                 $btnReplies.trigger('click');
-                $btn.data('toggle', '0');
+                $btn.attr('data-toggle', '0');
                 $btn.text('Afficher toutes les réponses');
             }
             else {
                 $btnReplies.trigger('click');
-                $btn.data('toggle', '1');
+                $btn.attr('data-toggle', '1');
                 $btn.text('Masquer toutes les réponses');
             }
         });
@@ -959,14 +959,14 @@ class CommentsBS {
                 $replies.fadeIn('fast');
                 $btn.find('.btnText').text(Base.trans("comment.hide_answers"));
                 $btn.find('svg').attr('style', 'transition: transform 200ms ease 0s; transform: rotate(180deg);');
-                $btn.data('toggle', '1');
+                $btn.attr('data-toggle', '1');
             }
             else {
                 // On masque
                 $replies.fadeOut('fast');
                 $btn.find('.btnText').text(Base.trans("comment.button.reply", { "%count%": $replies.length.toString() }, $replies.length));
                 $btn.find('svg').attr('style', 'transition: transform 200ms ease 0s;');
-                $btn.data('toggle', '0');
+                $btn.attr('data-toggle', '0');
             }
         });
         this._events.push({ elt: $btnReplies, event: 'click' });
