@@ -1,4 +1,4 @@
-/*! betaseries_userscript - v1.1.6 - 2022-01-08
+/*! betaseries_userscript - v1.2.0 - 2022-01-09
  * https://github.com/Azema/betaseries
  * Copyright (c) 2022 Azema;
  * Licensed Apache-2.0
@@ -1525,7 +1525,7 @@ class CommentBS {
                                         </g>
                                     </svg>
                                 </button>
-                                <strong class="mainLink thumbs">${comment.thumbs > 0 ? '+' + comment.thumbs : (comment.thumbs < 0) ? '-' + comment.thumbs : comment.thumbs}</strong>
+                                <strong class="mainLink thumbs">${comment.thumbs > 0 ? '+' + comment.thumbs : comment.thumbs}</strong>
                                 ${btnResponse}
                                 <span class="mainLink">∙</span>
                                 <span class="mainTime">Le ${ /* eslint-disable-line no-undef */typeof moment !== 'undefined' ? moment(comment.date).format('DD/MM/YYYY HH:mm') : comment.date.toString()}</span>
@@ -5113,6 +5113,7 @@ class Similar extends Media {
                 // eslint-disable-next-line no-undef
                 dialog.setContent(renderjson.set_show_to_level(2)(data[_this.mediaType.singular]));
                 dialog.setCounter(Base.counter.toString());
+                dialog.setTitle('Données du similar');
                 dialog.show();
             });
         });
