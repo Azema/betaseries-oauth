@@ -442,7 +442,7 @@ dialog.dialog-content {
 /*-------------------------------------------------*/
 /*                  Button                         */
 /*-------------------------------------------------*/
-.btn {
+.btn:not(.ka_g) {
   display: inline-block;
   font-weight: 400;
   color: #212529;
