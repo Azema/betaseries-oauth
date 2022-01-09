@@ -1134,7 +1134,7 @@ class CommentsBS {
         // On ajoute le loader dans la popup et on l'affiche
         $contentReact.empty().append(`<div class="title" id="dialog-title" tabindex="0">${Base.trans("blog.title.comments")}</div>`);
         const $title = $contentReact.find('.title');
-        $title.append(`<button type="button" class="btn-reset toggleAllReplies" data-toggle="1">Cacher toutes les réponses</button>`);
+        $title.append(`<button type="button" class="btn-primary toggleAllReplies" data-toggle="1" style="border-radius:4px;margin-left:10px;">Cacher toutes les réponses</button>`);
         let templateLoader = `
             <div class="loaderCmt">
                 <svg class="sr-only">
