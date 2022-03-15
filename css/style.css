@@ -442,7 +442,7 @@ dialog.dialog-content {
 /*-------------------------------------------------*/
 /*                  Button                         */
 /*-------------------------------------------------*/
-.btn:not(.ka_g) {
+.btn {
   display: inline-block;
   font-weight: 400;
   color: #212529;
@@ -521,6 +521,13 @@ fieldset:disabled a.btn {
 
 .btn-primary:not(:disabled):not(.disabled):active:focus, .btn-primary:not(:disabled):not(.disabled).active:focus,
 .show > .btn-primary.dropdown-toggle:focus {
+  box-shadow: 0 0 0 0.2rem rgba(38, 143, 255, 0.5);
+}
+
+.popin-content .btn-blue2:focus {
+  color: #fff;
+  background-color: #0069d9;
+  border-color: #0062cc;
   box-shadow: 0 0 0 0.2rem rgba(38, 143, 255, 0.5);
 }
 
@@ -722,6 +729,13 @@ fieldset:disabled a.btn {
 }
 
 .btn-light:focus, .btn-light.focus {
+  color: #212529;
+  background-color: #e2e6ea;
+  border-color: #dae0e5;
+  box-shadow: 0 0 0 0.2rem rgba(216, 217, 219, 0.5);
+}
+
+.popin-content .btn--grey:focus {
   color: #212529;
   background-color: #e2e6ea;
   border-color: #dae0e5;
@@ -1086,6 +1100,29 @@ input[type="submit"].btn-block,
 input[type="reset"].btn-block,
 input[type="button"].btn-block {
   width: 100%;
+}
+
+#seasons .slide_flex .dropdown-menu .btn {
+  background-color: inherit;
+  color: inherit;
+  padding: 7px 0;
+  font-size: 12px;
+  line-height: 16px;
+  border: 0;
+}
+#seasons .slide_flex .dropdown-menu .btn:hover {
+  border: none;
+  color: #fff;
+  background: #54709d;
+}
+
+.blockInformations__action .btnMarkToSee {
+  height: 44px;
+  width: 64px;
+}
+.blockInformations__action .btnMarkToSee i.fa {
+  font-size: 1.5em;
+  color: var(--default-color);
 }
 
 /*-------------------------------------------------*/
