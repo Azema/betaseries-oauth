@@ -3,7 +3,7 @@
 	"tasks": [
 		{
 			"type": "grunt",
-			"task": "cssmin",
+			"task": "build",
 			"problemMatcher": [],
 			"label": "grunt: cssmin",
 			"options": {
