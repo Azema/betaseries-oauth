@@ -1,4 +1,4 @@
-/*! betaseries_userscript - v1.2.0 - 2022-01-09
+/*! betaseries_userscript - v1.2.0 - 2022-04-06
  * https://github.com/Azema/betaseries
  * Copyright (c) 2022 Azema;
  * Licensed Apache-2.0
@@ -119,26 +119,53 @@ class CacheUS {
 }
 
 class Character {
+    /**
+     * @type {string} Nom de l'acteur/actrice
+     */
+    actor;
+    /**
+     * @type {string} Description du rôle
+     */
+    description;
+    /**
+     * @type {boolean} Invité ?
+     */
+    guest;
+    /**
+     * @type {number} Identifiant de l'acteur
+     */
+    id;
+    /**
+     * @type {string} Nom du personnage
+     */
+    name;
+    /**
+     * @type {string} URL de l'image du personnage
+     */
+    picture;
+    /**
+     * @type {string} Type de rôle du personnage dans le média
+     */
+    role;
+    /**
+     * @type {number} Identifiant de la série
+     */
+    show_id;
+    /**
+     * @type {number} Identifiant du film
+     */
+    movie_id;
     constructor(data) {
         this.actor = data.actor || '';
         this.picture = data.picture || '';
         this.name = data.name || '';
-        this.guest = data.guest || false;
+        this.guest = !!data.guest || false;
         this.id = (data.id !== undefined) ? parseInt(data.id, 10) : 0;
-        this.description = data.description || null;
+        this.description = data.description || '';
         this.role = data.role || '';
         this.show_id = (data.show_id !== undefined) ? parseInt(data.show_id, 10) : 0;
         this.movie_id = (data.movie_id !== undefined) ? parseInt(data.movie_id, 10) : 0;
     }
-    actor;
-    description;
-    guest;
-    id;
-    name;
-    picture;
-    role;
-    show_id;
-    movie_id;
 }
 
 /* interface JQuery<TElement = HTMLElement> extends Iterable<TElement> {
@@ -164,7 +191,7 @@ class CommentsBS {
      * Types d'évenements gérés par cette classe
      * @type {Array}
      */
-    static EventTypes = new Array('update', 'save', 'add', 'delete');
+    static EventTypes = new Array('update', 'save', 'add', 'delete', 'show');
     /**
      * Envoie une réponse de ce commentaire à l'API
      * @param   {Base} media - Le média correspondant à la collection
@@ -282,11 +309,16 @@ class CommentsBS {
      */
     addListener(name, fn) {
         // On vérifie que le type d'event est pris en charge
-        if (this.constructor.EventTypes.indexOf(name) < 0) {
+        if (CommentsBS.EventTypes.indexOf(name) < 0) {
             throw new Error(`${name} ne fait pas partit des events gérés par cette classe`);
         }
         if (this._listeners[name] === undefined) {
             this._listeners[name] = new Array();
+        }
+        for (let func in this._listeners[name]) {
+            console.log('func', func.toString(), 'fn', fn.toString());
+            if (func.toString() == fn.toString())
+                return;
         }
         this._listeners[name].push(fn);
         return this;
@@ -414,6 +446,9 @@ class CommentsBS {
         }
         this.nbComments++;
         this.media.nbComments++;
+        if (Base.debug)
+            console.log('addComment listeners', this._listeners);
+        this._callListeners(EventTypes.ADD);
         return this;
     }
     /**
@@ -598,6 +633,19 @@ class CommentsBS {
                 reject(err);
             });
         });
+    }
+    /**
+     * Retourne un tableau contenant les logins des commentaires
+     * @returns {Array<string>}
+     */
+    getLogins() {
+        let users = new Array();
+        for (let c = 0; c < this.comments.length; c++) {
+            if (!users.includes(this.comments[c].login)) {
+                users.push(this.comments[c].login);
+            }
+        }
+        return users;
     }
     /**
      * Met à jour le nombre de commentaires sur la page
@@ -1086,6 +1134,7 @@ class CommentsBS {
             });
         });
         this._events.push({ elt: $btnDelete, event: 'click' });
+        this._callListeners(EventTypes.SHOW);
     }
     /**
      * Nettoie les events créer par la fonction loadEvents
@@ -1171,10 +1220,10 @@ class CommentsBS {
      */
     addToPage(cmtId) {
         const comment = this.getComment(cmtId);
-        const headMsg = comment.text.substring(0, 275);
+        const headMsg = comment.text.substring(0, 210);
         let hideMsg = '';
-        if (comment.text.length > 275)
-            hideMsg = '<span class="u-colorWhiteOpacity05 u-show-fulltext positionRelative zIndex1"></span><span class="sr-only">' + comment.text.substring(275) + '</span>';
+        if (comment.text.length > 210)
+            hideMsg = '<span class="u-colorWhiteOpacity05 u-show-fulltext positionRelative zIndex1"></span><span class="sr-only">' + comment.text.substring(210) + '</span>';
         const avatar = comment.avatar || 'https://img.betaseries.com/NkUiybcFbxbsT_EnzkGza980XP0=/42x42/smart/https%3A%2F%2Fwww.betaseries.com%2Fimages%2Fsite%2Favatar-default.png';
         const template = `
             <div class="slide_flex">
@@ -1206,7 +1255,6 @@ class CommentsBS {
         jQuery('#comments .slides_flex').prepend(template);
         // On met à jour le nombre de commentaires
         jQuery('#comments .blockTitle').text(jQuery('#comments .blockTitle').text().replace(/\d+/, this._parent.nbComments.toString()));
-        this._callListeners(EventTypes.ADD);
     }
     /**
      * Supprime un commentaire dans la liste des commentaires de la page
@@ -1244,7 +1292,7 @@ class CommentsBS {
                 }
             }
             const buildline = function (index, notes) {
-                const percent = (notes[index] * 100) / nbEvaluations;
+                let percent = nbEvaluations > 0 ? (notes[index] * 100) / nbEvaluations : 0;
                 return `<tr class="histogram-row">
                     <td class="nowrap">${index} étoile${index > 1 ? 's' : ''}</td>
                     <td class="span10">
@@ -1275,11 +1323,22 @@ class CommentsBS {
 }
 
 class CommentBS {
+    /*************************************************/
+    /*                  STATIC                       */
+    /*************************************************/
+    /**
+     * Types d'évenements gérés par cette classe
+     * @type {Array}
+     */
+    static EventTypes = new Array('update', 'save', 'add', 'delete', 'show', 'hide');
     /**
      * Contient le nom des classes CSS utilisées pour le rendu du commentaire
      * @type Obj
      */
     static classNamesCSS = { reply: 'it_i3', actions: 'it_i1', comment: 'it_ix' };
+    /*************************************************/
+    /*                  PROPERTIES                   */
+    /*************************************************/
     id;
     /**
      * Référence du média, pour créer l'URL (type.titleUrl)
@@ -1366,9 +1425,14 @@ class CommentBS {
      * @type {Array<CustomEvent>} Liste des events déclarés par la fonction loadEvents
      */
     _events;
+    /**
+     * @type {object} Objet contenant les fonctions à l'écoute des changements
+     * @private
+     */
+    _listeners;
     constructor(data, parent) {
         this._parent = parent;
-        return this.fill(data);
+        return this.fill(data)._initListeners();
     }
     /**
      * Remplit l'objet CommentBS avec les données provenant de l'API
@@ -1396,6 +1460,74 @@ class CommentBS {
         this.replies = new Array();
         this.from_admin = data.from_admin;
         this.user_rank = data.user_rank;
+        return this;
+    }
+    /**
+     * Initialize le tableau des écouteurs d'évènements
+     * @returns {Base}
+     * @private
+     */
+    _initListeners() {
+        this._listeners = {};
+        const EvtTypes = CommentBS.EventTypes;
+        for (let e = 0; e < EvtTypes.length; e++) {
+            this._listeners[EvtTypes[e]] = new Array();
+        }
+        return this;
+    }
+    /**
+     * Permet d'ajouter un listener sur un type d'évenement
+     * @param  {EventTypes} name - Le type d'évenement
+     * @param  {Function}   fn   - La fonction à appeler
+     * @return {Base} L'instance du média
+     */
+    addListener(name, fn) {
+        // On vérifie que le type d'event est pris en charge
+        if (!CommentBS.EventTypes.includes(name)) {
+            throw new Error(`${name} ne fait pas partit des events gérés par cette classe`);
+        }
+        if (this._listeners[name] === undefined) {
+            this._listeners[name] = new Array();
+        }
+        for (let func in this._listeners[name]) {
+            if (func.toString() == fn.toString())
+                return;
+        }
+        this._listeners[name].push(fn);
+        return this;
+    }
+    /**
+     * Permet de supprimer un listener sur un type d'évenement
+     * @param  {string}   name - Le type d'évenement
+     * @param  {Function} fn   - La fonction qui était appelée
+     * @return {Base} L'instance du média
+     */
+    removeListener(name, fn) {
+        if (this._listeners[name] !== undefined) {
+            for (let l = 0; l < this._listeners[name].length; l++) {
+                if (this._listeners[name][l] === fn)
+                    this._listeners[name].splice(l, 1);
+            }
+        }
+        return this;
+    }
+    /**
+     * Appel les listeners pour un type d'évenement
+     * @param  {EventTypes} name - Le type d'évenement
+     * @return {Base} L'instance du média
+     */
+    _callListeners(name) {
+        // On vérifie que le type d'event est pris en charge
+        if (!CommentBS.EventTypes.includes(name)) {
+            throw new Error(`${name} ne fait pas partit des events gérés par cette classe`);
+        }
+        const event = new CustomEvent('betaseries', { detail: { name: name } });
+        if (this._listeners[name].length > 0)
+            if (Base.debug)
+                console.log('Comment call %d Listeners on event %s', this._listeners[name].length, name);
+        for (let l = 0; l < this._listeners[name].length; l++) {
+            this._listeners[name][l].call(this, event, this);
+        }
         return this;
     }
     /**
@@ -1582,10 +1714,16 @@ class CommentBS {
     }
     /**
      * Renvoie la template HTML pour l'écriture d'un commentaire
+     * @param   {CommentBS} [comment?] - L'objet commentaire sur lequel envoyé les réponses
      * @returns {string}
      */
-    static getTemplateWriting() {
+    static getTemplateWriting(comment) {
         const login = Base.userIdentified() ? currentLogin : '';
+        let replyTo = '', placeholder = Base.trans("timeline.comment.write");
+        if (comment) {
+            replyTo = ` data-reply-to="${comment.id}"`;
+            placeholder = "Ecrivez une réponse à ce commentaire";
+        }
         return `
             <div class="writing">
                 <div class="media">
@@ -1596,7 +1734,7 @@ class CommentBS {
                     </div>
                     <div class="media-body">
                         <form class="gz_g1">
-                            <textarea rows="2" placeholder="${Base.trans("timeline.comment.write")}" class="form-control"></textarea>
+                            <textarea rows="2" placeholder="${placeholder}" class="form-control"${replyTo}></textarea>
                             <button class="btn-reset sendComment" disabled="" aria-label="${Base.trans("comment.send.label")}" title="${Base.trans("comment.send.label")}">
                                 <span class="svgContainer" style="width: 16px; height: 16px;">
                                     <svg fill="${Base.theme === 'dark' ? "#fff" : "#333"}" width="15" height="12" xmlns="http://www.w3.org/2000/svg">
@@ -1610,6 +1748,16 @@ class CommentBS {
                 </div>
             </div>
         `;
+    }
+    getLogins() {
+        let users = new Array();
+        users.push(this.login);
+        for (let r = 0; r < this.replies.length; r++) {
+            if (!users.includes(this.replies[r].login)) {
+                users.push(this.replies[r].login);
+            }
+        }
+        return users;
     }
     /**
      * Met à jour le rendu des votes de ce commentaire
@@ -2129,6 +2277,7 @@ class CommentBS {
             $contentReact.empty();
             $contentHtml.hide();
             self.cleanEvents();
+            self._callListeners(EventTypes.HIDE);
         }, showPopup = () => {
             document.body.style.overflow = "hidden";
             document.body.style.paddingRight = getScrollbarWidth() + "px";
@@ -2183,7 +2332,7 @@ class CommentBS {
         }
         template += '</div>';
         if (this.getCollectionComments().isOpen() && Base.userIdentified()) {
-            template += CommentBS.getTemplateWriting();
+            template += CommentBS.getTemplateWriting(self);
         }
         template += '</div>';
         // On définit le type d'affichage de la popup
@@ -2201,6 +2350,7 @@ class CommentBS {
             $contentReact.fadeIn();
             // On active les boutons de l'affichage du commentaire
             self.loadEvents($contentReact, { hidePopup, showPopup });
+            self._callListeners(EventTypes.SHOW);
         });
     }
     /**
@@ -2281,7 +2431,7 @@ class Note {
         if (Base.debug)
             console.log('objNote createPopupForVote');
         // La popup et ses éléments
-        const _this = this, $popup = jQuery('#popin-dialog'), $contentHtmlElement = $popup.find(".popin-content-html"), $contentReact = $popup.find('.popin-content-reactmodule'), $title = $contentHtmlElement.find(".title"), $text = $popup.find("p"), $closeButtons = $popup.find(".js-close-popupalert"), hidePopup = () => {
+        const _this = this, $popup = jQuery('#popin-dialog'), $contentHtmlElement = $popup.find(".popin-content-html"), $contentReact = $popup.find('.popin-content-reactmodule'), $closeButtons = $popup.find(".js-close-popupalert"), hidePopup = () => {
             if (Base.debug)
                 console.log('objNote createPopupForVote hidePopup');
             $popup.attr('aria-hidden', 'true');
@@ -2298,6 +2448,7 @@ class Note {
             $closeButtons.show();
             $popup.attr('aria-hidden', 'false');
         };
+        let $text = $popup.find("p"), $title = $contentHtmlElement.find(".title");
         // On vérifie que la popup est masquée
         hidePopup();
         // Ajouter les étoiles
@@ -2308,6 +2459,17 @@ class Note {
                 <svg viewBox="0 0 100 100" class="star-svg" data-number="${i}" style="width: 30px; height: 30px;">
                     <use xlink:href="#icon-starblue-${className}"></use>
                 </svg>`;
+        }
+        if ($text.length <= 0) {
+            $contentHtmlElement.replaceWith(`
+                <div class="popin-content-html">
+                    <div class="title" id="dialog-title" tabindex="0"></div>
+                    <div class="popin-content-ajax">
+                        <p></p>
+                    </div>
+                </div>`);
+            $text = $contentHtmlElement.find('p');
+            $title = $contentHtmlElement.find(".title");
         }
         // On vide la popup et on ajoute les étoiles
         $text.empty().append(template + '</div></div>');
@@ -2339,14 +2501,15 @@ class Note {
                 $($stars.get(s)).attr('xlink:href', `#icon-starblue-${className}`);
             }
         };
-        $text.find('.star-svg').mouseenter((e) => {
+        const $stars = $text.find('.star-svg');
+        $stars.mouseenter((e) => {
             const note = parseInt($(e.currentTarget).data('number'), 10);
             updateStars(e, note);
         });
-        $text.find('.star-svg').mouseleave((e) => {
+        $stars.mouseleave((e) => {
             updateStars(e, _this.user);
         });
-        $text.find('.star-svg').click((e) => {
+        $stars.click((e) => {
             const note = parseInt(jQuery(e.currentTarget).data('number'), 10), $stars = jQuery(e.currentTarget).parent().find('.star-svg');
             // On supprime les events
             $stars.off('mouseenter').off('mouseleave');
@@ -2356,6 +2519,7 @@ class Note {
                 if (result) {
                     // TODO: Mettre à jour la note du média
                     _this._parent.changeTitleNote(true);
+                    _this._parent._callListeners(EventTypes.NOTE);
                     if (cb)
                         cb.call(_this);
                 }
@@ -2376,7 +2540,7 @@ class Note {
         const $stars = elt.find('.star-svg use');
         let className;
         for (let s = 0; s < 5; s++) {
-            className = (this.mean <= s) ? StarTypes.EMPTY : (this.mean < s + 1) ? StarTypes.HALF : StarTypes.FULL;
+            className = (this.mean <= s) ? StarTypes.EMPTY : (this.mean < s + 1) ? (this.mean >= s + 0.5) ? StarTypes.HALF : StarTypes.EMPTY : StarTypes.FULL;
             $($stars.get(s)).attr('xlink:href', `#icon-star-${className}`);
         }
     }
@@ -2388,10 +2552,13 @@ class Note {
      */
     static renderStars(note = 0, color = '') {
         let typeSvg, template = '';
+        if (note == 0) {
+            color = 'grey';
+        }
         Array.from({
             length: 5
         }, (_index, number) => {
-            typeSvg = note <= number ? 'empty' : (note < number + 1) ? 'half' : 'full';
+            typeSvg = note <= number ? 'empty' : (note < number + 1) ? (note >= number + 0.5) ? 'half' : 'empty' : 'full';
             template += `
                 <svg viewBox="0 0 100 100" class="star-svg">
                     <use xmlns:xlink="http://www.w3.org/1999/xlink"
@@ -2476,6 +2643,8 @@ var EventTypes;
     EventTypes["NOTE"] = "note";
     EventTypes["ARCHIVE"] = "archive";
     EventTypes["UNARCHIVE"] = "unarchive";
+    EventTypes["SHOW"] = "show";
+    EventTypes["HIDE"] = "hide";
 })(EventTypes = EventTypes || (EventTypes = {}));
 ;
 var HTTP_VERBS;
@@ -2614,6 +2783,11 @@ class Base {
      */
     static serverBaseUrl = '';
     /**
+     * L'URL de base du serveur servant pour l'authentification
+     * @type {String}
+     */
+    static serverOauthUrl = '';
+    /**
      * Indique le theme d'affichage du site Web (light or dark)
      * @type {string}
      */
@@ -2647,6 +2821,10 @@ class Base {
      * @type {Ratings}
      */
     static ratings = null;
+    static gm_funcs = {
+        getValue: this.noop,
+        setValue: this.noop
+    };
     /**
      * Types d'évenements gérés par cette classe
      * @type {Array}
@@ -2668,7 +2846,7 @@ class Base {
                         title="Connexion à BetaSeries"
                         width="50%"
                         height="400"
-                        src="${Base.serverBaseUrl}/index.html"
+                        src="${Base.serverOauthUrl}/index.html"
                         style="background:white;margin:auto;">
                 </iframe>
                 </div>'
@@ -2676,7 +2854,7 @@ class Base {
         }
         return new Promise((resolve, reject) => {
             function receiveMessage(event) {
-                const origin = new URL(Base.serverBaseUrl).origin;
+                const origin = new URL(Base.serverOauthUrl).origin;
                 // if (debug) console.log('receiveMessage', event);
                 if (event.origin !== origin) {
                     if (Base.debug)
@@ -2896,7 +3074,9 @@ class Base {
             }
         }
         this.nbComments = data.comments ? parseInt(data.comments, 10) : 0;
-        this.comments = new CommentsBS(this.nbComments, this);
+        if (!(this.comments instanceof CommentsBS)) {
+            this.comments = new CommentsBS(this.nbComments, this);
+        }
         this.objNote = (data.note) ? new Note(data.note, this) : new Note(data.notes, this);
         this.resource_url = data.resource_url;
         this.title = data.title;
@@ -2925,6 +3105,7 @@ class Base {
      * @sealed
      */
     addListener(name, fn) {
+        //if (Base.debug) console.log('Base[%s] add Listener on event %s', this.constructor.name, name);
         // On vérifie que le type d'event est pris en charge
         if (this.constructor.EventTypes.indexOf(name) < 0) {
             throw new Error(`${name} ne fait pas partit des events gérés par cette classe`);
@@ -2932,7 +3113,13 @@ class Base {
         if (this._listeners[name] === undefined) {
             this._listeners[name] = new Array();
         }
+        for (let func in this._listeners[name]) {
+            if (func.toString() == fn.toString())
+                return;
+        }
         this._listeners[name].push(fn);
+        if (Base.debug)
+            console.log('Base[%s] add Listener on event %s', this.constructor.name, name, this._listeners[name]);
         return this;
     }
     /**
@@ -2958,17 +3145,19 @@ class Base {
      * @sealed
      */
     _callListeners(name) {
-        const event = new CustomEvent('betaseries', { detail: { name: name } });
-        if (this._listeners[name] !== undefined && this._listeners[name].length > 0) {
+        if (this.constructor.EventTypes.indexOf(name) >= 0 && this._listeners[name].length > 0) {
             if (Base.debug)
-                console.log('Base call %d Listeners on event %s', this._listeners[name].length, name);
+                console.log('Base[%s] call %d Listeners on event %s', this.constructor.name, this._listeners[name].length, name, this._listeners);
+            const event = new CustomEvent('betaseries', { detail: { name: name } });
             for (let l = 0; l < this._listeners[name].length; l++) {
                 this._listeners[name][l].call(this, event, this);
             }
         }
         return this;
     }
-    init() { }
+    init() {
+        return this;
+    }
     /**
      * Sauvegarde l'objet en cache
      * @return {Base} L'instance du média
@@ -3324,6 +3513,19 @@ class Show extends Media {
                 .catch(err => reject(err));
         });
     }
+    static fetchLastSeen(limit = 10) {
+        return new Promise((resolve, reject) => {
+            Base.callApi(HTTP_VERBS.GET, 'shows', 'member', { order: 'last_seen', limit })
+                .then((data) => {
+                const shows = new Array();
+                for (let s = 0; s < data.shows.length; s++) {
+                    shows.push(new Show(data.shows[s], jQuery('body')));
+                }
+                resolve(shows);
+            })
+                .catch(err => reject(err));
+        });
+    }
     /**
      * Méthode static servant à récupérer plusieurs séries sur l'API BS
      * @param  {Array<number>} ids - Les identifiants des séries recherchées
@@ -3390,9 +3592,9 @@ class Show extends Media {
      */
     country;
     /**
-     * @type {Season} Pointeur vers la saison courante
+     * @type {number} Pointeur vers la saison courante
      */
-    currentSeason;
+    _currentSeason;
     /**
      * @type {Images} Contient les URLs d'accès aux images de la série
      */
@@ -3445,6 +3647,10 @@ class Show extends Media {
      * @type {number} Identifiant TheTVDB de la série
      */
     thetvdb_id;
+    /**
+     * @type {boolean} Indique si la série se trouve dans les séries à voir
+     */
+    markToSee;
     /***************************************************/
     /*                      METHODS                    */
     /***************************************************/
@@ -3463,6 +3669,7 @@ class Show extends Media {
      * @returns {Show}
      */
     init() {
+        this.fetchSeasons();
         // On gère l'ajout et la suppression de la série dans le compte utilisateur
         if (this.in_account) {
             this.deleteShowClick();
@@ -3479,6 +3686,51 @@ class Show extends Media {
      */
     fetch(force = true) {
         return Base.callApi('GET', 'shows', 'display', { id: this.id }, force);
+    }
+    /**
+     * Récupère les saisons de la série
+     * @returns {Promise<Show>}
+     */
+    fetchSeasons() {
+        const self = this;
+        let params = { thetvdb_id: this.thetvdb_id };
+        let force = false;
+        if (this.thetvdb_id <= 0) {
+            delete params.thetvdb_id;
+            params.id = this.id;
+            force = true;
+        }
+        return Base.callApi(HTTP_VERBS.GET, 'shows', 'seasons', params, force)
+            .then((data) => {
+            self.seasons = new Array();
+            if (data?.seasons?.length <= 0) {
+                return self;
+            }
+            let seasonNumber;
+            for (let s = 0; s < data.seasons.length; s++) {
+                seasonNumber = parseInt(data.seasons[s].number, 10);
+                self.seasons[seasonNumber - 1] = new Season(data.seasons[s], this);
+            }
+            return self;
+        });
+    }
+    /**
+     * Récupère les personnages de la série
+     * @returns {Promise<Show>}
+     */
+    fetchCharacters() {
+        const self = this;
+        return Base.callApi(HTTP_VERBS.GET, 'shows', 'characters', { thetvdb_id: this.thetvdb_id })
+            .then((data) => {
+            self.characters = new Array();
+            if (data?.characters?.length <= 0) {
+                return self;
+            }
+            for (let c = 0; c < data.characters.length; c++) {
+                self.characters.push(new Character(data.characters[c]));
+            }
+            return self;
+        });
     }
     /**
      * isEnded - Indique si la série est terminée
@@ -3503,6 +3755,14 @@ class Show extends Media {
      */
     isFavorite() {
         return this.user.favorited;
+    }
+    /**
+     * isMarkToSee - Indique si la série se trouve dans les séries à voir
+     * @returns {boolean}
+     */
+    isMarkedToSee() {
+        const toSee = Base.gm_funcs.getValue('toSee', {});
+        return toSee[this.id] !== undefined;
     }
     /**
      * addToAccount - Ajout la série sur le compte du membre connecté
@@ -3772,7 +4032,7 @@ class Show extends Media {
          */
         function buildNextEpisode(res) {
             const height = 70, width = 124, src = `${Base.api.url}/pictures/episodes?key=${Base.userKey}&id=${res.user.next.id}&width=${width}&height=${height}`, serieTitle = res.resource_url.split('/').pop();
-            jQuery('.blockInformations__actions').after(`<a href="/episode/${serieTitle}/${res.user.next.code.toLowerCase()}" class="blockNextEpisode media">
+            jQuery('.blockInformations__actions').last().after(`<a href="/episode/${serieTitle}/${res.user.next.code.toLowerCase()}" class="blockNextEpisode media">
                     <div class="media-left">
                     <div class="u-insideBorderOpacity u-insideBorderOpacity--01">
                         <img src="${src}" width="${width}" height="${height}">
@@ -3806,15 +4066,20 @@ class Show extends Media {
             // Remplacer le DOMElement supprime l'eventHandler
             jQuery('#reactjs-show-actions').html(`
                 <div class="blockInformations__action">
-                    <button class="btn-reset btn-transparent" type="button">
-                    <span class="svgContainer">
-                        <svg fill="#0D151C" width="14" height="14" xmlns="http://www.w3.org/2000/svg">
-                        <path d="M14 8H8v6H6V8H0V6h6V0h2v6h6z" fill-rule="nonzero"></path>
-                        </svg>
-                    </span>
+                    <button class="btn-reset btn-transparent btn-add" type="button">
+                        <span class="svgContainer">
+                            <svg fill="#0D151C" width="14" height="14" xmlns="http://www.w3.org/2000/svg">
+                            <path d="M14 8H8v6H6V8H0V6h6V0h2v6h6z" fill-rule="nonzero"></path>
+                            </svg>
+                        </span>
                     </button>
-                    <div class="label">Ajouter</div>
+                    <div class="label">${Base.trans('show.button.add.label')}</div>
                 </div>`);
+            this.addBtnToSee();
+            let title = this.title.replace(/"/g, '\\"').replace(/'/g, "\\'");
+            const templateOpts = `<a class="header-navigation-item" href="javascript:;" onclick="showUpdate('${title}', ${this.id}, '0')">Demander une mise à jour</a>`;
+            jQuery('#dropdownOptions').siblings('.dropdown-menu.header-navigation')
+                .append(templateOpts);
             // On ajoute un event click pour masquer les vignettes
             jQuery('#reactjs-show-actions > div > button').off('click').one('click', (e) => {
                 e.stopPropagation();
@@ -3850,36 +4115,35 @@ class Show extends Media {
          * @return {void}
          */
         function changeBtnAdd(show) {
-            let $optionsLinks = $('#dropdownOptions').siblings('.dropdown-menu').children('a.header-navigation-item');
-            if ($optionsLinks.length <= 2) {
+            let $optionsLinks = jQuery('#dropdownOptions').siblings('.dropdown-menu').children('a.header-navigation-item');
+            if ($optionsLinks.length <= 3) {
                 let react_id = jQuery('script[id^="/reactjs/"]').get(0).id.split('.')[1], urlShow = show.resource_url.substring(location.origin.length), title = show.title.replace(/"/g, '\\"').replace(/'/g, "\\'"), templateOpts = `
-                            <button type="button" class="btn-reset header-navigation-item" onclick="new PopupAlert({
-                            showClose: true,
-                            type: "popin-subtitles",
-                            reactModuleId: "reactjs-subtitles",
-                            params: {
-                                mediaId: "${show.id}",
-                                type: "show",
-                                titlePopin: "${title}";
-                            },
-                            callback: function() {
-                                loadRecommendationModule('subtitles');
-                                //addScript("/reactjs/subtitles.${react_id}.js", "module-reactjs-subtitles");
-                            },
-                            });">Sous-titres</button>
-                            <a class="header-navigation-item" href="javascript:;" onclick="reportItem(${show.id}, 'show');">Signaler un problème</a>
-                            <a class="header-navigation-item" href="javascript:;" onclick="showUpdate('${title}', ${show.id}, '0')">Demander une mise à jour</a>
-                            <a class="header-navigation-item" href="webcal://www.betaseries.com/cal/i${urlShow}">Planning iCal de la série</a>
+                        <button type="button" class="btn-reset header-navigation-item" onclick="new PopupAlert({
+                        showClose: true,
+                        type: "popin-subtitles",
+                        reactModuleId: "reactjs-subtitles",
+                        params: {
+                            mediaId: "${show.id}",
+                            type: "show",
+                            titlePopin: "${title}";
+                        },
+                        callback: function() {
+                            loadRecommendationModule('subtitles');
+                            //addScript("/reactjs/subtitles.${react_id}.js", "module-reactjs-subtitles");
+                        },
+                        });">Sous-titres</button>
+                        <a class="header-navigation-item" href="javascript:;" onclick="reportItem(${show.id}, 'show');">Signaler un problème</a>
+                        <a class="header-navigation-item" href="webcal://www.betaseries.com/cal/i${urlShow}">Planning iCal de la série</a>
 
-                            <form class="autocomplete js-autocomplete-form header-navigation-item">
+                        <form class="autocomplete js-autocomplete-form header-navigation-item">
                             <button type="reset" class="btn-reset fontWeight700 js-autocomplete-show" style="color: inherit">Recommander la série</button>
                             <div class="autocomplete__toShow" hidden="">
                                 <input placeholder="Nom d'un ami" type="text" class="autocomplete__input js-search-friends">
                                 <div class="autocomplete__response js-display-response"></div>
                             </div>
-                            </form>
-                            <a class="header-navigation-item" href="javascript:;">Supprimer de mes séries</a>`;
-                if ($optionsLinks.length === 1) {
+                        </form>
+                        <a class="header-navigation-item" href="javascript:;">Supprimer de mes séries</a>`;
+                if ($optionsLinks.length === 2) {
                     templateOpts = `<a class="header-navigation-item" href="${urlShow}/actions">Vos actions sur la série</a>` + templateOpts;
                 }
                 jQuery('#dropdownOptions').siblings('.dropdown-menu.header-navigation')
@@ -3900,24 +4164,24 @@ class Show extends Media {
                                 data-user-id="${Base.userId}"
                                 data-show-favorised="${show.user.favorited ? '1' : ''}">
                             <div class="blockInformations__action">
-                            <button class="btn-reset btn-transparent btn-archive" type="button">
-                                <span class="svgContainer">
-                                <svg fill="#0d151c" height="16" width="16" xmlns="http://www.w3.org/2000/svg">
-                                    <path d="m16 8-1.41-1.41-5.59 5.58v-12.17h-2v12.17l-5.58-5.59-1.42 1.42 8 8z"></path>
-                                </svg>
-                                </span>
-                            </button>
-                            <div class="label">${Base.trans('show.button.archive.label')}</div>
+                                <button class="btn-reset btn-transparent btn-archive" type="button">
+                                    <span class="svgContainer">
+                                    <svg fill="#0d151c" height="16" width="16" xmlns="http://www.w3.org/2000/svg">
+                                        <path d="m16 8-1.41-1.41-5.59 5.58v-12.17h-2v12.17l-5.58-5.59-1.42 1.42 8 8z"></path>
+                                    </svg>
+                                    </span>
+                                </button>
+                                <div class="label">${Base.trans('show.button.archive.label')}</div>
                             </div>
                             <div class="blockInformations__action">
-                            <button class="btn-reset btn-transparent btn-favoris" type="button">
-                                <span class="svgContainer">
-                                <svg fill="#FFF" width="20" height="19" xmlns="http://www.w3.org/2000/svg">
-                                    <path d="M14.5 0c-1.74 0-3.41.81-4.5 2.09C8.91.81 7.24 0 5.5 0 2.42 0 0 2.42 0 5.5c0 3.78 3.4 6.86 8.55 11.54L10 18.35l1.45-1.32C16.6 12.36 20 9.28 20 5.5 20 2.42 17.58 0 14.5 0zm-4.4 15.55l-.1.1-.1-.1C5.14 11.24 2 8.39 2 5.5 2 3.5 3.5 2 5.5 2c1.54 0 3.04.99 3.57 2.36h1.87C11.46 2.99 12.96 2 14.5 2c2 0 3.5 1.5 3.5 3.5 0 2.89-3.14 5.74-7.9 10.05z"></path>
-                                </svg>
-                                </span>
-                            </button>
-                            <div class="label">${Base.trans('show.button.favorite.label')}</div>
+                                <button class="btn-reset btn-transparent btn-favoris" type="button">
+                                    <span class="svgContainer">
+                                    <svg fill="#FFF" width="20" height="19" xmlns="http://www.w3.org/2000/svg">
+                                        <path d="M14.5 0c-1.74 0-3.41.81-4.5 2.09C8.91.81 7.24 0 5.5 0 2.42 0 0 2.42 0 5.5c0 3.78 3.4 6.86 8.55 11.54L10 18.35l1.45-1.32C16.6 12.36 20 9.28 20 5.5 20 2.42 17.58 0 14.5 0zm-4.4 15.55l-.1.1-.1-.1C5.14 11.24 2 8.39 2 5.5 2 3.5 3.5 2 5.5 2c1.54 0 3.04.99 3.57 2.36h1.87C11.46 2.99 12.96 2 14.5 2c2 0 3.5 1.5 3.5 3.5 0 2.89-3.14 5.74-7.9 10.05z"></path>
+                                    </svg>
+                                    </span>
+                                </button>
+                                <div class="label">${Base.trans('show.button.favorite.label')}</div>
                             </div>
                         </div>`);
                 // On ofusque l'image des épisodes non-vu
@@ -3938,6 +4202,14 @@ class Show extends Media {
                     </button>`);
                 self.elt = $('.blockInformations');
                 self.addNumberVoters();
+                // On supprime le btn ToSeeLater
+                self.elt.find('.blockInformations__action .btnMarkToSee').parent().remove();
+                self.elt.find('.blockInformations__title .fa-clock-o').remove();
+                let toSee = Base.gm_funcs.getValue('toSee', {});
+                if (toSee[self.id] !== undefined) {
+                    delete toSee[self.id];
+                    Base.gm_funcs.setValue('toSee', toSee);
+                }
             }
             self.addEventBtnsArchiveAndFavoris();
             self.deleteShowClick();
@@ -3953,7 +4225,7 @@ class Show extends Media {
      * @returns {void}
      */
     deleteShowClick() {
-        const _this = this;
+        const self = this;
         let $optionsLinks = $('#dropdownOptions').siblings('.dropdown-menu').children('a.header-navigation-item');
         // Le menu Options est au complet
         if (this.in_account && $optionsLinks.length > 2) {
@@ -3965,13 +4237,13 @@ class Show extends Media {
                 const done = function () {
                     const afterNotif = function () {
                         // On nettoie les propriétés servant à l'update de l'affichage
-                        _this.user.status = 0;
-                        _this.user.archived = false;
-                        _this.user.favorited = false;
-                        _this.user.remaining = 0;
-                        _this.user.last = "S00E00";
-                        _this.user.next.id = NaN;
-                        _this.save();
+                        self.user.status = 0;
+                        self.user.archived = false;
+                        self.user.favorited = false;
+                        self.user.remaining = 0;
+                        self.user.last = "S00E00";
+                        self.user.next.id = NaN;
+                        self.save();
                         // On remet le bouton Ajouter
                         jQuery('#reactjs-show-actions').html(`
                             <div class="blockInformations__action">
@@ -3989,11 +4261,11 @@ class Show extends Media {
                         // Nettoyage de l'affichage des épisodes
                         const checks = jQuery('#episodes .slide_flex');
                         let promise, update = false; // Flag pour l'update de l'affichage
-                        if (_this.currentSeason.episodes && _this.currentSeason.episodes.length > 0) {
-                            promise = new Promise(resolve => resolve(_this.currentSeason));
+                        if (self.currentSeason.episodes && self.currentSeason.episodes.length > 0) {
+                            promise = new Promise(resolve => resolve(self.currentSeason));
                         }
                         else {
-                            promise = _this.currentSeason.fetchEpisodes();
+                            promise = self.currentSeason.fetchEpisodes();
                         }
                         promise.then((season) => {
                             for (let e = 0; e < season.episodes.length; e++) {
@@ -4010,17 +4282,20 @@ class Show extends Media {
                         // On doit supprimer le bouton pour noter le média
                         const $stars = jQuery('.blockInformations__metadatas .js-render-stars');
                         $stars.parent().replaceWith(`
-                        <span class="stars js-render-stars">
-                        ${$stars.html()}
-                        </span>`);
-                        _this.elt = $('.blockInformations');
-                        _this.addNumberVoters();
-                        _this.addShowClick();
+                            <span class="stars js-render-stars">
+                                ${$stars.html()}
+                            </span>`);
+                        self.elt = $('.blockInformations');
+                        self.addNumberVoters();
+                        self.addBtnToSee();
+                        self.addShowClick();
+                        self.updateProgressBar();
+                        self.updateNextEpisode();
                     };
                     // eslint-disable-next-line no-undef
                     new PopupAlert({
                         title: Base.trans("popup.delete_show_success.title"),
-                        text: Base.trans("popup.delete_show_success.text", { "%title%": _this.title }),
+                        text: Base.trans("popup.delete_show_success.text", { "%title%": self.title }),
                         yes: Base.trans("popup.delete_show_success.yes"),
                         callback_yes: afterNotif
                     });
@@ -4028,13 +4303,13 @@ class Show extends Media {
                 // Supprimer la série du compte utilisateur
                 // eslint-disable-next-line no-undef
                 new PopupAlert({
-                    title: Base.trans("popup.delete_show.title", { "%title%": _this.title }),
-                    text: Base.trans("popup.delete_show.text", { "%title%": _this.title }),
+                    title: Base.trans("popup.delete_show.title", { "%title%": self.title }),
+                    text: Base.trans("popup.delete_show.text", { "%title%": self.title }),
                     callback_yes: function () {
                         if (Base.debug)
                             console.groupCollapsed('delete show');
-                        _this.removeFromAccount()
-                            .then(() => done(), err => {
+                        self.removeFromAccount()
+                            .then(done, err => {
                             if (err && err.code !== undefined && err.code === 2004) {
                                 done();
                                 if (Base.debug)
@@ -4049,6 +4324,60 @@ class Show extends Media {
                     callback_no: function () { }
                 });
             });
+        }
+    }
+    /**
+     * Ajoute le bouton toSee dans les actions de la série
+     */
+    addBtnToSee() {
+        if (this.elt.find('.btnMarkToSee').length > 0)
+            return;
+        const self = this;
+        const btnHTML = `
+            <div class="blockInformations__action">
+                <button class="btn-reset btn-transparent btnMarkToSee" type="button" title="Ajouter la série aux séries à voir">
+                    <i class="fa fa-clock-o" aria-hidden="true"></i>
+                </button>
+                <div class="label">A voir</div>
+            </div>`;
+        const toggleToSeeShow = (showId) => {
+            let storeToSee = Base.gm_funcs.getValue('toSee', {});
+            let toSee;
+            if (storeToSee[showId] === undefined) {
+                storeToSee[showId] = true;
+                toSee = true;
+            }
+            else {
+                delete storeToSee[showId];
+                toSee = false;
+            }
+            Base.gm_funcs.setValue('toSee', storeToSee);
+            return toSee;
+        };
+        this.elt.find('.blockInformations__actions').last().append(btnHTML);
+        const $btn = this.elt.find('.blockInformations__action .btnMarkToSee');
+        $btn.click((e) => {
+            e.stopPropagation();
+            e.preventDefault();
+            const $btn = jQuery(e.currentTarget);
+            const toSee = toggleToSeeShow(self.id);
+            if (toSee) {
+                $btn.find('i.fa').css('color', 'var(--body_background)');
+                $btn.attr('title', 'Retirer la série des séries à voir');
+                self.elt.find('.blockInformations__title').append('<i class="fa fa-clock-o" aria-hidden="true" style="font-size:0.6em;" title="Série à voir plus tard"></i>');
+            }
+            else {
+                $btn.find('i.fa').css('color', 'var(--default-color)');
+                $btn.attr('title', 'Ajouter la série aux séries à voir');
+                self.elt.find('.blockInforations__title .fa').remove();
+            }
+            $btn.blur();
+        });
+        let toSee = Base.gm_funcs.getValue('toSee', {});
+        if (toSee[this.id] !== undefined) {
+            $btn.find('i.fa').css('color', 'var(--body_background)');
+            $btn.attr('title', 'Retirer la série des séries à voir');
+            self.elt.find('.blockInformations__title').append('<i class="fa fa-clock-o" aria-hidden="true" style="font-size:0.6em;" title="Série à voir plus tard"></i>');
         }
     }
     /**
@@ -4160,8 +4489,30 @@ class Show extends Media {
         if (seasonNumber <= 0 || seasonNumber > this.seasons.length) {
             throw new Error("seasonNumber is out of range of seasons");
         }
-        this.currentSeason = this.seasons[seasonNumber - 1];
+        this._currentSeason = seasonNumber - 1;
         return this;
+    }
+    /**
+     * Retourne la saison courante
+     * @return {Season}
+     */
+    get currentSeason() {
+        return this.seasons[this._currentSeason];
+    }
+    /**
+     * Retourne l'objet Season correspondant au numéro de saison fournit en paramètre
+     * @param   {number} seasonNumber - Numéro de saison (base: 1)
+     * @returns {Season}
+     */
+    getSeason(seasonNumber) {
+        if (Base.debug)
+            console.log('getSeason: ', seasonNumber);
+        for (let s = 0; s < this.seasons.length; s++) {
+            if (this.seasons[s].number == seasonNumber) {
+                return this.seasons[s];
+            }
+        }
+        return null;
     }
 }
 
@@ -4421,6 +4772,22 @@ class Season {
      */
     episodes;
     /**
+     * @type {boolean} Possède des sous-titres
+     */
+    has_subtitles;
+    /**
+     * @type {boolean} Saison pas vu
+     */
+    hidden;
+    /**
+     * @type {string} URL de l'image
+     */
+    image;
+    /**
+     * @type {boolean} Saison vu
+     */
+    seen;
+    /**
      * @type {Show} L'objet Show auquel est rattaché la saison
      */
     _show;
@@ -4437,12 +4804,20 @@ class Season {
     constructor(data, show) {
         this.number = parseInt(data.number, 10);
         this._show = show;
+        this.episodes = new Array();
+        this.has_subtitles = !!data.has_subtitles || false;
+        this.hidden = !!data.hidden || false;
+        this.seen = !!data.seen || false;
+        this.image = data.image || null;
         // document.querySelector("#seasons > div > div.positionRelative > div > div:nth-child(2)")
         this._elt = jQuery(`#seasons .slides_flex .slide_flex:nth-child(${this.number.toString()})`);
         if (data.episodes && data.episodes instanceof Array && data.episodes[0] instanceof Episode) {
             this.episodes = data.episodes;
         }
         return this;
+    }
+    get length() {
+        return this.episodes.length;
     }
     /**
      * Récupère les épisodes de la saison sur l'API
@@ -4464,6 +4839,38 @@ class Season {
             }, err => {
                 reject(err);
             });
+        });
+    }
+    watched() {
+        const self = this;
+        const params = { id: this.episodes[this.length - 1].id, bulk: true };
+        return Base.callApi(HTTP_VERBS.POST, 'episodes', 'watched', params)
+            .then((data) => {
+            let update = false;
+            for (let e = 0; e < self.episodes.length; e++) {
+                if (e == self.episodes.length - 1)
+                    update = true;
+                self.episodes[e].user.seen = true;
+                self.episodes[e].updateRender('seen', update);
+            }
+            return self;
+        });
+    }
+    hide() {
+        const self = this;
+        const params = { id: this._show.id, season: this.number };
+        return Base.callApi(HTTP_VERBS.POST, 'seasons', 'hide', params)
+            .then((data) => {
+            self.hidden = true;
+            jQuery(`#seasons .slide_flex:nth-child(${self.number}) .slide__image`).prepend('<div class="checkSeen"></div><div class="hideIcon"></div>');
+            let update = false;
+            for (let e = 0; e < self.episodes.length; e++) {
+                if (e == self.episodes.length - 1)
+                    update = true;
+                self.episodes[e].user.hidden = true;
+                self.episodes[e].updateRender('hidden', update);
+            }
+            return self;
         });
     }
     /**
@@ -4531,19 +4938,19 @@ class Season {
         const seasonViewed = function () {
             // On check la saison
             self._elt.find('.slide__image').prepend('<div class="checkSeen"></div>');
-            self._elt
-                .removeClass('slide--notSeen')
-                .addClass('slide--seen');
             if (Base.debug)
-                console.log('Tous les épisodes de la saison ont été vus');
+                console.log('Tous les épisodes de la saison ont été vus', self._elt, self._elt.next());
             // Si il y a une saison suivante, on la sélectionne
             if (self._elt.next().length > 0) {
                 if (Base.debug)
                     console.log('Il y a une autre saison');
-                self.changeCurrentSeason(self.number + 1);
                 self._elt.removeClass('slide--current');
-                self._elt.next().trigger('click');
+                self._elt.next('.slide_flex').find('.slide__image').trigger('click');
             }
+            self._elt
+                .removeClass('slide--notSeen')
+                .addClass('slide--seen');
+            self.seen = true;
         };
         // Si tous les épisodes de la saison ont été vus
         if (lenSeen === lenEpisodes) {
@@ -4603,6 +5010,12 @@ class Season {
 }
 
 class Episode extends Base {
+    static fetch(epId) {
+        return Base.callApi(HTTP_VERBS.GET, 'episodes', 'display', { id: epId })
+            .then((data) => {
+            return new Episode(data.episode);
+        });
+    }
     /**
      * @type {Season} L'objet Season contenant l'épisode
      */
@@ -4787,7 +5200,18 @@ class Episode extends Base {
             $checkSeen.remove();
             changed = true;
         }
+        this.updateTitle();
         return changed;
+    }
+    /**
+     * Met à jour le titre de l'épisode sur la page de la série
+     * @returns {void}
+     */
+    updateTitle() {
+        const $title = this.elt.find('.slide__title');
+        if (`${this.code.toUpperCase()} - ${this.title}` !== $title.text().trim()) {
+            $title.text(`${this.code.toUpperCase()} - ${this.title}`);
+        }
     }
     /**
      * Retourne le code HTML du titre de la popup
@@ -4818,7 +5242,7 @@ class Episode extends Base {
      * @return {void}
      */
     updateStatus(status, method) {
-        const _this = this;
+        const self = this;
         const pos = this.elt.find('.checkSeen').data('pos');
         let promise = new Promise(resolve => { resolve(false); });
         let args = { id: this.id, bulk: true };
@@ -4837,6 +5261,9 @@ class Episode extends Base {
                             resolve(false);
                         }
                     });
+                    let btnNo = jQuery('#popin-dialog #popupalertno'), btnYes = jQuery('#popin-dialog #popupalertyes');
+                    btnNo.attr('tabIndex', 0).focus();
+                    btnYes.attr('tabIndex', 0);
                 });
             };
             const $vignettes = jQuery('#episodes .checkSeen');
@@ -4857,15 +5284,15 @@ class Episode extends Base {
                     console.log('updateStatus %s episodes/watched', method, data);
                 // Si un épisode est vu et que la série n'a pas été ajoutée
                 // au compte du membre connecté
-                if (!_this._season.showInAccount() && data.episode.show.in_account) {
-                    _this._season.addShowToAccount();
+                if (!self._season.showInAccount() && data.episode.show.in_account) {
+                    self._season.addShowToAccount();
                 }
                 // On met à jour l'objet Episode
                 if (method === HTTP_VERBS.POST && response && pos) {
                     const $vignettes = jQuery('#episodes .slide_flex');
                     let episode = null;
                     for (let e = 0; e < pos; e++) {
-                        episode = _this._season.episodes[e];
+                        episode = self._season.episodes[e];
                         if (episode.elt === null) {
                             episode.elt = jQuery($vignettes.get(e));
                         }
@@ -4877,12 +5304,19 @@ class Episode extends Base {
                         }
                     }
                 }
-                _this
+                self
                     .fill(data.episode)
                     .updateRender(status, true)
                     ._callListeners(EventTypes.UPDATE)
-                    ._season.updateShow(() => {
-                    _this.toggleSpinner(false);
+                    ._season
+                    .updateRender()
+                    .updateShow(() => {
+                    // Si il reste des épisodes à voir, on scroll
+                    if (jQuery('#episodes .slide_flex.slide--notSeen').length > 0) {
+                        jQuery('#episodes .slides_flex').get(0).scrollLeft =
+                            jQuery('#episodes .slide_flex.slide--notSeen').get(0).offsetLeft - 69;
+                    }
+                    self.toggleSpinner(false);
                 });
             })
                 .catch(err => {
@@ -4891,17 +5325,16 @@ class Episode extends Base {
                 if (err && err == 'changeStatus') {
                     if (Base.debug)
                         console.log('updateStatus error %s changeStatus', method);
-                    _this.updateRender(status);
-                    if (status === 'seen') {
-                        _this.user.seen = true;
-                    }
-                    else {
-                        _this.user.seen = false;
-                    }
-                    _this.toggleSpinner(false);
+                    self.user.seen = (status === 'seen') ? true : false;
+                    self.updateRender(status)
+                        ._season
+                        .updateRender()
+                        .updateShow(() => {
+                        self.toggleSpinner(false);
+                    });
                 }
                 else {
-                    _this.toggleSpinner(false);
+                    self.toggleSpinner(false);
                     Base.notification('Erreur de modification d\'un épisode', 'updateStatus: ' + err);
                 }
             });
@@ -4925,7 +5358,7 @@ class Episode extends Base {
             $elt.parents('div.slide__image').first().find('img').removeAttr('style');
             $elt.parents('div.slide_flex').first().removeClass('slide--notSeen');
         }
-        else {
+        else if (newStatus === 'notSeen') {
             $elt.css('background', 'rgba(13,21,28,.2)'); // On enlève le check dans la case à cocher
             $elt.removeClass('seen'); // On supprime la classe 'seen'
             $elt.attr('title', Base.trans("member_shows.markas"));
@@ -4938,7 +5371,12 @@ class Episode extends Base {
                 contVignette.addClass('slide--notSeen');
             }
         }
-        this._season.updateRender();
+        else if (newStatus === 'hidden') {
+            $elt.removeClass('seen');
+            $elt.parents('.slide__image')
+                .append('<div class="hideIcon"></div>')
+                .attr('style', 'filter: blur(5px);');
+        }
         return this;
     }
     /**
@@ -5143,7 +5581,7 @@ class Similar extends Media {
      * @return {string}
      */
     getContentPopup() {
-        const _this = this;
+        const self = this;
         //if (debug) console.log('similars tempContentPopup', objRes);
         let description = this.description;
         if (description.length > 200) {
@@ -5152,24 +5590,24 @@ class Similar extends Media {
         let template = '';
         function _renderCreation() {
             let html = '';
-            if (_this.creation || _this.country || _this.production_year) {
+            if (self.creation || self.country || self.production_year) {
                 html += '<p>';
-                if (_this.creation) {
-                    html += `<u>Création:</u> <strong>${_this.creation}</strong>`;
+                if (self.creation) {
+                    html += `<u>Création:</u> <strong>${self.creation}</strong>`;
                 }
-                if (_this.production_year) {
-                    html += `<u>Production:</u> <strong>${_this.production_year}</strong>`;
+                if (self.production_year) {
+                    html += `<u>Production:</u> <strong>${self.production_year}</strong>`;
                 }
-                if (_this.country) {
-                    html += `, <u>Pays:</u> <strong>${_this.country}</strong>`;
+                if (self.country) {
+                    html += `, <u>Pays:</u> <strong>${self.country}</strong>`;
                 }
                 html += '</p>';
             }
             return html;
         }
         function _renderGenres() {
-            if (_this.genres && _this.genres.length > 0) {
-                return '<p><u>Genres:</u> ' + _this.genres.join(', ') + '</p>';
+            if (self.genres && self.genres.length > 0) {
+                return '<p><u>Genres:</u> ' + self.genres.join(', ') + '</p>';
             }
             return '';
         }
@@ -5189,7 +5627,9 @@ class Similar extends Media {
                 template += 'Aucun vote</p>';
             }
             if (!this.in_account) {
-                template += '<p><a href="javascript:;" class="addShow">Ajouter</a></p>';
+                template += `<p>
+                    <a href="javascript:;" class="addShow">Ajouter</a> - <a href="javascript:;" class="toSeeShow" data-show-id="${self.id}"><i class="fa fa-clock-o" aria-hidden="true"></i> <span>A voir</span></a>
+                </p>`;
             }
             template += _renderGenres();
             template += _renderCreation();
@@ -5247,6 +5687,9 @@ class Similar extends Media {
             title += ' <span style="font-size: 0.8em;color:var(--link_color);">' +
                 this.objNote.mean.toFixed(2) + ' / 5</span>';
         }
+        if (this.mediaType.singular === MediaType.show)
+            title += ` <span style="float:right;"><a href="http://www.thetvdb.com/?tab=series&id=${this.thetvdb_id}" target="_blank" title="Lien vers la page de TheTVDB"><img src="https://thetvdb.com/images/logo.svg" width="40px" /></a>
+            <a href="javascript:;" onclick="showUpdate('${this.title}', ${this.id}, '0')" style="margin-left:5px; color:var(--default_color);" title="Mettre à jour les données venant de TheTVDB"><i class="fa fa-refresh" aria-hidden="true"></i></a></span>`;
         return title;
     }
     /**
@@ -5284,16 +5727,25 @@ class Similar extends Media {
      * @return {Similar}
      */
     checkImg() {
-        const $img = this.elt.find('img.js-lazy-image'), _this = this;
+        const $img = this.elt.find('img.js-lazy-image'), self = this;
         if ($img.length <= 0) {
-            if (this.mediaType.singular === MediaType.show && this.thetvdb_id && this.thetvdb_id > 0) {
-                // On tente de remplacer le block div 404 par une image
-                this.elt.find('div.block404').replaceWith(`
-                    <img class="u-opacityBackground fade-in"
-                            width="125"
-                            height="188"
-                            alt="Poster de ${this.title}"
-                            src="https://artworks.thetvdb.com/banners/posters/${this.thetvdb_id}-1.jpg"/>`);
+            if (this.mediaType.singular === MediaType.show) {
+                let src;
+                if (this.images.poster !== null)
+                    src = this.images.poster;
+                else if (this.images.show !== null)
+                    src = this.images.show;
+                else if (this.images.box !== null)
+                    src = this.images.box;
+                if (src.length > 0) {
+                    // On tente de remplacer le block div 404 par une image
+                    this.elt.find('div.block404').replaceWith(`
+                        <img class="u-opacityBackground fade-in"
+                                width="125"
+                                height="188"
+                                alt="Poster de ${this.title}"
+                                src="${src}"/>`);
+                }
             }
             else if (this.mediaType.singular === MediaType.movie && this.tmdb_id && this.tmdb_id > 0) {
                 if (Base.themoviedb_api_user_key.length <= 0)
@@ -5305,11 +5757,11 @@ class Similar extends Media {
                     return response.json();
                 }).then(data => {
                     if (data !== null && data.poster_path !== undefined && data.poster_path !== null) {
-                        _this.elt.find('div.block404').replaceWith(`
+                        self.elt.find('div.block404').replaceWith(`
                             <img class="u-opacityBackground fade-in"
                                     width="125"
                                     height="188"
-                                    alt="Poster de ${_this.title}"
+                                    alt="Poster de ${self.title}"
                                     src="https://image.tmdb.org/t/p/original${data.poster_path}"/>`);
                     }
                 });
@@ -5374,12 +5826,6 @@ class Similar extends Media {
 
 // eslint-disable-next-line no-unused-vars
 class UpdateAuto {
-    static getValue = function (name, defaultVal) {
-        return Base.cache.getOrDefault(DataTypesCache.updates, 'updateAuto', defaultVal);
-    };
-    static setValue = function (name, val) {
-        Base.cache.set(DataTypesCache.updates, 'updateAuto', val);
-    };
     static instance;
     static intervals = [
         { val: 0, label: 'Jamais' },
@@ -5398,13 +5844,15 @@ class UpdateAuto {
     _auto;
     _interval;
     _timer;
+    _remaining;
+    _timerR;
     constructor(show) {
         if (UpdateAuto.instance) {
             return UpdateAuto.instance;
         }
         this._show = show;
         this._showId = show.id;
-        let objUpAuto = UpdateAuto.getValue('objUpAuto', {});
+        let objUpAuto = Base.gm_funcs.getValue('objUpAuto', {});
         this._exist = false;
         if (objUpAuto[this._showId] !== undefined) {
             this._exist = true;
@@ -5438,14 +5886,14 @@ class UpdateAuto {
      * @return {UpdateAuto} L'instance unique UpdateAuto
      */
     _save() {
-        let objUpAuto = UpdateAuto.getValue('objUpAuto', {});
+        let objUpAuto = Base.gm_funcs.getValue('objUpAuto', {});
         let obj = {
             status: this._status,
             auto: this._auto,
             interval: this._interval
         };
         objUpAuto[this._showId] = obj;
-        UpdateAuto.setValue('objUpAuto', objUpAuto);
+        Base.gm_funcs.setValue('objUpAuto', objUpAuto);
         this._exist = true;
         this.changeColorBtn();
         return this;
@@ -5553,6 +6001,9 @@ class UpdateAuto {
             this._auto = false;
         }
         this.status = false;
+        clearInterval(this._timerR);
+        this._remaining = 0;
+        this._timerR = null;
         clearInterval(this._timer);
         this._timer = null;
         return this;
@@ -5565,10 +6016,10 @@ class UpdateAuto {
      */
     delete() {
         this.stop();
-        let objUpAuto = UpdateAuto.getValue('objUpAuto', {});
+        let objUpAuto = Base.gm_funcs.getValue('objUpAuto', {});
         if (objUpAuto[this._showId] !== undefined) {
             delete objUpAuto[this._showId];
-            UpdateAuto.setValue('objUpAuto', objUpAuto);
+            Base.gm_funcs.setValue('objUpAuto', objUpAuto);
             this._auto = false;
             this._interval = 0;
             this._exist = false;
@@ -5601,14 +6052,14 @@ class UpdateAuto {
                     console.log('close old interval timer');
                 clearInterval(this._timer);
             }
-            const _this = this;
+            const self = this;
             this.status = true;
             const run = function () {
-                // if (debug) console.log('UpdateAuto setInterval objShow', Object.assign({}, _this._objShow));
-                if (!_this._auto || _this._show.user.remaining <= 0) {
+                // if (debug) console.log('UpdateAuto setInterval objShow', Object.assign({}, self._objShow));
+                if (!self._auto || self._show.user.remaining <= 0) {
                     if (Base.debug)
                         console.log('Arrêt de la mise à jour auto des épisodes');
-                    _this.stop();
+                    self.stop();
                     return;
                 }
                 if (Base.debug) {
@@ -5623,15 +6074,32 @@ class UpdateAuto {
                 const btnUpEpisodeList = $('.updateEpisodes');
                 if (btnUpEpisodeList.length > 0) {
                     btnUpEpisodeList.trigger('click');
-                    if (!_this._status) {
-                        _this.status = true;
+                    if (!self._status) {
+                        self.status = true;
                     }
                 }
+                self._remaining = self._interval * 60;
+                if (self._timerR == null)
+                    self._timerR = setInterval(() => { --self._remaining; }, 1000);
             };
             run();
             this._timer = setInterval(run, (this._interval * 60) * 1000);
         }
         return this;
+    }
+    /**
+     * Retourne le temps restant avant le prochain update
+     * sous forme mm:ss
+     * @returns string
+     */
+    remaining() {
+        const minutes = Math.floor(this._remaining / 60);
+        const seconds = this._remaining - minutes * 60;
+        let result = minutes.toString() + ':';
+        if (seconds < 10) {
+            result += '0';
+        }
+        return result + seconds.toString();
     }
 }
 
@@ -5833,7 +6301,7 @@ Show.prototype.fill = function (data) {
         this.platforms = new Platforms(data.platforms);
     }
     if (this.id == null && this.seasons == null) {
-        this.seasons = new Array();
+        this.seasons = new Array(parseInt(data.seasons, 10));
         for (let s = 0; s < data.seasons_details.length; s++) {
             this.seasons.push(new Season(data.seasons_details[s], this));
         }
