@@ -1,4 +1,4 @@
-/*! betaseries_userscript - v1.2.0 - 2022-04-06
+/*! betaseries_userscript - v1.2.0 - 2022-04-16
  * https://github.com/Azema/betaseries
  * Copyright (c) 2022 Azema;
  * Licensed Apache-2.0
@@ -191,7 +191,7 @@ class CommentsBS {
      * Types d'évenements gérés par cette classe
      * @type {Array}
      */
-    static EventTypes = new Array('update', 'save', 'add', 'delete', 'show');
+    static EventTypes = new Array('update', 'save', 'add', 'added', 'delete', 'show');
     /**
      * Envoie une réponse de ce commentaire à l'API
      * @param   {Base} media - Le média correspondant à la collection
@@ -307,7 +307,7 @@ class CommentsBS {
      * @param  {Function}   fn   - La fonction à appeler
      * @return {Base} L'instance du média
      */
-    addListener(name, fn) {
+    addListener(name, fn, ...args) {
         // On vérifie que le type d'event est pris en charge
         if (CommentsBS.EventTypes.indexOf(name) < 0) {
             throw new Error(`${name} ne fait pas partit des events gérés par cette classe`);
@@ -316,11 +316,20 @@ class CommentsBS {
             this._listeners[name] = new Array();
         }
         for (let func in this._listeners[name]) {
-            console.log('func', func.toString(), 'fn', fn.toString());
-            if (func.toString() == fn.toString())
+            if (func.toString() == fn.toString()) {
+                if (Base.debug)
+                    console.warn('Cette fonction est déjà présente pour event[%s]', name);
                 return;
+            }
         }
-        this._listeners[name].push(fn);
+        if (args.length > 0) {
+            this._listeners[name].push({ fn: fn, args: args });
+        }
+        else {
+            this._listeners[name].push(fn);
+        }
+        if (Base.debug)
+            console.log('Base[%s] add Listener on event %s', this.constructor.name, name, this._listeners[name]);
         return this;
     }
     /**
@@ -332,8 +341,10 @@ class CommentsBS {
     removeListener(name, fn) {
         if (this._listeners[name] !== undefined) {
             for (let l = 0; l < this._listeners[name].length; l++) {
-                if (this._listeners[name][l] === fn)
+                if ((typeof this._listeners[name][l] === 'function' && this._listeners[name][l].toString() === fn.toString()) ||
+                    this._listeners[name][l].fn.toString() == fn.toString()) {
                     this._listeners[name].splice(l, 1);
+                }
             }
         }
         return this;
@@ -344,12 +355,17 @@ class CommentsBS {
      * @return {Base} L'instance du média
      */
     _callListeners(name) {
-        const event = new CustomEvent('betaseries', { detail: { name: name } });
         if (this._listeners[name] !== undefined && this._listeners[name].length > 0) {
+            const event = new CustomEvent('betaseries', { detail: { name: name } });
             if (Base.debug)
                 console.log('Comments call %d Listeners on event %s', this._listeners[name].length, name);
             for (let l = 0; l < this._listeners[name].length; l++) {
-                this._listeners[name][l].call(this, event, this);
+                if (typeof this._listeners[name][l] === 'function') {
+                    this._listeners[name][l].call(this, event, this);
+                }
+                else {
+                    this._listeners[name][l].fn.apply(this, this._listeners[name][l].args);
+                }
             }
         }
         return this;
@@ -1255,6 +1271,7 @@ class CommentsBS {
         jQuery('#comments .slides_flex').prepend(template);
         // On met à jour le nombre de commentaires
         jQuery('#comments .blockTitle').text(jQuery('#comments .blockTitle').text().replace(/\d+/, this._parent.nbComments.toString()));
+        this._callListeners(EventTypes.ADDED);
     }
     /**
      * Supprime un commentaire dans la liste des commentaires de la page
@@ -1481,7 +1498,7 @@ class CommentBS {
      * @param  {Function}   fn   - La fonction à appeler
      * @return {Base} L'instance du média
      */
-    addListener(name, fn) {
+    addListener(name, fn, ...args) {
         // On vérifie que le type d'event est pris en charge
         if (!CommentBS.EventTypes.includes(name)) {
             throw new Error(`${name} ne fait pas partit des events gérés par cette classe`);
@@ -1490,10 +1507,20 @@ class CommentBS {
             this._listeners[name] = new Array();
         }
         for (let func in this._listeners[name]) {
-            if (func.toString() == fn.toString())
+            if (func.toString() == fn.toString()) {
+                if (Base.debug)
+                    console.warn('Cette fonction est déjà présente pour event[%s]', name);
                 return;
+            }
         }
-        this._listeners[name].push(fn);
+        if (args.length > 0) {
+            this._listeners[name].push({ fn: fn, args: args });
+        }
+        else {
+            this._listeners[name].push(fn);
+        }
+        if (Base.debug)
+            console.log('Base[%s] add Listener on event %s', this.constructor.name, name, this._listeners[name]);
         return this;
     }
     /**
@@ -1505,8 +1532,10 @@ class CommentBS {
     removeListener(name, fn) {
         if (this._listeners[name] !== undefined) {
             for (let l = 0; l < this._listeners[name].length; l++) {
-                if (this._listeners[name][l] === fn)
+                if ((typeof this._listeners[name][l] === 'function' && this._listeners[name][l].toString() === fn.toString()) ||
+                    this._listeners[name][l].fn.toString() == fn.toString()) {
                     this._listeners[name].splice(l, 1);
+                }
             }
         }
         return this;
@@ -1517,16 +1546,18 @@ class CommentBS {
      * @return {Base} L'instance du média
      */
     _callListeners(name) {
-        // On vérifie que le type d'event est pris en charge
-        if (!CommentBS.EventTypes.includes(name)) {
-            throw new Error(`${name} ne fait pas partit des events gérés par cette classe`);
-        }
-        const event = new CustomEvent('betaseries', { detail: { name: name } });
-        if (this._listeners[name].length > 0)
+        if (this._listeners[name] !== undefined && this._listeners[name].length > 0) {
+            const event = new CustomEvent('betaseries', { detail: { name: name } });
             if (Base.debug)
                 console.log('Comment call %d Listeners on event %s', this._listeners[name].length, name);
-        for (let l = 0; l < this._listeners[name].length; l++) {
-            this._listeners[name][l].call(this, event, this);
+            for (let l = 0; l < this._listeners[name].length; l++) {
+                if (typeof this._listeners[name][l] === 'function') {
+                    this._listeners[name][l].call(this, event, this);
+                }
+                else {
+                    this._listeners[name][l].fn.apply(this, this._listeners[name][l].args);
+                }
+            }
         }
         return this;
     }
@@ -2373,6 +2404,7 @@ class CommentBS {
             method.call(self.replies, comment);
             self.nbReplies++;
             self.getCollectionComments().nbComments++;
+            self.getCollectionComments().is_subscribed = true;
             return comment;
         })
             .catch(err => {
@@ -2639,6 +2671,7 @@ var EventTypes;
     EventTypes["UPDATE"] = "update";
     EventTypes["SAVE"] = "save";
     EventTypes["ADD"] = "add";
+    EventTypes["ADDED"] = "added";
     EventTypes["REMOVE"] = "remove";
     EventTypes["NOTE"] = "note";
     EventTypes["ARCHIVE"] = "archive";
@@ -3104,7 +3137,7 @@ class Base {
      * @return {Base} L'instance du média
      * @sealed
      */
-    addListener(name, fn) {
+    addListener(name, fn, ...args) {
         //if (Base.debug) console.log('Base[%s] add Listener on event %s', this.constructor.name, name);
         // On vérifie que le type d'event est pris en charge
         if (this.constructor.EventTypes.indexOf(name) < 0) {
@@ -3117,7 +3150,12 @@ class Base {
             if (func.toString() == fn.toString())
                 return;
         }
-        this._listeners[name].push(fn);
+        if (args.length > 0) {
+            this._listeners[name].push({ fn: fn, args: args });
+        }
+        else {
+            this._listeners[name].push(fn);
+        }
         if (Base.debug)
             console.log('Base[%s] add Listener on event %s', this.constructor.name, name, this._listeners[name]);
         return this;
@@ -3132,8 +3170,10 @@ class Base {
     removeListener(name, fn) {
         if (this._listeners[name] !== undefined) {
             for (let l = 0; l < this._listeners[name].length; l++) {
-                if (this._listeners[name][l] === fn)
+                if ((typeof this._listeners[name][l] === 'function' && this._listeners[name][l].toString() === fn.toString()) ||
+                    this._listeners[name][l].fn.toString() == fn.toString()) {
                     this._listeners[name].splice(l, 1);
+                }
             }
         }
         return this;
@@ -3150,7 +3190,12 @@ class Base {
                 console.log('Base[%s] call %d Listeners on event %s', this.constructor.name, this._listeners[name].length, name, this._listeners);
             const event = new CustomEvent('betaseries', { detail: { name: name } });
             for (let l = 0; l < this._listeners[name].length; l++) {
-                this._listeners[name][l].call(this, event, this);
+                if (typeof this._listeners[name][l] === 'function') {
+                    this._listeners[name][l].call(this, event, this);
+                }
+                else {
+                    this._listeners[name][l].fn.apply(this, this._listeners[name][l].args);
+                }
             }
         }
         return this;
@@ -3498,7 +3543,7 @@ class Show extends Media {
      * Types d'évenements gérés par cette classe
      * @type {Array}
      */
-    static EventTypes = new Array(EventTypes.UPDATE, EventTypes.SAVE, EventTypes.ADD, EventTypes.REMOVE, EventTypes.NOTE, EventTypes.ARCHIVE, EventTypes.UNARCHIVE);
+    static EventTypes = new Array(EventTypes.UPDATE, EventTypes.SAVE, EventTypes.ADD, EventTypes.ADDED, EventTypes.REMOVE, EventTypes.NOTE, EventTypes.ARCHIVE, EventTypes.UNARCHIVE);
     /**
      * Méthode static servant à récupérer une série sur l'API BS
      * @param  {Obj} params - Critères de recherche de la série
@@ -4091,6 +4136,7 @@ class Show extends Media {
                     changeBtnAdd(self);
                     // On met à jour le bloc du prochain épisode à voir
                     self.updateNextEpisode(function () {
+                        self._callListeners(EventTypes.ADDED);
                         if (Base.debug)
                             console.groupEnd();
                     });
@@ -4201,6 +4247,12 @@ class Show extends Media {
                         </span>
                     </button>`);
                 self.elt = $('.blockInformations');
+                const btnAddSimilars = `<button
+                    type="button"
+                    class="btn-reset blockTitle-subtitle u-colorWhiteOpacity05"
+                >
+                    ${Base.trans("popup.suggest_show.title", { '%title%': "une série" })}</button>`;
+                jQuery('#similars h2.blockTitle').after(btnAddSimilars);
                 self.addNumberVoters();
                 // On supprime le btn ToSeeLater
                 self.elt.find('.blockInformations__action .btnMarkToSee').parent().remove();
@@ -4538,6 +4590,13 @@ class Movie extends Media {
         return new Promise((resolve, reject) => {
             Base.callApi('GET', 'movies', 'movie', { id: id }, force)
                 .then(data => resolve(new Movie(data.movie, jQuery('.blockInformations'))))
+                .catch(err => reject(err));
+        });
+    }
+    static search(title, force = false) {
+        return new Promise((resolve, reject) => {
+            Base.callApi(HTTP_VERBS.GET, 'movies', 'search', { title }, force)
+                .then(data => { resolve(new Movie(data.movies[0])); })
                 .catch(err => reject(err));
         });
     }
@@ -5592,14 +5651,14 @@ class Similar extends Media {
             let html = '';
             if (self.creation || self.country || self.production_year) {
                 html += '<p>';
-                if (self.creation) {
-                    html += `<u>Création:</u> <strong>${self.creation}</strong>`;
-                }
                 if (self.production_year) {
                     html += `<u>Production:</u> <strong>${self.production_year}</strong>`;
                 }
                 if (self.country) {
-                    html += `, <u>Pays:</u> <strong>${self.country}</strong>`;
+                    html += `<u>Pays:</u> <strong>${self.country}</strong>`;
+                }
+                if (self.creation) {
+                    html += `<strong style="margin-left:5px;">${self.creation}</strong>`;
                 }
                 html += '</p>';
             }
@@ -5613,24 +5672,28 @@ class Similar extends Media {
         }
         template = '<div>';
         if (this.mediaType.singular === MediaType.show) {
-            const status = this.status.toLowerCase() == 'ended' ? 'Terminée' : 'En cours';
+            const status = `<i class="fa fa-${this.status.toLowerCase() == 'ended' ? 'ban' : 'spinner'}" title="Statut ${this.status.toLowerCase() == 'ended' ? 'terminé' : 'en cours'}" aria-hidden="true"></i>`;
             const seen = (this.user.status > 0) ? 'Vu à <strong>' + this.user.status + '%</strong>' : 'Pas vu';
-            template += `<p><strong>${this.nbSeasons}</strong> saison${(this.nbSeasons > 1 ? 's' : '')}, <strong>${this.nbEpisodes}</strong> épisodes, `;
+            template += `<p>
+                <strong>${this.nbSeasons}</strong> saison${(this.nbSeasons > 1 ? 's' : '')},
+                <strong>${this.nbEpisodes}</strong> <i class="fa fa-film" title="épisodes" aria-hidden="true"></i>, `;
             if (this.objNote.total > 0) {
                 template += `<strong>${this.objNote.total}</strong> votes`;
                 if (this.objNote.user > 0) {
                     template += `, votre note: ${this.objNote.user}`;
                 }
-                template += '</p>';
             }
             else {
-                template += 'Aucun vote</p>';
+                template += 'Aucun vote';
             }
+            template += `<span style="margin-left:5px;"><strong>${self.nbComments}</strong> <i class="fa fa-comment" title="commentaires" aria-hidden="true"></i></span>`;
             if (!this.in_account) {
-                template += `<p>
-                    <a href="javascript:;" class="addShow">Ajouter</a> - <a href="javascript:;" class="toSeeShow" data-show-id="${self.id}"><i class="fa fa-clock-o" aria-hidden="true"></i> <span>A voir</span></a>
-                </p>`;
+                template += `<span style="margin-left:5px;">
+                    <a href="javascript:;" class="addShow"><i class="fa fa-plus" title="Ajouter" aria-hidden="true"></i></a> -
+                    <a href="javascript:;" class="toSeeShow" data-show-id="${self.id}"><i class="fa fa-clock-o" title="A voir" aria-hidden="true"></i></a>
+                </span>`;
             }
+            template += '</p>';
             template += _renderGenres();
             template += _renderCreation();
             let archived = '';
@@ -5643,7 +5706,7 @@ class Similar extends Media {
             if (this.showrunner && this.showrunner.name.length > 0) {
                 template += `<p><u>Show Runner:</u> <strong>${this.showrunner.name}</strong></p>`;
             }
-            template += `<p><u>Statut:</u> <strong>${status}</strong>, ${seen}${archived}</p>`;
+            template += `<p><u>Statut:</u> ${status}, ${seen}${archived}</p>`;
         }
         // movie
         else {
@@ -5657,6 +5720,7 @@ class Similar extends Media {
             else {
                 template += 'Aucun vote';
             }
+            template += `<span style="margin-left:5px;"><strong>${self.nbComments}</strong> <i class="fa fa-comment" title="commentaires" aria-hidden="true"></i></span>`;
             template += '</p>';
             // Ajouter une case à cocher pour l'état "Vu"
             template += `<p><label for="seen">Vu</label>
