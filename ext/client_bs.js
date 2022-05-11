@@ -69,6 +69,19 @@ window.BS = {
         }
     },
     /**
+     * Fonction d'initialisation de l'objet BS
+     * @param  {Object} data Toutes les données d'initialisation
+     * @return {void}
+     */
+    init: function(data) {
+        const keys = Object.keys(data);
+        for (let k = 0; k < keys.length; k++) {
+            if (BS.hasOwnProperty(keys([k]))) {
+                BS[keys[k]] = data[keys[k]];
+            }
+        }
+    },
+    /**
      * Fonction servant à sauter l'intro de la série
      * @param  {Number} intro La durée de l'intro
      * @return {void}
