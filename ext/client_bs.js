@@ -17,17 +17,17 @@ window.BS = {
      * Fonction de récupération des données stockées
      * @type {Function}
      */
-    getValue: GM_getValue,
+    getValue: function() {},
     /**
      * Fonction de sauvegarde des données à stocker
      * @type {Function}
      */
-    setValue: GM_setValue,
+    setValue: function() {},
     /**
      * Fonction de notification
      * @type {Function}
      */
-    notification: GM_notification,
+    notification: function() {},
     /**
      * Identifiant du player
      * @type {String}
