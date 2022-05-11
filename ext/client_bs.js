@@ -139,7 +139,7 @@ window.BS = {
         const check = function() {
             return document.querySelectorAll(selector).length > 0;
         }
-        waitPresent(check, (err) => {
+        BS.waitPresent(check, (err) => {
             if (err) {
                 console.warn('Timeout waitDomPresent: %s', selector);
                 return;
@@ -467,7 +467,7 @@ window.BS = {
                         fetchUri(resolve, reject);
                     }
                 }).catch(error => {
-                    if (debug) console.log('Il y a eu un problème avec l\'opération fetch: ' + error.message);
+                    if (BS.debug) console.log('Il y a eu un problème avec l\'opération fetch: ' + error.message);
                     console.error(error);
                     reject(error.message);
                 });
