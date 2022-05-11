@@ -369,7 +369,7 @@ window.BS = {
         frame.title = 'connexion à BetaSeries';
         frame.width = '50%';
         frame.height = '400';
-        frame.src = serverBaseUrl + "/index.html";
+        frame.src = BS.serverBaseUrl + "/index.html";
         frame.style = "background:white;margin:auto;";
         container.appendChild(frame);
         document.body.appendChild(container);
