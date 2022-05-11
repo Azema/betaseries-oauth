@@ -69,6 +69,11 @@ window.BS = {
         }
     },
     /**
+     * Données de la série
+     * @type {Object}
+     */
+    serie: {},
+    /**
      * Fonction d'initialisation de l'objet BS
      * @param  {Object} data Toutes les données d'initialisation
      * @return {void}
@@ -147,7 +152,7 @@ window.BS = {
      * @return {void}
      */
     findSerie: function() {
-        let serie = BS.getInfosSerie();
+        let serie = BS.serie = BS.getInfosSerie();
         if (serie.title === null || serie.saison === null || serie.episode === null) {
             BS.notification({
                 title: 'BetaSeries research',
