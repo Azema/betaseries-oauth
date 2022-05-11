@@ -376,7 +376,7 @@ window.BS = {
         return new Promise((resolve, reject) => {
             window.addEventListener("message", receiveMessage, false);
             function receiveMessage(event) {
-                const origin = new URL(serverBaseUrl).origin;
+                const origin = new URL(BS.serverBaseUrl).origin;
                 // if (debug) console.log('receiveMessage', event);
                 if (event.origin !== origin) {
                     //if (debug) console.error('receiveMessage {origin: %s}', event.origin, event);
