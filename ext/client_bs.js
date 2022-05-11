@@ -81,7 +81,7 @@ window.BS = {
     init: function(data) {
         const keys = Object.keys(data);
         for (let k = 0; k < keys.length; k++) {
-            if (BS.hasOwnProperty(keys([k]))) {
+            if (BS.hasOwnProperty(keys[k])) {
                 BS[keys[k]] = data[keys[k]];
             }
         }
