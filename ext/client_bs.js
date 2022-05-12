@@ -85,6 +85,7 @@ window.BS = {
                 BS[keys[k]] = data[keys[k]];
             }
         }
+        BS.betaseries_api_user_token = localStorage.getItem('betaseries_api_user_token');
     },
     /**
      * Fonction servant à sauter l'intro de la série
@@ -180,7 +181,7 @@ window.BS = {
                     return;
                 }
                 serie.episodeId = data.episodes[0].id;
-                if (debug) console.log('L\'identifiant de l\'épisode a été trouvé', serie);
+                if (BS.debug) console.log('L\'identifiant de l\'épisode a été trouvé', serie);
             });
         }
 
@@ -215,7 +216,7 @@ window.BS = {
                     }
                 }
                 else if (data.shows.length > 1) {
-                    let msg = 'Quelle série choisissez-vous (Indiquer l\'indice) ?\n',
+                    let msg = 'Quelle série choisissez-vous (ID show) ?\n',
                         showIds = [],
                         resultID = null;
                     for (let s = 0; s < data.shows.length; s++) {
@@ -227,21 +228,20 @@ window.BS = {
                             }
                             break;
                         }
-                        msg += `\t${s}: ${data.shows[s].title} [${data.shows[s].id}]\n`;
+                        msg += `\t${data.shows[s].id}: ${data.shows[s].title}\n`;
                         showIds.push(data.shows[s].id);
                     }
                     if (showId == null) {
-                        let indice = parseInt(window.prompt(msg, 0), 10);
-                        if (indice < 0 || indice >= showIds.length) {
+                        let indice = parseInt(window.prompt(msg, data.shows[0].id), 10);
+                        if (Number.isNaN(indice)) {
                             BS.notification({
-                                title: "Response OutOfRange",
-                                text: "L'indice fournit n'est pas correct",
+                                title: "Response Error",
+                                text: "L'identifiant fournit n'est pas correct",
                                 timeout: 5
                             });
                             return;
                         }
-                        showId = data.shows[indice].id;
-                        if (BS.debug) console.log('Choix show', {indice, showId, "present": showIds.indexOf(showId)});
+                        showId = indice;
                         if (!showId || showIds.indexOf(showId) === -1) {
                             BS.notification({
                                 title: 'BetaSeries research',
@@ -324,6 +324,7 @@ window.BS = {
      */
     saveSerie: function(id, title, alias = [], intro = 0) {
         //console.log('saveSerie params: ', {id, title, alias, intro});
+        const showIdsSaved = BS.getValue('showIdsSaved', {});
         if (id == null || title == null) {
             console.warn("L'identifiant ou le titre de la série sont nul.", {id, title});
             return;
@@ -377,9 +378,9 @@ window.BS = {
             window.addEventListener("message", receiveMessage, false);
             function receiveMessage(event) {
                 const origin = new URL(BS.serverBaseUrl).origin;
-                // if (debug) console.log('receiveMessage', event);
+                // if (BS.debug) console.log('receiveMessage', event);
                 if (event.origin !== origin) {
-                    //if (debug) console.error('receiveMessage {origin: %s}', event.origin, event);
+                    //if (BS.debug) console.error('receiveMessage {origin: %s}', event.origin, event);
                     reject('event.origin is not %s', origin);
                     return;
                 }
