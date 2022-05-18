@@ -8,46 +8,22 @@ window.BS = {
     getInfosSerie: function() {
         throw new Error('Method abstract');
     },
-    /**
-     * Flag de debug du script
-     * @type {Boolean}
-     */
-    debug: true,
-    /**
-     * Fonction de récupération des données stockées
-     * @type {Function}
-     */
-    getValue: function() {},
-    /**
-     * Fonction de sauvegarde des données à stocker
-     * @type {Function}
-     */
-    setValue: function() {},
-    /**
-     * Fonction de notification
-     * @type {Function}
-     */
-    notification: function() {},
-    /**
-     * Identifiant du player
-     * @type {String}
-     */
-    playerId: '',
+    noop: function() {},
+    defaultOptions: {
+        debug: false,
+        getValue: this.noop,
+        setValue: this.noop,
+        notification: this.noop,
+        serverBaseUrl: 'https://azema.github.io/betaseries-oauth',
+        betaseries_api_user_key: '45028a0b0d3c',
+        platform: '',
+        playerId: ''
+    },
     /**
      * Token de l'API BetaSeries
      * @type {String}
      */
     betaseries_api_user_token: '',
-    /**
-     * URL du serveur d'authentification pour l'API BetaSeries
-     * @type {String}
-     */
-    serverBaseUrl: 'https://azema.github.io/betaseries-oauth',
-    /**
-     * Clé d'authentification de l'API BetaSeries
-     * @type {String}
-     */
-    betaseries_api_user_key: '45028a0b0d3c',
     /**
      * Données concernant l'API BetaSeries
      * @type {Object}
@@ -74,18 +50,31 @@ window.BS = {
      */
     serie: {},
     /**
+     * Tableau des events
+     * @type {Object}
+     */
+    events: {
+        skipIntro: false,
+        message: false
+    },
+    platforms: {
+        viki: {country: 'kr'}
+    },
+    settings: {},
+    /**
      * Fonction d'initialisation de l'objet BS
-     * @param  {Object} data Toutes les données d'initialisation
+     * @param  {Object} options Toutes les données d'initialisation
      * @return {void}
      */
-    init: function(data) {
-        const keys = Object.keys(data);
-        for (let k = 0; k < keys.length; k++) {
-            if (BS.hasOwnProperty(keys[k])) {
-                BS[keys[k]] = data[keys[k]];
-            }
+    init: function(options) {
+        Object.assign(this.settings, this.defaultOptions, options);
+        for (let k of Object.keys(this.settings)) {
+            Object.defineProperty(this, k, {
+                value: BS.settings[k]
+            });
         }
-        BS.betaseries_api_user_token = localStorage.getItem('betaseries_api_user_token');
+        this.betaseries_api_user_token = localStorage.getItem('betaseries_api_user_token');
+        // console.log('BS object', this);
     },
     /**
      * Fonction servant à sauter l'intro de la série
@@ -93,14 +82,18 @@ window.BS = {
      * @return {void}
      */
     skipIntro: function(intro) {
-        if (intro <= 0 || BS.playerId.length <= 0) return;
+        if (BS.debug) console.log('skipIntro', {intro, playerId: BS.playerId, event: BS.events.skipIntro});
+        if (intro <= 0 || BS.playerId.length <= 0 || BS.events.skipIntro) return;
         const video = document.getElementById(BS.playerId);
         if (video) {
             if (Number.isInteger(intro) || (serie.episode % 2 !== 0)) {
-                video.addEventListener('play', (event) => {
-                    if (BS.debug) console.log('skipIntro: ', intro);
-                    if (video.currentTime == 0) video.currentTime = intro;
+                video.addEventListener('play', () => {
+                    if (video.currentTime <= 5) {
+                        if (BS.debug) console.log('Event skipIntro: ', intro);
+                        video.currentTime = intro;
+                    }
                 });
+                BS.events.skipIntro = true;
             }
         }
     },
@@ -152,8 +145,14 @@ window.BS = {
      * Fonction de recherche des données de la série sur l'API BetaSeries
      * @return {void}
      */
-    findSerie: function() {
-        let serie = BS.serie = BS.getInfosSerie();
+    findSerie: async function(cb = BS.noop) {
+        if (BS.debug) console.log('findSerie');
+        BS.events.skipIntro = false;
+        /**
+         * Objet contenant les infos sur la série
+         * @type {Object}
+         */
+        let serie = BS.serie = await BS.getInfosSerie();
         if (serie.title === null || serie.saison === null || serie.episode === null) {
             BS.notification({
                 title: 'BetaSeries research',
@@ -166,10 +165,11 @@ window.BS = {
         /**
          * Fonction recherchant l'identifiant de l'épisode
          * @param  {Number} showId L'identifiant de la série
-         * @return {void}
+         * @return {Promise<void>}
          */
         function getEpisode(showId) {
-            BS.callBetaSeries('GET', 'shows', 'episodes', {id: showId, season: serie.saison, episode: serie.episode})
+            if (BS.debug) console.log('getEpisode[%d]', showId);
+            return BS.callBetaSeries('GET', 'shows', 'episodes', {id: showId, season: serie.saison, episode: serie.episode})
                 .then(data => {
                 if (data.episodes.length <= 0) {
                     BS.notification({
@@ -184,20 +184,26 @@ window.BS = {
                 if (BS.debug) console.log('L\'identifiant de l\'épisode a été trouvé', serie);
             });
         }
-
-        const resultSearch = BS.searchSerieByName(serie.title);
+        let resultSearch;
+        if (serie.platform.showId) {
+            resultSearch = BS.searchSerieById(serie.platform.showId);
+        } else {
+            resultSearch = BS.searchSerieByName(serie.title);
+        }
         if (resultSearch != null) {
             if (BS.debug) console.log('L\'identifiant de la série est déjà enregistré', resultSearch);
             serie.showId = resultSearch.id;
-            getEpisode(serie.showId);
+            getEpisode(serie.showId).then(cb);
             BS.skipIntro(resultSearch.intro);
         } else {
             // Retrouver l'ID de la serie et de l'épisode
-            BS.callBetaSeries('GET', 'shows', 'search', {title: encodeURIComponent(serie.title)})
+            const country = serie.country || BS.platforms[BS.platform].country;
+            const params = {text: encodeURIComponent(serie.title), pays: country, limit: 10};
+            BS.callBetaSeries('GET', 'search', 'shows', params)
             .then(data => {
                 if (BS.debug) console.log('Search serie by title on API BetaSeries');
                 let showId = null;
-                if (data.shows.length <= 0) {
+                if (data.total <= 0) {
                     BS.notification({
                         title: 'BetaSeries research',
                         text: 'La série n\'a pas été trouvée sur BetaSeries',
@@ -208,23 +214,23 @@ window.BS = {
                     let resultPrompt = window.prompt(msg);
                     if (resultPrompt != null && resultPrompt.length > 0) {
                         showId = parseInt(resultPrompt, 10);
-                        const resultID = searchSerieById(showId);
+                        const resultID = BS.searchSerieByIdBS(showId);
                         if (resultID && serie.title != resultID.title) {
                             console.log('Le titre de la série est différent {title: %s, alias: %s}', resultID.title, serie.title);
-                            saveSerie(showId, resultID.title, [serie.title]);
+                            BS.saveSerie(serie.platform.showId, showId, resultID.title, [serie.title]);
                         }
                     }
                 }
-                else if (data.shows.length > 1) {
+                else if (data.total > 1) {
                     let msg = 'Quelle série choisissez-vous (ID show) ?\n',
                         showIds = [],
                         resultID = null;
                     for (let s = 0; s < data.shows.length; s++) {
-                        resultID = BS.searchSerieById(data.shows[s].id);
+                        resultID = BS.searchSerieByIdBS(data.shows[s].id);
                         if (resultID && window.confirm(`L'identifiant de la série est il bien le ${data.shows[s].id}`)) {
                             showId = data.shows[s].id;
                             if (serie.title != resultID.title) {
-                                saveSerie(data.shows[s].id, resultID.title, [serie.title]);
+                                saveSerie(serie.platform.showId, data.shows[s].id, resultID.title, [serie.title]);
                             }
                             break;
                         }
@@ -258,12 +264,12 @@ window.BS = {
                                 return;
                             }
                         }
-                        const result = BS.searchSerieById(showId);
-                        if (BS.debug) console.log('searchSerieById', result);
+                        const result = BS.searchSerieByIdBS(showId);
+                        if (BS.debug) console.log('searchSerieByIdBS', result);
                         if (result) {
                             if (serie.title != result.title) {
                                 if (BS.debug) console.log('Le titre de la série est différent {title: %s, alias: %s}', result.title, serie.title);
-                                BS.saveSerie(showId, result.title, [serie.title]);
+                                BS.saveSerie(serie.platform.showId, showId, result.title, [serie.title]);
                             }
                         }
                         showId = parseInt(showId, 10);
@@ -276,13 +282,13 @@ window.BS = {
                     return;
                 }
                 serie.showId = showId;
-                let result = BS.searchSerieById(showId);
+                let result = BS.searchSerieByIdBS(showId);
                 if (!result) {
-                    result = BS.saveSerie(showId, serie.title, []);
+                    result = BS.saveSerie(serie.platform.showId, showId, serie.title, []);
                 } else if (result.title != serie.title) {
-                    result = BS.saveSerie(showId, result.title, [serie.title], result.intro);
+                    result = BS.saveSerie(serie.platform.showId, showId, result.title, [serie.title], result.intro);
                 }
-                getEpisode(showId);
+                getEpisode(showId).then(cb);
                 BS.skipIntro(result.intro);
             });
         }
@@ -303,7 +309,22 @@ window.BS = {
         return null;
     },
     /**
-     * Recherche une série par son ID
+     * Recherche une série par son ID BetaSeries
+     * @param  {number} id  L'identifiant de la série sur BetaSeries
+     * @return {Object}       L'objet contenant les infos de la série
+     */
+    searchSerieByIdBS: function(id) {
+        const shows = BS.getValue('showIdsSaved', {});
+        let keys = Object.keys(shows);
+        for (let key of keys) {
+            if (shows[key].id == id) {
+                return shows[key];
+            }
+        }
+        return null;
+    },
+    /**
+     * Recherche une série par son ID Viki
      * @param  {number} id L'identifiant de la série
      * @return {Object}    L'objet contenant les infos de la série
      */
@@ -316,30 +337,31 @@ window.BS = {
     },
     /**
      * Enregistre les infos de la série
-     * @param  {number} id          L'identifiant de la série
+     * @param  {number} platformId  L'identifiant de la série sur Viki
+     * @param  {number} BSid        L'identifiant de la série sur BetaSeries
      * @param  {string} title       Le titre de la série
      * @param  {Array}  [alias=[]]  Tableau des alias de la série
      * @param  {Number} [intro=0]   Durée de l'intro de la série
      * @return {Object}             L'objet contenant les infos de la série
      */
-    saveSerie: function(id, title, alias = [], intro = 0) {
+    saveSerie: function(platformId, BSid, title, alias = [], intro = 0) {
         //console.log('saveSerie params: ', {id, title, alias, intro});
         const showIdsSaved = BS.getValue('showIdsSaved', {});
-        if (id == null || title == null) {
+        if (platformId == null || BSid == null || title == null) {
             console.warn("L'identifiant ou le titre de la série sont nul.", {id, title});
             return;
         }
-        const result = BS.searchSerieById(id);
+        const result = BS.searchSerieById(platformId);
         if (result) {
             alias = result.alias.concat(alias);
             if (intro === 0) {
                 intro = result.intro;
             }
         }
-        showIdsSaved[id] = {id, title, alias, intro};
+        showIdsSaved[platformId] = {id: BSid, title, alias, intro};
         BS.setValue('showIdsSaved', showIdsSaved);
         //console.log('saveSerie', showIdsSaved[id]);
-        return showIdsSaved[id];
+        return showIdsSaved[platformId];
     },
     /**
      * Authentification à l'API de BetaSeries
@@ -376,6 +398,7 @@ window.BS = {
         document.body.appendChild(container);
         return new Promise((resolve, reject) => {
             window.addEventListener("message", receiveMessage, false);
+            BS.events.message = true;
             function receiveMessage(event) {
                 const origin = new URL(BS.serverBaseUrl).origin;
                 // if (BS.debug) console.log('receiveMessage', event);
@@ -391,6 +414,7 @@ window.BS = {
                     document.getElementById('containerIframe').remove();
                     resolve(msg);
                     window.removeEventListener("message", receiveMessage, false);
+                    BS.events.message = false;
                 } else {
                     if (BS.debug) console.error('Erreur de récuperation du token', event);
                     // reject(event.data);
@@ -509,7 +533,7 @@ window.BS = {
                             (response.status === 400 && code === 0 &&
                                 text === "L'utilisateur a déjà marqué cet épisode comme vu."))
                         {
-                            reject('changeStatus');
+                            reject('alreadyMarked');
                         } else if (code == 2001) {
                             // Appel de l'authentification pour obtenir un token valide
                             BS.authenticate().then(() => {
