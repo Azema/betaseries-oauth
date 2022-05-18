@@ -40,7 +40,9 @@ button.button.blue {
   position: relative;
   font-family: FontAwesome;
 }
-
+.blockInformations__synopsis.blockInformations__synopsis {
+  background-color: rgba(0, 0, 0, 0.3);
+}
 .blockInformations__synopsis button {
   background: transparent;
   border: none;
