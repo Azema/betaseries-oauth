@@ -11,7 +11,7 @@ module.exports = function(grunt) {
     // On définit les fins de ligne en mode linux
     grunt.util.linefeed = '\n';
 
-    grunt.registerTask('build', ['cssmin', 'sri']);
+    grunt.registerTask('build', ['cssmin', 'uglify', 'sri']);
 
     grunt.initConfig({
         pkg: grunt.file.readJSON('package.json'),
@@ -26,12 +26,26 @@ module.exports = function(grunt) {
                 }]
             }
         },
+        uglify: {
+            target: {
+                options: {
+                    sourceMap: false
+                },
+                files: [{
+                    expand: true,
+                    cwd: 'js',
+                    src: ['*.js', '!*.min.js'],
+                    dest: 'js',
+                    ext: '.min.js'
+                }]
+            }
+        },
         sri: {
             dist: {
                 options: {
                     algorithm: 'sha384'
                 },
-                src: ['css/*.min.css'],
+                src: ['css/*.min.css', 'js/*.min.js'],
                 dest: './sri.sha384'
             }
         }
@@ -90,4 +104,5 @@ module.exports = function(grunt) {
         );
     });
     grunt.loadNpmTasks('grunt-contrib-cssmin');
+    grunt.loadNpmTasks('grunt-contrib-uglify');
 };
