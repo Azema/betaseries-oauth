@@ -17,7 +17,17 @@ window.BS = {
         serverBaseUrl: 'https://azema.github.io/betaseries-oauth',
         betaseries_api_user_key: '45028a0b0d3c',
         platform: '',
-        playerId: ''
+        playerId: '',
+        serie: {
+            title:null,
+            saison:null,
+            episode: null,
+            showId: null,
+            episodeId: null,
+            watched: false,
+            country: null,
+            platform: {showId: null}
+        }
     },
     /**
      * Token de l'API BetaSeries
@@ -45,11 +55,6 @@ window.BS = {
         }
     },
     /**
-     * Données de la série
-     * @type {Object}
-     */
-    serie: {},
-    /**
      * Tableau des events
      * @type {Object}
      */
@@ -75,6 +80,13 @@ window.BS = {
         }
         this.betaseries_api_user_token = localStorage.getItem('betaseries_api_user_token');
         // console.log('BS object', this);
+    },
+    /**
+     * Retourne un objet serie vierge
+     * @return {Object} L'objet serie vierge
+     */
+    getSerieBlank: function() {
+        return BS.defaultOptions.serie;
     },
     /**
      * Fonction servant à sauter l'intro de la série
@@ -153,7 +165,7 @@ window.BS = {
          * @type {Object}
          */
         let serie = BS.serie = await BS.getInfosSerie();
-        if (serie.title === null || serie.saison === null || serie.episode === null) {
+        if (serie == null || serie.title == null || serie.saison == null || serie.episode == null) {
             BS.notification({
                 title: 'BetaSeries research',
                 text: "Infos non récupérées (cf. console)",
@@ -181,6 +193,13 @@ window.BS = {
                     return;
                 }
                 serie.episodeId = data.episodes[0].id;
+                if (data.episodes[0].user.seen) {
+                    serie.watched = true;
+                    if (BS.debug) console.log('Cet épisode a déjà été vu');
+                    if (window.confirm('Voulez-vous passer à l\'épisode suivant ?')) {
+                        document.querySelector('div.vkp-left-control button.vkp-next-button').click();
+                    }
+                }
                 if (BS.debug) console.log('L\'identifiant de l\'épisode a été trouvé', serie);
             });
         }
@@ -360,6 +379,11 @@ window.BS = {
         }
         showIdsSaved[platformId] = {id: BSid, title, alias, intro};
         BS.setValue('showIdsSaved', showIdsSaved);
+        let showsWatched = BS.getValue('showsWatched', []);
+        if (showsWatched.indexOf(BSid) < 0) {
+            showsWatched.push(BSid);
+            BS.setValue('showsWatched', showsWatched);
+        }
         //console.log('saveSerie', showIdsSaved[id]);
         return showIdsSaved[platformId];
     },
