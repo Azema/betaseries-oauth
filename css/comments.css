@@ -36,6 +36,7 @@
     line-height: 15px;
     word-break: break-word;
     margin-left: 5px;
+    font-size: 1.1em;
 }
 .comment .options-comment > a,
 .comment .options-comment > button {

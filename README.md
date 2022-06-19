@@ -6,10 +6,10 @@ Repository servant pour l'authentification OAuth avec l'API de BetaSeries, ainsi
 ## Les SRI des ressources statiques minifiées
 
 ### CSS
-* popover.min.css:  `sha384-dW+xJiephiM3R3jt202cRVz+0+cgaFT1/QnM0APkhWjgHGWTzEBuT3rp13LITQe0`
-* style.min.css:    `sha384-f/XmsODx4ju+LHwh7kUC/lEHbSFVSCi9Nlm0csVZt1MzQpE8cQhu/O3htHzlS0zv`
+* popover.min.css:  `sha384-yebLb3hn+3mwaxg0KwLhE2YYLEKsMRsxRvUPyBOF6gzkzLEOWEeD9ELZeDACSwO7`
+* style.min.css:    `sha384-hJp4x3xoyhAcak3flrhOEfQiQQIoQgjVpJhe2Q+kjwX8sj3yb3zIjVROo+AqjXxb`
 * table.min.css:    `sha384-tRMvWzqbXtOp2OM+OPoYpWVxHw8eXcFKgzi4q9m6i0rvWTU33pdb8Bx33wBWjlo9`
-* comments.min.css: `sha384-kKsnxtsYz2cZTV2MOdDUJh3mOMOKqfuGMut+qVlM5k2NoRgDhpuGqR9ZVtfWoxsz`
+* comments.min.css: `sha384-37/ghsJZTBvNPxUAy6GMPGxa3BKjrZ2ykMb7gUpkkVvoZwAsm4WhigKhMyYCN+Ft`
 
 ### JS
 * renderjson.min.js: `sha384-/mHGJ/3gaDqVJCEeed/Uh1fJVO01E+CLBZrFqjv1REaFAZxEBvGMHQyBmwln/uhx`

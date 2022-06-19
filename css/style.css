@@ -22,7 +22,7 @@
 .bandViewed {
   position:absolute;
   top:0;
-  left:-64px;
+  /* left:-64px; */
   z-index:1;
 }
 button.button.blue {
@@ -103,7 +103,7 @@ button.button.blue {
 }
 
 /* -------------------------------------------------------------------------- *\
- * Style notification
+ * Style userscript notification
  * -------------------------------------------------------------------------- */
 .userscript-notifications {
   position: fixed;
@@ -126,6 +126,17 @@ button.button.blue {
   display: inline-block;
   /* float: right; */
   cursor: pointer;
+}
+
+/* -------------------------------------------------------------------------- *\
+ * Style Site Web Notifications
+/* -------------------------------------------------------------------------- */
+.unread-notifications {
+  padding: 4px 6px;
+  background-color: #dc3545;
+  color: #fff;
+  font-weight: bold;
+  font-size: 12px;
 }
 
 /* -------------------------------------------------------------------------- *\
@@ -1336,6 +1347,38 @@ a.badge-dark:focus, a.badge-dark.focus {
   margin-left: 20px;
   width: 200px;
 }
+div.copy-id {
+  margin-left: 10px;
+  cursor: pointer;
+  font-size: 0.3em;
+  font-weight: bold;
+  vertical-align: middle;
+  background: var(--yellow);
+  display: inline-block;
+  line-height: initial;
+}
+div.copy-id.copied {
+  animation: zoom 2s ease-out;
+}
+@keyframes zoom {
+  0%, 100%{
+    transform: scale(1, 1);
+  }
+  50% {
+    transform: scale(1.25, 1.25);
+  }
+}
+/*
+        Loader
+*/
+#loader-bg {
+  z-index: 2050;
+  position: fixed;
+  top: 50%;
+  left: 50%;
+  display: none;
+}
+
 /* Animation */
 @-webkit-keyframes spinner {
   0% {

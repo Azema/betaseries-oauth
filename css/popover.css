@@ -183,6 +183,12 @@
   border-top-right-radius: calc(0.3rem - 1px);
 }
 
+.popover-header .note {
+  float: right;
+  font-size: 0.7em;
+  line-height: 2;
+}
+
 .popover-header:empty {
   display: none;
 }
@@ -192,3 +198,6 @@
   color: #212529;
 }
 
+#episodes .slides_flex .popover-body {
+  padding-top: 0;
+}
