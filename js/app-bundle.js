@@ -1,4 +1,4 @@
-/*! betaseries_userscript - v1.3.4 - 2022-06-19
+/*! betaseries_userscript - v1.3.5 - 2022-06-19
  * https://github.com/Azema/betaseries
  * Copyright (c) 2022 Azema;
  * Licensed Apache-2.0
@@ -4032,6 +4032,42 @@ class Media extends Base {
         }
         return this;
     }
+    /**
+     * Retourne l'URL de la page de la série à partir de son identifiant tvdb
+     * @param   {number} tvdb_id - Identifiant TheTvDB
+     * @returns {Promise<string>}
+     */
+    _getTvdbUrl(tvdb_id) {
+        const proxy = Base.serverBaseUrl + '/proxy/';
+        const initFetch = {
+            method: 'GET',
+            headers: {
+                'origin': 'https://www.betaseries.com',
+                'x-requested-with': '',
+                'Accept': 'application/json'
+            },
+            mode: 'cors',
+            cache: 'no-cache'
+        };
+        return new Promise((res, rej) => {
+            fetch(`${proxy}?tab=series&id=${tvdb_id}`, initFetch)
+                .then(res => {
+                // console.log('_getTvdbUrl response', res);
+                if (res.ok) {
+                    return res.json();
+                }
+                return rej();
+            }).then(data => {
+                // console.log('_getTvdbUrl data', data);
+                if (data) {
+                    res(data.url);
+                }
+                else {
+                    rej();
+                }
+            });
+        });
+    }
 }
 
 class Images {
@@ -5381,44 +5417,13 @@ class Show extends Media {
         }
         return null;
     }
-    _getTvdbUrl() {
-        const proxy = Base.serverBaseUrl + '/proxy/';
-        const initFetch = {
-            method: 'GET',
-            headers: {
-                'origin': 'https://www.betaseries.com',
-                'x-requested-with': '',
-                'Accept': 'application/json'
-            },
-            mode: 'cors',
-            cache: 'no-cache'
-        };
-        return new Promise((res, rej) => {
-            fetch(`${proxy}?tab=series&id=${this.thetvdb_id}`, initFetch)
-                .then(res => {
-                // console.log('_getTvdbUrl response', res);
-                if (res.ok) {
-                    return res.json();
-                }
-                return rej();
-            }).then(data => {
-                // console.log('_getTvdbUrl data', data);
-                if (data) {
-                    res(data.url);
-                }
-                else {
-                    rej();
-                }
-            });
-        });
-    }
     /**
      * Retourne une image, si disponible, en fonction du format désiré
      * @param  {string = Images.formats.poster} format   Le format de l'image désiré
      * @return {Promise<string>}                         L'URL de l'image
      */
     getDefaultImage(format = Images.formats.poster) {
-        const proxy = Base.serverBaseUrl + '/proxy/';
+        const proxy = Base.serverBaseUrl + '/posters';
         const initFetch = {
             method: 'GET',
             headers: {
@@ -5435,21 +5440,26 @@ class Show extends Media {
                 if (this.images.poster)
                     res(this.images.poster);
                 else {
-                    fetch(`${proxy}?tab=series&id=${this.thetvdb_id}`, initFetch)
-                        .then((resp) => {
-                        if (resp.ok) {
-                            return resp.text();
-                        }
-                        return null;
-                    }).then(html => {
-                        if (html == null) {
-                            return rej('HTML error');
-                        }
-                        const parser = new DOMParser();
-                        const doc = parser.parseFromString(html, 'text/html');
-                        const link = doc.querySelector('.container .row a[rel="artwork_posters"]');
-                        res(link.href.replace('original', 'w500'));
-                    }).catch(err => rej(err));
+                    this._getTvdbUrl(this.thetvdb_id).then(url => {
+                        if (!url)
+                            return res('');
+                        const urlTvdb = new URL(url);
+                        fetch(`${proxy}${urlTvdb.pathname}`, initFetch)
+                            .then((resp) => {
+                            if (resp.ok) {
+                                return resp.text();
+                            }
+                            return null;
+                        }).then(html => {
+                            if (html == null) {
+                                return rej('HTML error');
+                            }
+                            const parser = new DOMParser();
+                            const doc = parser.parseFromString(html, 'text/html');
+                            const link = doc.querySelector('.container .row a[rel="artwork_posters"]');
+                            res(link.href.replace('original', 'w500'));
+                        }).catch(err => rej(err));
+                    });
                 }
             }
             else if (format === Images.formats.wide) {
@@ -5458,25 +5468,34 @@ class Show extends Media {
                 else if (this.images.box !== null)
                     res(this.images.box);
                 else {
-                    fetch(`${proxy}?tab=series&id=${this.thetvdb_id}`, initFetch)
-                        .then((resp) => {
-                        if (resp.ok) {
-                            return resp.text();
-                        }
-                        return null;
-                    }).then(html => {
-                        if (html == null) {
-                            return rej('HTML error');
-                        }
-                        const parser = new DOMParser();
-                        const doc = parser.parseFromString(html, 'text/html');
-                        const link = doc.querySelector('.container .row a[rel="artwork_backgrounds"]');
-                        res(link.href.replace('original', 'w500'));
-                    }).catch(err => rej(err));
+                    this._getTvdbUrl(this.thetvdb_id).then(url => {
+                        if (!url)
+                            return res('');
+                        const urlTvdb = new URL(url);
+                        fetch(`${proxy}${urlTvdb.pathname}`, initFetch)
+                            .then((resp) => {
+                            if (resp.ok) {
+                                return resp.text();
+                            }
+                            return null;
+                        }).then(html => {
+                            if (html == null) {
+                                return rej('HTML error');
+                            }
+                            const parser = new DOMParser();
+                            const doc = parser.parseFromString(html, 'text/html');
+                            const link = doc.querySelector('.container .row a[rel="artwork_backgrounds"]');
+                            res(link.href.replace('original', 'w500'));
+                        }).catch(err => rej(err));
+                    });
                 }
             }
         });
     }
+    /**
+     * Récupère et retourne les différentes affiches disponibles
+     * @returns {object}
+     */
     getAllPosters() {
         if (this._posters) {
             return new Promise(res => res(this._posters));
@@ -5495,8 +5514,8 @@ class Show extends Media {
             const posters = {};
             if (this.images?._local.poster)
                 posters['local'] = [this.images._local.poster];
-            this._getTvdbUrl().then(url => {
-                console.log('getAllPosters url', url);
+            this._getTvdbUrl(this.thetvdb_id).then(url => {
+                // console.log('getAllPosters url', url);
                 if (!url)
                     return res(posters);
                 const urlTvdb = new URL(url);
@@ -7004,7 +7023,7 @@ class Similar extends Media {
                             src="${this.images.poster}"/>`);
             }
             else {
-                const proxy = Base.serverBaseUrl + '/proxy/';
+                const proxy = Base.serverBaseUrl + '/posters/';
                 const initFetch = {
                     method: 'GET',
                     headers: {
@@ -7014,26 +7033,31 @@ class Similar extends Media {
                     mode: 'cors',
                     cache: 'no-cache'
                 };
-                fetch(`${proxy}?tab=series&id=${this.thetvdb_id}`, initFetch)
-                    .then((resp) => {
-                    if (resp.ok) {
-                        return resp.text();
-                    }
-                    return null;
-                }).then(html => {
-                    if (html == null)
+                this._getTvdbUrl(this.thetvdb_id).then(url => {
+                    if (!url)
                         return;
-                    const parser = new DOMParser();
-                    const doc = parser.parseFromString(html, 'text/html');
-                    const link = doc.querySelector('.container .row a[rel="artwork_posters"]');
-                    if (link) {
-                        this.elt.find('div.block404').replaceWith(`
-                            <img class="u-opacityBackground fade-in"
-                                    width="125"
-                                    height="188"
-                                    alt="Affiche de la série ${self.title}"
-                                    src="${link.href}"/>`);
-                    }
+                    const urlTvdb = new URL(url);
+                    fetch(`${proxy}${urlTvdb.pathname}`, initFetch)
+                        .then((resp) => {
+                        if (resp.ok) {
+                            return resp.text();
+                        }
+                        return null;
+                    }).then(html => {
+                        if (html == null)
+                            return;
+                        const parser = new DOMParser();
+                        const doc = parser.parseFromString(html, 'text/html');
+                        const link = doc.querySelector('.container .row a[rel="artwork_posters"]');
+                        if (link) {
+                            this.elt.find('div.block404').replaceWith(`
+                                <img class="u-opacityBackground fade-in"
+                                        width="125"
+                                        height="188"
+                                        alt="Affiche de la série ${self.title}"
+                                        src="${link.href}"/>`);
+                        }
+                    });
                 });
             }
         }
