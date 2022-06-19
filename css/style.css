@@ -471,6 +471,35 @@ dialog.dialog-content {
   border-radius: 0.25rem;
   transition: color 0.15s ease-in-out, background-color 0.15s ease-in-out, border-color 0.15s ease-in-out, box-shadow 0.15s ease-in-out;
 }
+.sousTitres .btn.ij_g {
+  display: block;
+  width: 100%;
+  padding: 7px 0;
+  border: 0;
+  border-radius: 5px;
+  font-size: 12px;
+  font-weight: 700;
+  line-height: 16px;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+.sousTitres .btn.btn-blue2, .sousTitres .btn.btn-blue2:hover {
+  border: none;
+  color: #fff;
+  background: #54709d;
+}
+.sousTitres .btn.btn-blue2 {
+  padding: 6px 10px;
+  text-decoration: none;
+  font-size: 14px;
+  line-height: 18px;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+.sousTitres .btn.btn--grey {
+  background-color: rgb(240, 240, 240);
+  color: #000;
+}
 
 @media (prefers-reduced-motion: reduce) {
   .btn {
