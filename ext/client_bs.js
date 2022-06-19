@@ -26,7 +26,7 @@
         setValue: noop,
         notification: noop,
         serverBaseUrl: 'https://azema.github.io/betaseries-oauth',
-        betaseries_api_user_key: '45028a0b0d3c',
+        betaseries_api_user_key: '',
         platform: '',
         playerId: '',
         serie: {
@@ -71,7 +71,7 @@
             versions: {current: '3.0', last: '3.0'},
             resources: [ // Les ressources disponibles dans l'API
                 'badges', 'comments', 'episodes', 'friends', 'members', 'messages',
-                'movies', 'news', 'oauth', 'pictures', 'planning', 'platforms',
+                'movies', 'news', 'oauth', 'persons', 'pictures', 'planning', 'platforms',
                 'polls', 'reports', 'search', 'seasons', 'shows', 'subtitles',
                 'timeline'
             ],
@@ -107,6 +107,9 @@
                     value: self.settings[k],
                     writable: true
                 });
+            }
+            if (!this.settings.betaseries_api_user_key || this.settings.betaseries_api_user_key.length <= 0) {
+                throw new Error('API BetaSeries Key is missing in options');
             }
             this.betaseries_api_user_token = localStorage.getItem('betaseries_api_user_token');
             // console.log('BS object', this);
