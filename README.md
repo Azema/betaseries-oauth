@@ -25,5 +25,5 @@ Le dossier `Ext` contient les scripts pour d'autres sites en rapport avec [BetaS
 ## Dossier userscripts
 
 Le dossier `userscripts`, comme son nom l'indique, contient des userscripts, en rapport avec [BetaSeries](https://www.betaseries.com/).
-* `viki.userscript.js`: Est un userscript, pour le site Viki, pour synchroniser les séries et épisodes vus, via l'API [BetaSeries]([https://api.betaseries.com/](https://www.betaseries.com/api/).
+* `viki.userscript.js`: Est un userscript, pour le site Viki, pour synchroniser les séries et épisodes vus, via l'API [BetaSeries](https://www.betaseries.com/api/).
 Pour l'utiliser, vous devez enregistrer le fichier de config `config/ext/client_bs.json` avec votre clé d'API BetaSeries. Il vous faut aussi configurer le chemin d'accès au serveur contenant les fichiers `ext/client_bs.js` et le fichier de config, dans le userscript, sous le nom de variable `serverBaseUrl`.
