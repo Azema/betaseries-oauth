@@ -19,7 +19,7 @@
     } else if (typeof define === "function" && define.amd) {
         define([], factory);
     } else {
-        root.LazyLoad = factory(root);
+        root.lazyLoad = factory(root);
     }
 }) (typeof global !== "undefined" ? global : this.window || this.global, function (root) {
 
@@ -38,14 +38,14 @@
         threshold: 0
     };
 
-    function LazyLoad(images, options) {
+    function lazyLoad(images, options) {
         this.settings = Object.assign({}, defaults, options || {});
         this.images = images || document.querySelectorAll(this.settings.selector);
         this.observer = null;
         this.init();
     }
 
-    LazyLoad.prototype = {
+    lazyLoad.prototype = {
         init: function() {
 
             /* Without observers load everything and bail out early. */
@@ -126,6 +126,8 @@
                 if (this.settings.onerror && typeof this.settings.onerror === 'function') {
                     // console.log('preloadImg onerror', this.settings.onerror);
                     result.catch((err) => this.settings.onerror(err, elt, url, attr.replace('data-', '')));
+                } else {
+                    result.catch(() => {});
                 }
             }
         },
@@ -167,8 +169,8 @@
         }
     };
 
-    root.lazyload = function(images, options) {
-        return new LazyLoad(images, options);
+    root.lazyLoad = function(images, options) {
+        return new lazyLoad(images, options);
     };
 
     if (root.jQuery) {
@@ -176,10 +178,10 @@
         $.fn.lazyload = function (options) {
             options = options || {};
             options.attribute = options.attribute || "data-src";
-            new LazyLoad($.makeArray(this), options);
+            new lazyLoad($.makeArray(this), options);
             return this;
         };
     }
 
-    return LazyLoad;
+    return lazyLoad;
 });

@@ -1,4 +1,4 @@
-/*! betaseries_userscript - v1.2.0 - 2022-04-16
+/*! betaseries_userscript - v1.3.4 - 2022-06-19
  * https://github.com/Azema/betaseries
  * Copyright (c) 2022 Azema;
  * Licensed Apache-2.0
@@ -59,7 +59,7 @@ class CacheUS {
     clear(type = null) {
         // On nettoie juste un type de ressource
         if (type && this._data[type] !== undefined) {
-            for (let key in this._data[type]) {
+            for (const key in this._data[type]) {
                 delete this._data[type][key];
             }
         }
@@ -155,6 +155,10 @@ class Character {
      * @type {number} Identifiant du film
      */
     movie_id;
+    /**
+     * @type {number} Identifiant de l'objet Person correspondant à l'acteur
+     */
+    person_id;
     constructor(data) {
         this.actor = data.actor || '';
         this.picture = data.picture || '';
@@ -165,6 +169,95 @@ class Character {
         this.role = data.role || '';
         this.show_id = (data.show_id !== undefined) ? parseInt(data.show_id, 10) : 0;
         this.movie_id = (data.movie_id !== undefined) ? parseInt(data.movie_id, 10) : 0;
+        this.person_id = (data.person_id !== undefined) ? parseInt(data.person_id, 10) : 0;
+    }
+}
+class personMedia {
+    show;
+    movie;
+    role;
+    type;
+    constructor(data, type) {
+        if (type === MediaType.show) {
+            this.show = new Show(data.show);
+        }
+        else if (type === MediaType.movie) {
+            this.movie = new Movie(data.movie);
+        }
+        this.role = data.name;
+        this.type = type;
+    }
+    get media() {
+        if (this.type === MediaType.show) {
+            return this.show;
+        }
+        else if (this.type === MediaType.movie) {
+            return this.movie;
+        }
+    }
+}
+class Person {
+    /**
+     * Récupère les données d'un acteur à partir de son identifiant et retourne un objet Person
+     * @param   {number} personId - L'identifiant de l'acteur / actrice
+     * @returns {Promise<Person | null>}
+     */
+    static fetch(personId) {
+        return Base.callApi(HTTP_VERBS.GET, 'persons', 'person', { id: personId })
+            .then(data => { return data ? new Person(data.person) : null; });
+    }
+    /**
+     * @type {number} Identifiant de l'acteur / actrice
+     */
+    id;
+    /**
+     * @type {string} Nom de l'acteur
+     */
+    name;
+    /**
+     * @type {Date} Date de naissance
+     */
+    birthday;
+    /**
+     * @type {Date} Date de décès
+     */
+    deathday;
+    /**
+     * @type {string} Description
+     */
+    description;
+    /**
+     * @type {personMedia} Dernier média enregistré sur BetaSeries
+     */
+    last;
+    /**
+     * @type {Array<personMedia>} Tableau des séries dans lesquelles à joué l'acteur
+     */
+    shows;
+    /**
+     * @type {Array<personMedia>} Tableau des films dans lesquels a joué l'acteur
+     */
+    movies;
+    constructor(data) {
+        this.id = (data.id !== undefined) ? parseInt(data.id, 10) : 0;
+        this.name = data.name || '';
+        this.birthday = data.birthday ? new Date(data.birthday) : null;
+        this.deathday = data.deathday ? new Date(data.deathday) : null;
+        this.description = data.description || '';
+        this.shows = [];
+        for (let s = 0; s < data.shows.length; s++) {
+            this.shows.push(new personMedia(data.shows[s], MediaType.show));
+        }
+        this.movies = [];
+        for (let m = 0; m < data.movies.length; m++) {
+            this.movies.push(new personMedia(data.movies[m], MediaType.movie));
+        }
+        if (data.last?.show) {
+            this.last = new personMedia(data.last, MediaType.show);
+        }
+        else if (data.last?.movie) {
+            this.last = new personMedia(data.last, MediaType.movie);
+        }
     }
 }
 
@@ -176,13 +269,11 @@ var OrderComments;
     OrderComments["DESC"] = "desc";
     OrderComments["ASC"] = "asc";
 })(OrderComments = OrderComments || (OrderComments = {}));
-;
 var MediaStatusComments;
 (function (MediaStatusComments) {
     MediaStatusComments["OPEN"] = "open";
     MediaStatusComments["CLOSED"] = "close";
 })(MediaStatusComments = MediaStatusComments || (MediaStatusComments = {}));
-;
 class CommentsBS {
     /*************************************************/
     /*                  STATIC                       */
@@ -191,7 +282,14 @@ class CommentsBS {
      * Types d'évenements gérés par cette classe
      * @type {Array}
      */
-    static EventTypes = new Array('update', 'save', 'add', 'added', 'delete', 'show');
+    static EventTypes = [
+        'update',
+        'save',
+        'add',
+        'added',
+        'delete',
+        'show'
+    ];
     /**
      * Envoie une réponse de ce commentaire à l'API
      * @param   {Base} media - Le média correspondant à la collection
@@ -258,7 +356,7 @@ class CommentsBS {
     /*                  METHODS                      */
     /*************************************************/
     constructor(nbComments, media) {
-        this.comments = new Array();
+        this.comments = [];
         this._parent = media;
         this.is_subscribed = false;
         this.status = MediaStatusComments.OPEN;
@@ -297,7 +395,7 @@ class CommentsBS {
         this._listeners = {};
         const EvtTypes = CommentsBS.EventTypes;
         for (let e = 0; e < EvtTypes.length; e++) {
-            this._listeners[EvtTypes[e]] = new Array();
+            this._listeners[EvtTypes[e]] = [];
         }
         return this;
     }
@@ -313,9 +411,9 @@ class CommentsBS {
             throw new Error(`${name} ne fait pas partit des events gérés par cette classe`);
         }
         if (this._listeners[name] === undefined) {
-            this._listeners[name] = new Array();
+            this._listeners[name] = [];
         }
-        for (let func in this._listeners[name]) {
+        for (const func in this._listeners[name]) {
             if (func.toString() == fn.toString()) {
                 if (Base.debug)
                     console.warn('Cette fonction est déjà présente pour event[%s]', name);
@@ -411,7 +509,7 @@ class CommentsBS {
         }
         const self = this;
         return new Promise((resolve, reject) => {
-            let params = {
+            const params = {
                 type: self._parent.mediaType.singular,
                 id: self._parent.id,
                 nbpp: nbpp,
@@ -425,7 +523,7 @@ class CommentsBS {
                 .then((data) => {
                 if (data.comments !== undefined) {
                     if (since <= 0) {
-                        self.comments = new Array();
+                        self.comments = [];
                     }
                     for (let c = 0; c < data.comments.length; c++) {
                         self.comments.push(new CommentBS(data.comments[c], self));
@@ -447,7 +545,7 @@ class CommentsBS {
     /**
      * Ajoute un commentaire à la collection
      * /!\ (Ne l'ajoute pas sur l'API) /!\
-     * @param   {any} data - Les données du commentaire provenant de l'API
+     * @param   {Obj} data - Les données du commentaire provenant de l'API
      * @returns {CommentsBS}
      */
     addComment(data) {
@@ -559,7 +657,7 @@ class CommentsBS {
      */
     async fetchReplies(commentId, order = OrderComments.ASC) {
         const data = await Base.callApi(HTTP_VERBS.GET, 'comments', 'replies', { id: commentId, order });
-        const replies = new Array();
+        const replies = [];
         if (data.comments) {
             for (let c = 0; c < data.comments.length; c++) {
                 replies.push(new CommentBS(data.comments[c], this));
@@ -655,7 +753,7 @@ class CommentsBS {
      * @returns {Array<string>}
      */
     getLogins() {
-        let users = new Array();
+        const users = [];
         for (let c = 0; c < this.comments.length; c++) {
             if (!users.includes(this.comments[c].login)) {
                 users.push(this.comments[c].login);
@@ -679,7 +777,7 @@ class CommentsBS {
      */
     loadEvents($container, nbpp, funcPopup) {
         // Tableau servant à contenir les events créer pour pouvoir les supprimer plus tard
-        this._events = new Array();
+        this._events = [];
         const self = this;
         const $popup = jQuery('#popin-dialog');
         const $btnClose = jQuery("#popin-showClose");
@@ -770,21 +868,21 @@ class CommentsBS {
             e.stopPropagation();
             e.preventDefault();
             if (!Base.userIdentified()) {
-                faceboxDisplay('inscription', {}, function () { });
+                faceboxDisplay('inscription', {}, () => { });
                 return;
             }
             const $btn = $(e.currentTarget);
-            let params = { type: self._parent.mediaType.singular, id: self._parent.id };
+            const params = { type: self._parent.mediaType.singular, id: self._parent.id };
             if ($btn.hasClass('active')) {
                 Base.callApi(HTTP_VERBS.DELETE, 'comments', 'subscription', params)
-                    .then((data) => {
+                    .then(() => {
                     self.is_subscribed = false;
                     displaySubscription($btn);
                 });
             }
             else {
                 Base.callApi(HTTP_VERBS.POST, 'comments', 'subscription', params)
-                    .then((data) => {
+                    .then(() => {
                     self.is_subscribed = true;
                     displaySubscription($btn);
                 });
@@ -821,7 +919,7 @@ class CommentsBS {
             e.stopPropagation();
             e.preventDefault();
             if (!Base.userIdentified()) {
-                faceboxDisplay('inscription', {}, function () { });
+                faceboxDisplay('inscription', {}, () => { });
                 return;
             }
             const $btn = jQuery(e.currentTarget);
@@ -897,7 +995,7 @@ class CommentsBS {
             e.stopPropagation();
             e.preventDefault();
             if (!Base.userIdentified()) {
-                faceboxDisplay('inscription', {}, function () { });
+                faceboxDisplay('inscription', {}, () => { });
                 return;
             }
             const getNodeCmt = function (cmtId) {
@@ -912,7 +1010,7 @@ class CommentsBS {
                 if ($textarea.data('replyTo')) {
                     const cmtId = parseInt($textarea.data('replyTo'), 10);
                     comment = self.getComment(cmtId);
-                    let $comment = getNodeCmt(cmtId);
+                    const $comment = getNodeCmt(cmtId);
                     promise = comment.sendReply($textarea.val()).then((reply) => {
                         if (reply instanceof CommentBS) {
                             $textarea.val('');
@@ -997,11 +1095,12 @@ class CommentsBS {
          * Permet d'englober le texte du commentaire en écriture
          * avec les balises [spoiler]...[/spoiler]
          */
-        $baliseSpoiler.click((e) => {
+        $baliseSpoiler.click(() => {
             const $textarea = $popup.find('textarea');
             if (/\[spoiler\]/.test($textarea.val())) {
                 return;
             }
+            // TODO: Gérer la balise spoiler sur une zone de texte sélectionnée
             const text = '[spoiler]' + $textarea.val() + '[/spoiler]';
             $textarea.val(text);
         });
@@ -1042,7 +1141,7 @@ class CommentsBS {
             e.stopPropagation();
             e.preventDefault();
             if (!Base.userIdentified()) {
-                faceboxDisplay('inscription', {}, function () { });
+                faceboxDisplay('inscription', {}, () => { });
                 return;
             }
             const $btn = $(e.currentTarget);
@@ -1070,7 +1169,8 @@ class CommentsBS {
             const lastCmtId = self.comments[self.comments.length - 1].id;
             const oldLastCmtIndex = self.comments.length - 1;
             self.fetchComments(nbpp, lastCmtId).then(async () => {
-                let template = '', comment, firstCmtId = self.comments[oldLastCmtIndex + 1].id;
+                let template = '', comment;
+                const firstCmtId = self.comments[oldLastCmtIndex + 1].id;
                 for (let c = oldLastCmtIndex + 1; c < self.comments.length; c++) {
                     comment = self.comments[c];
                     template += CommentBS.getTemplateComment(comment);
@@ -1115,7 +1215,7 @@ class CommentsBS {
             e.preventDefault();
             const $comment = jQuery(e.currentTarget).parents('.comment');
             const $options = jQuery(e.currentTarget).parents('.options-options');
-            let template = `
+            const template = `
                 <div class="options-delete">
                     <span class="mainTime">Supprimer mon commentaire :</span>
                     <button type="button" class="btn-reset fontWeight700 btnYes" style="vertical-align: 0px; padding-left: 10px; padding-right: 10px; color: rgb(208, 2, 27);">Oui</button>
@@ -1166,7 +1266,7 @@ class CommentsBS {
                     data.elt.off(data.event);
             }
         }
-        this._events = new Array();
+        this._events = [];
         onComplete();
     }
     /**
@@ -1251,7 +1351,7 @@ class CommentsBS {
                     <div class="media">
                         <span class="media-left avatar">
                             <a href="https://www.betaseries.com/membre/${comment.login}">
-                                <img class="js-lazy-image u-opacityBackground js-lazy-image--handled fade-in" src="${avatar}" width="42" height="42" alt="avatar de ${comment.login}" />
+                                <img class="u-opacityBackground" src="${avatar}" width="42" height="42" alt="avatar de ${comment.login}" />
                             </a>
                         </span>
                         <div class="media-body">
@@ -1261,7 +1361,7 @@ class CommentsBS {
                             </div>
                             <div>
                                 <time class="u-colorWhiteOpacity05" style="font-size: 14px;">
-                                    ${moment(comment.date).format('DD MMMM YYYY')}
+                                    ${comment.date.format('dd mmmm yyyy')}
                                 </time>
                             </div>
                         </div>
@@ -1297,8 +1397,8 @@ class CommentsBS {
             .then((data) => {
             let comments = data.comments || [];
             comments = comments.filter((comment) => { return comment.user_note > 0; });
-            let notes = { 1: 0, 2: 0, 3: 0, 4: 0, 5: 0 };
-            const userIds = new Array();
+            const notes = { 1: 0, 2: 0, 3: 0, 4: 0, 5: 0 };
+            const userIds = [];
             let nbEvaluations = 0;
             for (let c = 0; c < comments.length; c++) {
                 // Pour éviter les doublons
@@ -1309,7 +1409,7 @@ class CommentsBS {
                 }
             }
             const buildline = function (index, notes) {
-                let percent = nbEvaluations > 0 ? (notes[index] * 100) / nbEvaluations : 0;
+                const percent = nbEvaluations > 0 ? (notes[index] * 100) / nbEvaluations : 0;
                 return `<tr class="histogram-row">
                     <td class="nowrap">${index} étoile${index > 1 ? 's' : ''}</td>
                     <td class="span10">
@@ -1329,7 +1429,7 @@ class CommentsBS {
             let template = `
                 <div class="evaluations">
                     <div class="size-base">${nbEvaluations} évaluation${nbEvaluations > 1 ? 's' : ''} parmis les commentaires et ${this.media.objNote.total} au total</div>
-                    <div class="size-base average">Note globale: ${self._parent.objNote.mean.toFixed(2)}</div>
+                    <div class="size-base average">Note globale: <strong>${self._parent.objNote.mean.toFixed(2)}</strong></div>
                     <div><table><tbody>`;
             for (let i = 5; i > 0; i--) {
                 template += buildline(i, notes);
@@ -1347,7 +1447,14 @@ class CommentBS {
      * Types d'évenements gérés par cette classe
      * @type {Array}
      */
-    static EventTypes = new Array('update', 'save', 'add', 'delete', 'show', 'hide');
+    static EventTypes = [
+        'update',
+        'save',
+        'add',
+        'delete',
+        'show',
+        'hide'
+    ];
     /**
      * Contient le nom des classes CSS utilisées pour le rendu du commentaire
      * @type Obj
@@ -1474,7 +1581,7 @@ class CommentBS {
         this.thumbs = parseInt(data.thumbs, 10);
         this.thumbed = data.thumbed ? parseInt(data.thumbed, 10) : 0;
         this.nbReplies = parseInt(data.replies, 10);
-        this.replies = new Array();
+        this.replies = [];
         this.from_admin = data.from_admin;
         this.user_rank = data.user_rank;
         return this;
@@ -1488,7 +1595,7 @@ class CommentBS {
         this._listeners = {};
         const EvtTypes = CommentBS.EventTypes;
         for (let e = 0; e < EvtTypes.length; e++) {
-            this._listeners[EvtTypes[e]] = new Array();
+            this._listeners[EvtTypes[e]] = [];
         }
         return this;
     }
@@ -1504,9 +1611,9 @@ class CommentBS {
             throw new Error(`${name} ne fait pas partit des events gérés par cette classe`);
         }
         if (this._listeners[name] === undefined) {
-            this._listeners[name] = new Array();
+            this._listeners[name] = [];
         }
-        for (let func in this._listeners[name]) {
+        for (const func in this._listeners[name]) {
             if (func.toString() == fn.toString()) {
                 if (Base.debug)
                     console.warn('Cette fonction est déjà présente pour event[%s]', name);
@@ -1570,7 +1677,7 @@ class CommentBS {
         if (this.nbReplies <= 0)
             return this;
         const data = await Base.callApi(HTTP_VERBS.GET, 'comments', 'replies', { id: this.id, order });
-        this.replies = new Array();
+        this.replies = [];
         if (data.comments) {
             for (let c = 0; c < data.comments.length; c++) {
                 this.replies.push(new CommentBS(data.comments[c], this));
@@ -1601,7 +1708,7 @@ class CommentBS {
      */
     delete() {
         const self = this;
-        const promises = new Array();
+        const promises = [];
         if (this.nbReplies > 0) {
             for (let r = 0; r < this.replies.length; r++) {
                 promises.push(Base.callApi(HTTP_VERBS.DELETE, 'comments', 'comment', { id: this.replies[r].id }));
@@ -1609,7 +1716,7 @@ class CommentBS {
         }
         Promise.all(promises).then(() => {
             Base.callApi(HTTP_VERBS.DELETE, 'comments', 'comment', { id: this.id })
-                .then((data) => {
+                .then(() => {
                 if (self._parent instanceof CommentsBS) {
                     self._parent.removeComment(self.id);
                 }
@@ -1645,13 +1752,13 @@ class CommentBS {
             text = text.replace(/@(\w+)/g, '<a href="/membre/$1" class="mainLink mainLink--regular">@$1</a>');
         }
         const spoiler = /\[spoiler\]/.test(text);
-        let btnSpoiler = spoiler ? `<button type="button" class="btn-reset mainLink view-spoiler">${Base.trans("comment.button.display_spoiler")}</button>` : '';
+        const btnSpoiler = spoiler ? `<button type="button" class="btn-reset mainLink view-spoiler">${Base.trans("comment.button.display_spoiler")}</button>` : '';
         text = text.replace(/\[spoiler\](.*)\[\/spoiler\]/g, '<span class="spoiler" style="display:none">$1</span>');
         // let classNames = {reply: 'iv_i5', actions: 'iv_i3', comment: 'iv_iz'};
-        let classNames = { reply: 'it_i3', actions: 'it_i1', comment: 'it_ix' };
+        // const classNames = {reply: 'it_i3', actions: 'it_i1', comment: 'it_ix'};
         const isReply = comment.in_reply_to > 0 ? true : false;
-        let className = isReply ? CommentBS.classNamesCSS.reply + ' reply ' : '';
-        let btnToggleReplies = comment.nbReplies > 0 ? `
+        const className = isReply ? CommentBS.classNamesCSS.reply + ' reply ' : '';
+        const btnToggleReplies = comment.nbReplies > 0 ? `
             <button type="button" class="btn-reset mainLink mainLink--regular toggleReplies" data-toggle="1">
                 <span class="svgContainer">
                     <svg width="8" height="6" xmlns="http://www.w3.org/2000/svg" style="transition: transform 200ms ease 0s; transform: rotate(180deg);">
@@ -1709,7 +1816,7 @@ class CommentBS {
                                 <strong class="mainLink thumbs${comment.thumbs < 0 ? ' negative' : comment.thumbs > 0 ? ' positive' : ''}">${comment.thumbs > 0 ? '+' + comment.thumbs : comment.thumbs}</strong>
                                 ${btnResponse}
                                 <span class="mainLink">∙</span>
-                                <span class="mainTime">Le ${ /* eslint-disable-line no-undef */typeof moment !== 'undefined' ? moment(comment.date).format('DD/MM/YYYY HH:mm') : comment.date.toString()}</span>
+                                <span class="mainTime">Le ${comment.date.format('dd/mm/yyyy HH:MM')}</span>
                                 <span class="stars" title="${comment.user_note} / 5">
                                     ${Note.renderStars(comment.user_note, comment.user_id === Base.userId ? 'blue' : '')}
                                 </span>
@@ -1780,8 +1887,30 @@ class CommentBS {
             </div>
         `;
     }
+    /**
+     * Renvoie la template HTML pour l'écriture d'un signalement de commentaire
+     * @param   {CommentBS} [comment] - L'objet commentaire à signaler
+     * @returns {string}
+     */
+    static getTemplateReport(comment) {
+        return `
+            <form class="form-middle" method="POST" action="/apps/report.php">
+                <fieldset>
+                    <div class="title" id="dialog-title" tabindex="0">Signaler un commentaire</div>
+                    <p>Vous êtes sur le point de signaler un commentaire, veuillez indiquer ci-dessous la raison de ce signalement.</p>
+                    <div>
+                        <textarea class="form-control" name="texte"></textarea>
+                    </div>
+                    <div class="button-set">
+                        <button class="js-close-popupalert btn-reset btn-btn btn-blue2" type="submit" id="popupalertyes">Signaler le contenu</button>
+                    </div>
+                </fieldset>
+                <input type="hidden" name="id" value="${comment.id}">
+                <input type="hidden" name="type" value="comment">
+            </form>`;
+    }
     getLogins() {
-        let users = new Array();
+        const users = [];
         users.push(this.login);
         for (let r = 0; r < this.replies.length; r++) {
             if (!users.includes(this.replies[r].login)) {
@@ -1881,7 +2010,7 @@ class CommentBS {
      * @returns {void}
      */
     loadEvents($container, funcPopup) {
-        this._events = new Array();
+        this._events = [];
         const self = this;
         const $popup = jQuery('#popin-dialog');
         const $btnClose = jQuery("#popin-showClose");
@@ -1905,6 +2034,37 @@ class CommentBS {
             $popup.removeAttr('data-popin-type');
         });
         this._events.push({ elt: $btnClose, event: 'click' });
+        const $btnReport = $container.find('.btnSignal');
+        $btnReport.click(async (e) => {
+            e.stopPropagation();
+            e.preventDefault();
+            const $comment = $(e.currentTarget).parents('.comment');
+            const comment = await getObjComment($comment);
+            const $contentHtml = $container.parents('.popin-content').find('.popin-content-html');
+            $contentHtml.empty().append(CommentBS.getTemplateReport(comment));
+            $contentHtml.find('button.js-close-popupalert.btn-blue2').click((e) => {
+                e.stopPropagation();
+                e.preventDefault();
+                const $form = $contentHtml.find('form');
+                const paramsFetch = {
+                    method: 'POST',
+                    cache: 'no-cache',
+                    body: new URLSearchParams($form.serialize())
+                };
+                fetch('/apps/report.php', paramsFetch)
+                    .then(() => {
+                    $contentHtml.hide();
+                    $container.show();
+                })
+                    .catch(() => {
+                    $contentHtml.hide();
+                    $container.show();
+                });
+            });
+            $container.hide();
+            $contentHtml.show();
+        });
+        this._events.push({ elt: $btnReport, event: 'click' });
         const $btnSubscribe = $container.find('.btnSubscribe');
         /**
          * Met à jour l'affichage du bouton de souscription
@@ -1940,21 +2100,21 @@ class CommentBS {
             e.stopPropagation();
             e.preventDefault();
             if (!Base.userIdentified()) {
-                faceboxDisplay('inscription', {}, function () { });
+                faceboxDisplay('inscription', {}, () => { });
                 return;
             }
             const $btn = $(e.currentTarget);
-            let params = { type: self.getCollectionComments().media.mediaType.singular, id: self.getCollectionComments().media.id };
+            const params = { type: self.getCollectionComments().media.mediaType.singular, id: self.getCollectionComments().media.id };
             if ($btn.hasClass('active')) {
                 Base.callApi(HTTP_VERBS.DELETE, 'comments', 'subscription', params)
-                    .then((data) => {
+                    .then(() => {
                     self.getCollectionComments().is_subscribed = false;
                     displaySubscription($btn);
                 });
             }
             else {
                 Base.callApi(HTTP_VERBS.POST, 'comments', 'subscription', params)
-                    .then((data) => {
+                    .then(() => {
                     self.getCollectionComments().is_subscribed = true;
                     displaySubscription($btn);
                 });
@@ -2028,7 +2188,7 @@ class CommentBS {
             e.stopPropagation();
             e.preventDefault();
             if (!Base.userIdentified()) {
-                faceboxDisplay('inscription', {}, function () { });
+                faceboxDisplay('inscription', {}, () => { });
                 return;
             }
             const $btn = jQuery(e.currentTarget);
@@ -2101,7 +2261,7 @@ class CommentBS {
             e.stopPropagation();
             e.preventDefault();
             if (!Base.userIdentified()) {
-                faceboxDisplay('inscription', {}, function () { });
+                faceboxDisplay('inscription', {}, () => { });
                 return;
             }
             const $textarea = $(e.currentTarget).siblings('textarea');
@@ -2112,7 +2272,7 @@ class CommentBS {
                 if (replyId && replyId == self.id) {
                     self.sendReply(msg).then(comment => {
                         if (comment) {
-                            let template = CommentBS.getTemplateComment(comment);
+                            const template = CommentBS.getTemplateComment(comment);
                             $container.find('.comments').append(template);
                             $textarea.removeAttr('data-reply-to');
                             self.cleanEvents(() => {
@@ -2126,7 +2286,7 @@ class CommentBS {
                     if (reply) {
                         reply.sendReply(msg).then(comment => {
                             if (comment) {
-                                let template = CommentBS.getTemplateComment(comment);
+                                const template = CommentBS.getTemplateComment(comment);
                                 $container.find(`.comments .comment[data-comment-id="${reply.id}"]`)
                                     .after(template);
                                 $textarea.removeAttr('data-reply-to');
@@ -2145,7 +2305,6 @@ class CommentBS {
                         const cmtId = parseInt($textarea.data('commentId'), 10);
                         let $comment = $(e.currentTarget).parents('.writing').siblings('.comments').children(`.comment[data-comment-id="${cmtId.toString()}"]`);
                         $comment.find('.comment-text').text(self.text);
-                        // TODO: modifier le texte de la vignette du commentaire
                         $comment = jQuery(`#comments .slide_flex .slide__comment[data-comment-id="${cmtId}"]`);
                         $comment.find('p').text(msg);
                         $textarea.removeAttr('data-action').removeAttr('data-comment-id');
@@ -2183,7 +2342,7 @@ class CommentBS {
          * On ajoute les balises SPOILER au message dans le textarea
          */
         const $baliseSpoiler = $container.find('.baliseSpoiler');
-        $baliseSpoiler.click((e) => {
+        $baliseSpoiler.click(() => {
             const $textarea = $popup.find('textarea');
             if (/\[spoiler\]/.test($textarea.val())) {
                 return;
@@ -2224,7 +2383,7 @@ class CommentBS {
             e.stopPropagation();
             e.preventDefault();
             if (!Base.userIdentified()) {
-                faceboxDisplay('inscription', {}, function () { });
+                faceboxDisplay('inscription', {}, () => { });
                 return;
             }
             const $btn = $(e.currentTarget);
@@ -2252,7 +2411,7 @@ class CommentBS {
             e.preventDefault();
             const $parent = $(e.currentTarget).parents('.comment');
             const $options = $(e.currentTarget).parents('.options-options');
-            let template = `
+            const template = `
                 <div class="options-delete">
                     <span class="mainTime">Supprimer mon commentaire :</span>
                     <button type="button" class="btn-reset fontWeight700 btnYes" style="vertical-align: 0px; padding-left: 10px; padding-right: 10px; color: rgb(208, 2, 27);">Oui</button>
@@ -2374,7 +2533,14 @@ class CommentBS {
             // avec des boutons pour naviguer
             $contentReact.empty().append(`<div class="title" id="dialog-title" tabindex="0"></div>`);
             $title = $contentReact.find('.title');
-            $title.append(Base.trans("blog.title.comments") + ' <i class="fa fa-chevron-circle-left prev-comment" aria-hidden="true"></i> <i class="fa fa-chevron-circle-right next-comment" aria-hidden="true"></i>');
+            let nav = '';
+            if (!self._parent.isFirst(self.id)) {
+                nav += ' <i class="fa fa-chevron-circle-left prev-comment" aria-hidden="true" title="Commentaire précédent"></i>';
+            }
+            if (!self._parent.isLast(self.id)) {
+                nav += '  <i class="fa fa-chevron-circle-right next-comment" aria-hidden="true" title="Commentaire suivant"></i>';
+            }
+            $title.append(Base.trans("blog.title.comments") + nav);
             // On ajoute les templates HTML du commentaire,
             // des réponses et du formulaire de d'écriture
             $contentReact.append(template);
@@ -2422,9 +2588,25 @@ var StarTypes;
     StarTypes["DISABLE"] = "disable";
 })(StarTypes || (StarTypes = {}));
 class Note {
+    /**
+     * Nombre de votes
+     * @type {number}
+     */
     total;
+    /**
+     * Note moyenne du média
+     * @type {number}
+     */
     mean;
+    /**
+     * Note du membre connecté
+     * @type {number}
+     */
     user;
+    /**
+     * Media de référence
+     * @type {Base}
+     */
     _parent;
     constructor(data, parent) {
         this.total = parseInt(data.total, 10);
@@ -2463,7 +2645,7 @@ class Note {
         if (Base.debug)
             console.log('objNote createPopupForVote');
         // La popup et ses éléments
-        const _this = this, $popup = jQuery('#popin-dialog'), $contentHtmlElement = $popup.find(".popin-content-html"), $contentReact = $popup.find('.popin-content-reactmodule'), $closeButtons = $popup.find(".js-close-popupalert"), hidePopup = () => {
+        const self = this, $popup = jQuery('#popin-dialog'), $contentHtmlElement = $popup.find(".popin-content-html"), $contentReact = $popup.find('.popin-content-reactmodule'), $closeButtons = $popup.find(".js-close-popupalert"), hidePopup = () => {
             if (Base.debug)
                 console.log('objNote createPopupForVote hidePopup');
             $popup.attr('aria-hidden', 'true');
@@ -2539,21 +2721,21 @@ class Note {
             updateStars(e, note);
         });
         $stars.mouseleave((e) => {
-            updateStars(e, _this.user);
+            updateStars(e, self.user);
         });
         $stars.click((e) => {
             const note = parseInt(jQuery(e.currentTarget).data('number'), 10), $stars = jQuery(e.currentTarget).parent().find('.star-svg');
             // On supprime les events
             $stars.off('mouseenter').off('mouseleave');
-            _this._parent.addVote(note)
+            self._parent.addVote(note)
                 .then((result) => {
                 hidePopup();
                 if (result) {
                     // TODO: Mettre à jour la note du média
-                    _this._parent.changeTitleNote(true);
-                    _this._parent._callListeners(EventTypes.NOTE);
+                    self._parent.changeTitleNote(true);
+                    self._parent._callListeners(EventTypes.NOTE);
                     if (cb)
-                        cb.call(_this);
+                        cb.call(self);
                 }
                 else {
                     Base.notification('Erreur Vote', "Une erreur s'est produite durant le vote");
@@ -2565,15 +2747,46 @@ class Note {
         showPopup();
     }
     /**
+     * Retourne le type d'étoile en fonction de la note et de l'indice
+     * de comparaison
+     * @param  {number} note   La note du media
+     * @param  {number} indice L'indice de comparaison
+     * @return {string}        Le type d'étoile
+     */
+    static getTypeSvg(note, indice) {
+        let typeSvg = StarTypes.EMPTY;
+        if (note <= indice) {
+            typeSvg = StarTypes.EMPTY;
+        }
+        else if (note < indice + 1) {
+            if (note > indice + 0.25) {
+                typeSvg = StarTypes.HALF;
+            }
+            else if (note > indice + 0.75) {
+                typeSvg = StarTypes.FULL;
+            }
+        }
+        else {
+            typeSvg = StarTypes.FULL;
+        }
+        return typeSvg;
+    }
+    /**
      * Met à jour l'affichage de la note
      */
     updateStars(elt = null) {
         elt = elt || jQuery('.blockInformations__metadatas .js-render-stars');
+        let color = '';
         const $stars = elt.find('.star-svg use');
+        const result = $($stars.get(0)).attr('xlink:href').match(/(grey|blue)/);
+        if (result) {
+            color = result[0];
+        }
         let className;
         for (let s = 0; s < 5; s++) {
-            className = (this.mean <= s) ? StarTypes.EMPTY : (this.mean < s + 1) ? (this.mean >= s + 0.5) ? StarTypes.HALF : StarTypes.EMPTY : StarTypes.FULL;
-            $($stars.get(s)).attr('xlink:href', `#icon-star-${className}`);
+            className = Note.getTypeSvg(this.mean, s);
+            // className = (this.mean <= s) ? StarTypes.EMPTY : (this.mean < s + 1) ? (this.mean >= s + 0.5) ? StarTypes.HALF : StarTypes.EMPTY : StarTypes.FULL;
+            $($stars.get(s)).attr('xlink:href', `#icon-star${color}-${className}`);
         }
     }
     /**
@@ -2587,10 +2800,8 @@ class Note {
         if (note == 0) {
             color = 'grey';
         }
-        Array.from({
-            length: 5
-        }, (_index, number) => {
-            typeSvg = note <= number ? 'empty' : (note < number + 1) ? (note >= number + 0.5) ? 'half' : 'empty' : 'full';
+        for (let s = 0; s < 5; s++) {
+            typeSvg = Note.getTypeSvg(note, s);
             template += `
                 <svg viewBox="0 0 100 100" class="star-svg">
                     <use xmlns:xlink="http://www.w3.org/1999/xlink"
@@ -2598,7 +2809,7 @@ class Note {
                     </use>
                 </svg>
             `;
-        });
+        }
         return template;
     }
 }
@@ -2634,14 +2845,14 @@ class User {
     tags;
     twitter;
     constructor(data) {
-        this.archived = !!data.archived || false;
-        this.downloaded = !!data.downloaded || false;
-        this.favorited = !!data.favorited || false;
+        this.archived = (data.archived !== undefined) ? !!data.archived : false;
+        this.downloaded = (data.downloaded !== undefined) ? !!data.downloaded : false;
+        this.favorited = (data.favorited !== undefined) ? !!data.favorited : false;
         this.friends_want_to_watch = data.friends_want_to_watch || [];
         this.friends_watched = data.friends_watched || [];
-        this.hidden = !!data.hidden || false;
+        this.hidden = (data.hidden !== undefined) ? !!data.hidden : false;
         this.last = data.last || '';
-        this.mail = !!data.mail || false;
+        this.mail = (data.mail !== undefined) ? !!data.mail : false;
         this.next = null;
         if (data.next !== undefined) {
             this.next = new Next(data.next);
@@ -2655,6 +2866,7 @@ class User {
     }
 }
 
+// declare const getScrollbarWidth, subscribeToggle;
 function ExceptionIdentification(message) {
     this.message = message;
     this.name = "ExceptionIdentification";
@@ -2665,7 +2877,6 @@ var MediaType;
     MediaType["movie"] = "movie";
     MediaType["episode"] = "episode";
 })(MediaType = MediaType || (MediaType = {}));
-;
 var EventTypes;
 (function (EventTypes) {
     EventTypes["UPDATE"] = "update";
@@ -2679,7 +2890,6 @@ var EventTypes;
     EventTypes["SHOW"] = "show";
     EventTypes["HIDE"] = "hide";
 })(EventTypes = EventTypes || (EventTypes = {}));
-;
 var HTTP_VERBS;
 (function (HTTP_VERBS) {
     HTTP_VERBS["GET"] = "GET";
@@ -2688,7 +2898,6 @@ var HTTP_VERBS;
     HTTP_VERBS["DELETE"] = "DELETE";
     HTTP_VERBS["OPTIONS"] = "OPTIONS";
 })(HTTP_VERBS = HTTP_VERBS || (HTTP_VERBS = {}));
-;
 class Base {
     /*
                     STATIC
@@ -2712,16 +2921,18 @@ class Base {
         "versions": { "current": '3.0', "last": '3.0' },
         "resources": [
             'badges', 'comments', 'episodes', 'friends', 'members', 'messages',
-            'movies', 'news', 'oauth', 'pictures', 'planning', 'platforms',
-            'polls', 'reports', 'search', 'seasons', 'shows', 'subtitles',
-            'timeline'
+            'movies', 'news', 'oauth', 'persons', 'pictures', 'planning',
+            'platforms', 'polls', 'reports', 'search', 'seasons', 'shows',
+            'subtitles', 'timeline'
         ],
         "check": {
-            "episodes": ['display', 'list', 'search'],
+            "episodes": ['display', 'list', 'search', 'watched'],
+            "members": ['notifications'],
             "movies": ['list', 'movie', 'search', 'similars'],
             "search": ['all', 'movies', 'shows'],
-            "shows": ['display', 'episodes', 'list', 'search', 'similars']
+            "shows": ['display', 'episodes', 'list', 'member', 'search', 'similars']
         },
+        "notDisplay": ['membersnotifications'],
         "tokenRequired": {
             "comments": {
                 "close": ['POST'],
@@ -2829,40 +3040,53 @@ class Base {
      * Fonction de notification sur la page Web
      * @type {Function}
      */
-    static notification = function () { };
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
+    static notification = (title, text) => { };
     /**
      * Fonction pour vérifier que le membre est connecté
      * @type {Function}
      */
-    static userIdentified = function () { };
+    static userIdentified = () => { return false; };
     /**
      * Fonction vide
      * @type {Function}
      */
-    static noop = function () { };
+    static noop = () => { };
     /**
      * Fonction de traduction de chaînes de caractères
      * @param   {String}  msg  - Identifiant de la chaîne à traduire
-     * @param   {Obj}     [params={}] - Variables utilisées dans la traduction {"%key%"": value}
+     * @param   {Obj}     [params] - Variables utilisées dans la traduction {"%key%"": value}
      * @param   {number}  [count=1] - Nombre d'éléments pour la version plural
      * @returns {string}
      */
-    // eslint-disable-next-line no-unused-vars
-    static trans = function (msg, params = {}, count = 1) { };
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
+    static trans = (msg, params, count = 1) => { return msg; };
     /**
      * Contient les infos sur les différentes classification TV et cinéma
      * @type {Ratings}
      */
     static ratings = null;
     static gm_funcs = {
-        getValue: this.noop,
-        setValue: this.noop
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        getValue: (key, defaultValue) => { return defaultValue; },
+        // eslint-disable-next-line @typescript-eslint/no-unused-vars
+        setValue: (key, val) => { }
     };
     /**
      * Types d'évenements gérés par cette classe
      * @type {Array}
      */
-    static EventTypes = new Array(EventTypes.UPDATE, EventTypes.SAVE, EventTypes.NOTE);
+    static EventTypes = [
+        EventTypes.UPDATE,
+        EventTypes.SAVE,
+        EventTypes.NOTE
+    ];
+    static showLoader() {
+        jQuery('#loader-bg').show();
+    }
+    static hideLoader() {
+        jQuery('#loader-bg').hide();
+    }
     /**
      * Fonction d'authentification sur l'API BetaSeries
      *
@@ -2937,15 +3161,21 @@ class Base {
             // Identification required
             throw new ExceptionIdentification("Identification required");
         }
-        let check = false, 
+        Base.showLoader();
+        let check = false;
+        let display = true;
+        // On vérifie si on doit afficher les infos de requêtes dans la console
+        if (Base.api.notDisplay.indexOf(resource + action) >= 0) {
+            display = false;
+        }
         // Les en-têtes pour l'API
-        myHeaders = {
+        const myHeaders = {
             'Accept': 'application/json',
             'X-BetaSeries-Version': Base.api.versions.current,
             'X-BetaSeries-Token': Base.token,
             'X-BetaSeries-Key': Base.userKey
         }, checkKeys = Object.keys(Base.api.check);
-        if (Base.debug) {
+        if (Base.debug && display) {
             console.log('Base.callApi', {
                 type: type,
                 resource: resource,
@@ -2960,6 +3190,7 @@ class Base {
             //if (debug) console.log('Base.callApi retourne la ressource du cache (%s: %d)', resource, args.id);
             return new Promise((resolve) => {
                 resolve(Base.cache.get(resource, args.id));
+                Base.hideLoader();
             });
         }
         // On check si on doit vérifier la validité du token
@@ -2969,7 +3200,7 @@ class Base {
             check = true;
         }
         function fetchUri(resolve, reject) {
-            let initFetch = {
+            const initFetch = {
                 method: type,
                 headers: myHeaders,
                 mode: 'cors',
@@ -2979,8 +3210,8 @@ class Base {
             const keys = Object.keys(args);
             // On crée l'URL de la requête de type GET avec les paramètres
             if (type === 'GET' && keys.length > 0) {
-                let params = [];
-                for (let key of keys) {
+                const params = [];
+                for (const key of keys) {
                     params.push(key + '=' + encodeURIComponent(args[key]));
                 }
                 uri += '?' + params.join('&');
@@ -2990,11 +3221,11 @@ class Base {
             }
             fetch(uri, initFetch).then(response => {
                 Base.counter++; // Incrément du compteur de requêtes à l'API
-                if (Base.debug)
+                if (Base.debug && (display || response.status !== 200))
                     console.log('fetch (%s %s) response status: %d', type, uri, response.status);
                 // On récupère les données et les transforme en objet
                 response.json().then((data) => {
-                    if (Base.debug)
+                    if (Base.debug && (display || response.status !== 200))
                         console.log('fetch (%s %s) data', type, uri, data);
                     // On gère le retour d'erreurs de l'API
                     if (data.errors !== undefined && data.errors.length > 0) {
@@ -3016,33 +3247,37 @@ class Base {
                         else {
                             reject(data.errors[0]);
                         }
+                        Base.hideLoader();
                         return;
                     }
                     // On gère les erreurs réseau
                     if (!response.ok) {
                         console.error('Fetch erreur network', response);
                         reject(response);
+                        Base.hideLoader();
                         return;
                     }
                     resolve(data);
+                    Base.hideLoader();
                 });
             }).catch(error => {
                 if (Base.debug)
                     console.log('Il y a eu un problème avec l\'opération fetch: ' + error.message);
                 console.error(error);
                 reject(error.message);
+                Base.hideLoader();
             });
         }
         return new Promise((resolve, reject) => {
             if (check) {
-                let paramsFetch = {
+                const paramsFetch = {
                     method: 'GET',
                     headers: myHeaders,
                     mode: 'cors',
                     cache: 'no-cache'
                 };
-                if (Base.debug)
-                    console.info('%ccall /members/is_active', 'color:blue');
+                if (Base.debug && display)
+                    console.info('%ccall /members/is_active', 'color:#1d6fb2');
                 fetch(`${Base.api.url}/members/is_active`, paramsFetch).then(resp => {
                     Base.counter++; // Incrément du compteur de requêtes à l'API
                     if (!resp.ok) {
@@ -3066,6 +3301,70 @@ class Base {
                 fetchUri(resolve, reject);
             }
         });
+    }
+    /**
+     * setPropValue - Permet de modifier la valeur d'une propriété dans un objet,
+     * ou dans un sous objet de manière dynamique
+     * @param obj - Objet à modifier
+     * @param key - chemin d'accès à la propriété à modifier
+     * @param val - Nouvelle valeur de la propriété
+     */
+    static setPropValue(obj, key, val) {
+        if (key.indexOf('.') >= 0) {
+            const data = key.split('.');
+            const path = data.shift();
+            key = data.join('.');
+            // On verifie si il s'agit d'un element de tableau
+            if (/\[\d+\]$/.test(path)) {
+                // On récupère le tableau et on laisse l'index
+                const tab = path.replace(/\[\d+\]$/, '');
+                const index = parseInt(path.replace(/[^\d]*/, ''), 10);
+                Base.setPropValue(obj[tab][index], key, val);
+            }
+            else if (/\[.*\]$/.test(path)) {
+                const tab = path.replace(/\[.+\]$/, '');
+                const index = path.replace(/^.*\[/, '').replace(/\]$/, '');
+                Base.setPropValue(obj[tab][index], key, val);
+            }
+            else {
+                Base.setPropValue(obj[path], key, val);
+            }
+        }
+        else if (/\[.*\]$/.test(key)) {
+            const tab = key.replace(/\[.+\]$/, '');
+            const index = key.replace(/^.*\[/, '').replace(/\]$/, '');
+            obj[tab][index] = val;
+        }
+        else {
+            obj[key] = val;
+        }
+    }
+    /**
+     * replaceParams - Permet de remplacer des paramètres par des valeurs dans une chaîne de caractères
+     * @param   {string} path - Chaine à modifier avec les valeurs
+     * @param   {object} params - Objet contenant les paramètres autorisés et leur type
+     * @param   {object} data - Objet contenant les valeurs des paramètres
+     * @returns {string}
+     */
+    static replaceParams(path, params, data) {
+        const keys = Object.keys(params);
+        for (let k = 0; k < keys.length; k++) {
+            const key = keys[k];
+            const type = params[key];
+            if (data[key] === undefined) {
+                throw new Error(`Parameter[${key}] missing`);
+            }
+            let param = data[key];
+            if (type == 'number') {
+                param = parseInt(param, 10);
+            }
+            else if (type == 'string') {
+                param = String(param);
+            }
+            const reg = new RegExp(`#${key}#`, 'g');
+            path = path.replace(reg, param);
+        }
+        return path;
     }
     /*
                     PROPERTIES
@@ -3110,10 +3409,10 @@ class Base {
         if (!(this.comments instanceof CommentsBS)) {
             this.comments = new CommentsBS(this.nbComments, this);
         }
-        this.objNote = (data.note) ? new Note(data.note, this) : new Note(data.notes, this);
+        this.objNote = (data.note) ? new Note(data.note, this) : (data.notes) ? new Note(data.notes, this) : null;
         this.resource_url = data.resource_url;
         this.title = data.title;
-        this.user = new User(data.user);
+        this.user = (data.user !== undefined) ? new User(data.user) : null;
         this.description = data.description;
         return this;
     }
@@ -3126,7 +3425,7 @@ class Base {
         this._listeners = {};
         const EvtTypes = this.constructor.EventTypes;
         for (let e = 0; e < EvtTypes.length; e++) {
-            this._listeners[EvtTypes[e]] = new Array();
+            this._listeners[EvtTypes[e]] = [];
         }
         return this;
     }
@@ -3144,9 +3443,9 @@ class Base {
             throw new Error(`${name} ne fait pas partit des events gérés par cette classe`);
         }
         if (this._listeners[name] === undefined) {
-            this._listeners[name] = new Array();
+            this._listeners[name] = [];
         }
-        for (let func in this._listeners[name]) {
+        for (const func in this._listeners[name]) {
             if (func.toString() == fn.toString())
                 return;
         }
@@ -3201,7 +3500,7 @@ class Base {
         return this;
     }
     init() {
-        return this;
+        return new Promise(resolve => resolve(this));
     }
     /**
      * Sauvegarde l'objet en cache
@@ -3240,7 +3539,7 @@ class Base {
      * @return {Base} L'instance du média
      */
     decodeTitle() {
-        let $elt = this.elt.find('.blockInformations__title'), title = $elt.text();
+        const $elt = this.elt.find('.blockInformations__title'), title = $elt.text();
         if (/&#/.test(title)) {
             $elt.text($('<textarea />').html(title).text());
         }
@@ -3260,7 +3559,7 @@ class Base {
                 $elt.attr('title', 'Aucun vote');
             return;
         }
-        let title = this.objNote.toString();
+        const title = this.objNote.toString();
         if (change) {
             $elt.attr('title', title);
         }
@@ -3271,7 +3570,7 @@ class Base {
      * @return {Base} L'instance du média
      */
     addNumberVoters() {
-        const _this = this;
+        const self = this;
         const votes = $('.stars.js-render-stars'); // ElementHTML ayant pour attribut le titre avec la note de la série
         let title = this.changeTitleNote(true);
         // if (Base.debug) console.log('addNumberVoters - title: %s', title);
@@ -3279,7 +3578,7 @@ class Base {
         new MutationObserver((mutationsList) => {
             const changeTitleMutation = () => {
                 // On met à jour le nombre de votants, ainsi que la note du membre connecté
-                const upTitle = _this.changeTitleNote(false);
+                const upTitle = self.changeTitleNote(false);
                 // if (Base.debug) console.log('Observer upTitle: %s', upTitle);
                 // On évite une boucle infinie
                 if (upTitle !== title) {
@@ -3310,11 +3609,11 @@ class Base {
      * @returns {Promise<boolean>}
      */
     addVote(note) {
-        const _this = this;
+        const self = this;
         return new Promise((resolve, reject) => {
             Base.callApi(HTTP_VERBS.POST, this.mediaType.plural, 'note', { id: this.id, note: note })
                 .then((data) => {
-                _this.fill(data[this.mediaType.singular])._callListeners(EventTypes.NOTE);
+                self.fill(data[this.mediaType.singular])._callListeners(EventTypes.NOTE);
                 resolve(true);
             })
                 .catch(err => {
@@ -3323,9 +3622,225 @@ class Base {
             });
         });
     }
+    /**
+     * fetchCharacters - Récupère les acteurs du média
+     * @abstract
+     * @returns {Promise<this>}
+     */
+    fetchCharacters() {
+        throw new Error('Method abstract');
+    }
+    /**
+     * getCharacter - Retourne un personnage à partir de son identifiant
+     * @param   {number} id - Identifiant du personnage
+     * @returns {Character | null}
+     */
+    getCharacter(id) {
+        for (const actor of this.characters) {
+            if (actor.id === id)
+                return actor;
+        }
+        return null;
+    }
 }
+/*
+ * Date Format 1.2.3
+ * (c) 2007-2009 Steven Levithan <stevenlevithan.com>
+ * MIT license
+ *
+ * Includes enhancements by Scott Trenda <scott.trenda.net>
+ * and Kris Kowal <cixar.com/~kris.kowal/>
+ *
+ * Accepts a date, a mask, or a date and a mask.
+ * Returns a formatted version of the given date.
+ * The date defaults to the current date/time.
+ * The mask defaults to dateFormat.masks.default.
+ */
+const dateFormat = function () {
+    const token = /d{1,4}|m{1,4}|yy(?:yy)?|([HhMsTt])\1?|[LloSZ]|"[^"]*"|'[^']*'/g, timezone = /\b(?:[PMCEA][SDP]T|(?:Pacific|Mountain|Central|Eastern|Atlantic) (?:Standard|Daylight|Prevailing) Time|(?:GMT|UTC)(?:[-+]\d{4})?)\b/g, timezoneClip = /[^-+\dA-Z]/g, pad = (val, len = 2) => String(val).padStart(len, '0');
+    // Some common format strings
+    const masks = {
+        "default": "ddd dd mmm yyyy HH:MM:ss",
+        datetime: "dd/mm/yyyy HH:MM",
+        shortDate: "d/m/yy",
+        mediumDate: "d mmm yyyy",
+        longDate: "d mmmm yyyy",
+        fullDate: "dddd, d mmmm yyyy",
+        shortTime: "h:MM TT",
+        mediumTime: "h:MM:ss TT",
+        longTime: "h:MM:ss TT Z",
+        isoDate: "yyyy-mm-dd",
+        isoTime: "HH:MM:ss",
+        isoDateTime: "yyyy-mm-dd'T'HH:MM:ss",
+        isoUtcDateTime: "UTC:yyyy-mm-dd'T'HH:MM:ss'Z'"
+    };
+    // Internationalization strings
+    const i18n = {
+        dayNames: {
+            abr: ["Dim.", "Lun.", "Mar.", "Mer.", "Jeu.", "Ven.", "Sam."],
+            full: ["Dimanche", "Lundi", "Mardi", "Mercredi", "Jeudi", "Vendredi", "Samedi"]
+        },
+        monthNames: {
+            abr: ["Jan.", "Fev.", "Mar.", "Avr.", "Mai", "Juin", "Juil.", "Août", "Sept.", "Oct.", "Nov.", "Dec."],
+            full: [
+                "Janvier", "Février", "Mars", "Avril", "Mai", "Juin", "Juillet",
+                "Août", "Septembre", "Octobre", "Novembre", "Décembre"
+            ]
+        }
+    };
+    // Regexes and supporting functions are cached through closure
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    return function (date, mask, utc) {
+        // const dF = dateFormat;
+        // You can't provide utc if you skip other args (use the "UTC:" mask prefix)
+        if (arguments.length == 1 && Object.prototype.toString.call(date) == "[object String]" && !/\d/.test(date)) {
+            mask = date;
+            date = undefined;
+        }
+        // Passing date through Date applies Date.parse, if necessary
+        date = date ? new Date(date) : new Date;
+        if (isNaN(date))
+            throw TypeError("invalid date");
+        mask = String(masks[mask] || mask || masks["default"]);
+        // Allow setting the utc argument via the mask
+        if (mask.slice(0, 4) == "UTC:") {
+            mask = mask.slice(4);
+            utc = true;
+        }
+        const _ = utc ? "getUTC" : "get", d = date[_ + "Date"](), D = date[_ + "Day"](), m = date[_ + "Month"](), y = date[_ + "FullYear"](), H = date[_ + "Hours"](), M = date[_ + "Minutes"](), s = date[_ + "Seconds"](), L = date[_ + "Milliseconds"](), o = utc ? 0 : date.getTimezoneOffset(), flags = {
+            d: d,
+            dd: pad(d),
+            ddd: i18n.dayNames.abr[D],
+            dddd: i18n.dayNames.full[D],
+            m: m + 1,
+            mm: pad(m + 1),
+            mmm: i18n.monthNames.abr[m],
+            mmmm: i18n.monthNames.full[m],
+            yy: String(y).slice(2),
+            yyyy: y,
+            h: H % 12 || 12,
+            hh: pad(H % 12 || 12),
+            H: H,
+            HH: pad(H),
+            M: M,
+            MM: pad(M),
+            s: s,
+            ss: pad(s),
+            l: pad(L, 3),
+            L: pad(L > 99 ? Math.round(L / 10) : L),
+            t: H < 12 ? "a" : "p",
+            tt: H < 12 ? "am" : "pm",
+            T: H < 12 ? "A" : "P",
+            TT: H < 12 ? "AM" : "PM",
+            Z: utc ? "UTC" : (String(date).match(timezone) || [""]).pop().replace(timezoneClip, ""),
+            o: (o > 0 ? "-" : "+") + pad(Math.floor(Math.abs(o) / 60) * 100 + Math.abs(o) % 60, 4)
+        };
+        return mask.replace(token, function ($0) {
+            return $0 in flags ? flags[$0] : $0.slice(1, $0.length - 1);
+        });
+    };
+}();
+const calculDuration = function () {
+    const dayOfYear = (date) => {
+        const ref = new Date(date.getFullYear(), 0, 0);
+        return Math.floor((date.getTime() - ref.getTime()) / 86400000);
+    };
+    const i18n = {
+        yesterday: 'Hier',
+        dayBeforeYesterday: 'Avant-hier',
+        longTime: 'Il y a longtemps',
+        days: 'Il y a %days% jours',
+        hours: 'Il y a %hours% heures',
+        minutes: 'Il y a %minutes% minutes'
+    };
+    return function (date) {
+        const now = new Date();
+        const days = Math.round(dayOfYear(now) - dayOfYear(date));
+        if (days > 0) {
+            if (days === 1) {
+                return i18n.yesterday;
+            }
+            else if (days === 2) {
+                return i18n.dayBeforeYesterday;
+            }
+            else if (days > 30) {
+                return i18n.longTime;
+            }
+            return i18n.days.replace('%days%', days.toString());
+        }
+        else {
+            const minutes = Math.round((now.getTime() - date.getTime()) / 60000);
+            const hours = Math.round((now.getTime() - date.getTime()) / 3600000);
+            if (hours === 0 && minutes > 0) {
+                return i18n.minutes.replace('%minutes%', minutes.toString());
+            }
+            else if (hours > 0) {
+                return i18n.hours.replace('%hours%', hours.toString());
+            }
+        }
+    };
+}();
+const upperFirst = function () {
+    return function (word) {
+        return word.charAt(0).toUpperCase() + word.slice(1).toLowerCase();
+    };
+}();
+const camelCase = function () {
+    return function (words) {
+        return words
+            // eslint-disable-next-line no-useless-escape
+            .replace(/[.,\/#!$%\^&\*;:][{}=\-_`~()]/g, '_')
+            .replace(/[^a-zA-Z_]/g, '')
+            .split('_')
+            .reduce((result, word, index) => {
+            return result + (index ? word.upperFirst() : word.toLowerCase());
+        }, '');
+    };
+}();
+// For convenience...
+Date.prototype.format = function (mask, utc = false) {
+    return dateFormat(this, mask, utc);
+};
+Date.prototype.duration = function () {
+    return calculDuration(this);
+};
+String.prototype.upperFirst = function () {
+    return upperFirst(this);
+};
+String.prototype.camelCase = function () {
+    return camelCase(this);
+};
 
 class Media extends Base {
+    /***************************************************/
+    /*                      STATIC                     */
+    /***************************************************/
+    static propsAllowedOverride = {};
+    static overrideType;
+    /**
+     * Méthode static servant à récupérer un média sur l'API BS
+     * @param  {Obj} params - Critères de recherche du média
+     * @param  {boolean} [force=false] - Indique si on utilise le cache ou non
+     * @return {Promise<Show>}
+     * @protected
+     * @abstract
+     */
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
+    static _fetch(params, force) {
+        throw new Error("Abstract Static Method");
+    }
+    /**
+     * Methode static servant à récupérer un média par son identifiant IMDB
+     * @param  {number} id - L'identifiant IMDB du média
+     * @param  {boolean} [force=false] - Indique si on utilise le cache ou non
+     * @return {Promise<Media>}
+     */
+    static fetchByImdb(id, force = false) {
+        return this._fetch({ imdb_id: id }, force);
+    }
+    /***************************************************/
+    /*                  PROPERTIES                     */
+    /***************************************************/
     /**
      * @type {number} Nombre de membres ayant ce média sur leur compte
      */
@@ -3379,6 +3894,16 @@ class Media extends Base {
         return this;
     }
     /**
+     * Initialise l'objet lors de sa construction et après son remplissage
+     * @returns {Promise<Media>}
+     */
+    init() {
+        return new Promise(resolve => {
+            this._overrideProps();
+            resolve(this);
+        });
+    }
+    /**
      * Remplit l'objet avec les données fournit en paramètre
      * @param  {Obj} data Les données provenant de l'API
      * @returns {Media}
@@ -3391,7 +3916,7 @@ class Media extends Base {
         this.length = parseInt(data.length, 10);
         this.original_title = data.original_title;
         if (!this.similars || this.similars.length <= 0) {
-            this.similars = new Array();
+            this.similars = [];
         }
         this.nbSimilars = 0;
         if (data.similars && data.similars instanceof Array) {
@@ -3401,12 +3926,12 @@ class Media extends Base {
         else if (data.similars) {
             this.nbSimilars = parseInt(data.similars);
         }
-        this.genres = new Array();
+        this.genres = [];
         if (data.genres && data.genres instanceof Array) {
             this.genres = data.genres;
         }
         else if (data.genres instanceof Object) {
-            for (let g in data.genres) {
+            for (const g in data.genres) {
                 this.genres.push(data.genres[g]);
             }
         }
@@ -3453,19 +3978,84 @@ class Media extends Base {
         }
         return null;
     }
+    /**
+     * override - Permet de surcharger des propriétés de l'objet, parmis celles autorisées,
+     * et de stocker les nouvelles valeurs
+     * @see Show.propsAllowedOverride
+     * @param   {string} prop - Nom de la propriété à modifier
+     * @param   {string} value - Nouvelle valeur de la propriété
+     * @param   {object} [params] - Optional: paramètres à fournir pour modifier le path de la propriété
+     * @returns {boolean}
+     */
+    override(prop, value, params) {
+        const type = this.constructor;
+        if (type.propsAllowedOverride[prop]) {
+            const override = Base.gm_funcs.getValue('override', { shows: {}, movies: {} });
+            if (override[type.overrideType][this.id] === undefined)
+                override[type.overrideType][this.id] = {};
+            override[type.overrideType][this.id][prop] = value;
+            let path = type.propsAllowedOverride[prop].path;
+            if (type.propsAllowedOverride[prop].params) {
+                override[type.overrideType][this.id][prop] = { value, params };
+                path = Base.replaceParams(path, type.propsAllowedOverride[prop].params, params);
+                console.log('override', { prop, value, params, path });
+            }
+            Base.setPropValue(this, path, value);
+            Base.gm_funcs.setValue('override', override);
+            return true;
+        }
+        return false;
+    }
+    /**
+     * _overrideProps - Permet de restaurer les valeurs personalisées dans l'objet
+     * @see Show.propsAllowedOverride
+     * @private
+     * @returns {Media}
+     */
+    _overrideProps() {
+        const type = this.constructor;
+        const overrideType = type.overrideType;
+        const override = Base.gm_funcs.getValue('override', { shows: {}, movies: {} });
+        if (override[overrideType][this.id]) {
+            console.log('_overrideProps override found', override[overrideType][this.id]);
+            for (const prop in override[overrideType][this.id]) {
+                let path = type.propsAllowedOverride[prop].path;
+                let value = override[overrideType][this.id][prop];
+                if (type.propsAllowedOverride[prop].params && typeof override[overrideType][this.id][prop] === 'object') {
+                    value = override[overrideType][this.id][prop].value;
+                    const params = override[overrideType][this.id][prop].params;
+                    path = Base.replaceParams(path, type.propsAllowedOverride[prop].params, params);
+                }
+                console.log('_overrideProps prop[%s]', prop, { path, value });
+                Base.setPropValue(this, path, value);
+            }
+        }
+        return this;
+    }
 }
 
 class Images {
+    static formats = {
+        poster: 'poster',
+        wide: 'wide'
+    };
     constructor(data) {
         this.show = data.show;
         this.banner = data.banner;
         this.box = data.box;
         this.poster = data.poster;
+        this._local = {
+            show: this.show,
+            banner: this.banner,
+            box: this.box,
+            poster: this.poster
+        };
     }
     show;
     banner;
     box;
     poster;
+    _local;
 }
 var Picked;
 (function (Picked) {
@@ -3473,7 +4063,6 @@ var Picked;
     Picked[Picked["banner"] = 1] = "banner";
     Picked[Picked["show"] = 2] = "show";
 })(Picked = Picked || (Picked = {}));
-// eslint-disable-next-line no-unused-vars
 class Picture {
     constructor(data) {
         this.id = parseInt(data.id, 10);
@@ -3502,6 +4091,7 @@ class Platform {
         this.link_url = data.link_url;
         this.available = data.available;
         this.logo = data.logo;
+        this.partner = !data.partner || false;
     }
     id;
     name;
@@ -3509,21 +4099,109 @@ class Platform {
     link_url;
     available;
     logo;
+    partner;
+}
+class PlatformList {
+    svod;
+    vod;
+    country;
+    static types = {
+        svod: 'svod',
+        vod: 'vod'
+    };
+    /**
+     * fetchPlatforms - Récupère la liste des plateformes sur l'API
+     * @param  {string}                [country = 'us'] Le pays concerné par les plateformes
+     * @return {Promise<PlatformList>}                  L'objet contenant les différentes plateformes
+     */
+    static fetchPlatforms(country = 'us') {
+        return new Promise((resolve, reject) => {
+            Base.callApi(HTTP_VERBS.GET, 'platforms', 'list', { country })
+                .then((data) => {
+                resolve(new PlatformList(data.platforms, country));
+            })
+                .catch(err => reject(err));
+        });
+    }
+    constructor(data, country = 'fr') {
+        if (data.svod) {
+            this.svod = [];
+            for (let s = 0; s < data.svod.length; s++) {
+                this.svod.push(new Platform(data.svod[s]));
+            }
+            this.svod.sort(function (a, b) {
+                if (a.name < b.name)
+                    return -1;
+                else if (a.name > b.name)
+                    return 1;
+                else
+                    return 0;
+            });
+        }
+        if (data.vod) {
+            this.vod = [];
+            for (let v = 0; v < data.vod.length; v++) {
+                this.vod.push(new Platform(data.vod[v]));
+            }
+            this.vod.sort(function (a, b) {
+                if (a.name < b.name)
+                    return -1;
+                else if (a.name > b.name)
+                    return 1;
+                else
+                    return 0;
+            });
+        }
+        this.country = country;
+    }
+    /**
+     * Retourne les plateformes sous forme d'éléments HTML Option
+     * @param  {string}           [type = 'svod']  Le type de plateformes souhaité
+     * @param  {Array<number>}    [exclude = null] Les identifiants des plateformes à exclure
+     * @return {string}                            Les options sous forme de chaîne
+     */
+    renderHtmlOptions(type = 'svod', exclude = null) {
+        let options = '';
+        if (type === PlatformList.types.svod) {
+            const svod = this.svod.filter(elt => {
+                return exclude.indexOf(elt.id) === -1;
+            });
+            for (let s = 0; s < svod.length; s++) {
+                options += `<option value="${svod[s].id}" data-src="${svod[s].logo}">${svod[s].name}</option>`;
+            }
+        }
+        else if (type === PlatformList.types.vod) {
+            const vod = this.vod.filter(elt => {
+                return exclude.indexOf(elt.id) === -1;
+            });
+            for (let v = 0; v < vod.length; v++) {
+                options += `<option value="${vod[v].id}" data-src="${vod[v].logo}">${vod[v].name}</option>`;
+            }
+        }
+        return options;
+    }
 }
 class Platforms {
     constructor(data) {
-        if (data.svods && data.svods instanceof Array) {
-            this.svods = new Array();
+        this.svods = [];
+        if (data?.svods && data?.svods instanceof Array) {
             for (let s = 0; s < data.svods.length; s++) {
                 this.svods.push(new Platform(data.svods[s]));
             }
         }
-        if (data.svod) {
+        if (data?.svod) {
             this.svod = new Platform(data.svod);
+        }
+        this.vod = [];
+        if (data?.vod && data?.vod instanceof Array) {
+            for (let v = 0; v < data.vod.length; v++) {
+                this.vod.push(new Platform(data.vod[v]));
+            }
         }
     }
     svods;
     svod;
+    vod;
 }
 class Showrunner {
     constructor(data) {
@@ -3543,7 +4221,21 @@ class Show extends Media {
      * Types d'évenements gérés par cette classe
      * @type {Array}
      */
-    static EventTypes = new Array(EventTypes.UPDATE, EventTypes.SAVE, EventTypes.ADD, EventTypes.ADDED, EventTypes.REMOVE, EventTypes.NOTE, EventTypes.ARCHIVE, EventTypes.UNARCHIVE);
+    static EventTypes = [
+        EventTypes.UPDATE,
+        EventTypes.SAVE,
+        EventTypes.ADD,
+        EventTypes.ADDED,
+        EventTypes.REMOVE,
+        EventTypes.NOTE,
+        EventTypes.ARCHIVE,
+        EventTypes.UNARCHIVE
+    ];
+    static propsAllowedOverride = {
+        poster: { path: 'images.poster' },
+        season: { path: 'seasons[#season#].image', params: { season: 'number' } }
+    };
+    static overrideType = 'shows';
     /**
      * Méthode static servant à récupérer une série sur l'API BS
      * @param  {Obj} params - Critères de recherche de la série
@@ -3558,11 +4250,16 @@ class Show extends Media {
                 .catch(err => reject(err));
         });
     }
+    /**
+     * fetchLastSeen - Méthode static retournant les 10 dernières séries vues par le membre
+     * @param  {number}  [limit = 10]  Le nombre limite de séries retournées
+     * @return {Promise<Show>}         Une promesse avec les séries
+     */
     static fetchLastSeen(limit = 10) {
         return new Promise((resolve, reject) => {
             Base.callApi(HTTP_VERBS.GET, 'shows', 'member', { order: 'last_seen', limit })
                 .then((data) => {
-                const shows = new Array();
+                const shows = [];
                 for (let s = 0; s < data.shows.length; s++) {
                     shows.push(new Show(data.shows[s], jQuery('body')));
                 }
@@ -3580,7 +4277,7 @@ class Show extends Media {
         return new Promise((resolve, reject) => {
             Base.callApi(HTTP_VERBS.GET, 'shows', 'display', { id: ids.join(',') })
                 .then((data) => {
-                const shows = Array();
+                const shows = [];
                 if (ids.length > 1) {
                     for (let s = 0; s < data.shows.length; s++) {
                         shows.push(new Show(data.shows[s], jQuery('.blockInformations')));
@@ -3601,7 +4298,7 @@ class Show extends Media {
      * @return {Promise<Show>}
      */
     static fetch(id, force = false) {
-        return this._fetch({ id: id }, force);
+        return Show._fetch({ id: id }, force);
     }
     /**
      * Methode static servant à récupérer une série par son identifiant TheTVDB
@@ -3645,6 +4342,10 @@ class Show extends Media {
      */
     images;
     /**
+     * @type {boolean} Indique si la série se trouve dans les séries à voir
+     */
+    markToSee;
+    /**
      * @type {number} Nombre total d'épisodes dans la série
      */
     nbEpisodes;
@@ -3664,6 +4365,10 @@ class Show extends Media {
      * @type {string} Code de classification TV parental
      */
     rating;
+    /**
+     * @type {Array<Person>} Tableau des acteurs de la série
+     */
+    persons;
     /**
      * @type {Array<Picture>} Tableau des images uploadées par les membres
      */
@@ -3692,10 +4397,7 @@ class Show extends Media {
      * @type {number} Identifiant TheTVDB de la série
      */
     thetvdb_id;
-    /**
-     * @type {boolean} Indique si la série se trouve dans les séries à voir
-     */
-    markToSee;
+    _posters;
     /***************************************************/
     /*                      METHODS                    */
     /***************************************************/
@@ -3711,18 +4413,20 @@ class Show extends Media {
     }
     /**
      * Initialise l'objet lors de sa construction et après son remplissage
-     * @returns {Show}
+     * @returns {Promise<Show>}
      */
     init() {
-        this.fetchSeasons();
-        // On gère l'ajout et la suppression de la série dans le compte utilisateur
-        if (this.in_account) {
-            this.deleteShowClick();
-        }
-        else {
-            this.addShowClick();
-        }
-        return this;
+        return this.fetchSeasons().then(() => {
+            // On gère l'ajout et la suppression de la série dans le compte utilisateur
+            if (this.in_account) {
+                this.deleteShowClick();
+            }
+            else {
+                this.addShowClick();
+            }
+            this._overrideProps();
+            return this;
+        });
     }
     /**
      * Récupère les données de la série sur l'API
@@ -3738,7 +4442,7 @@ class Show extends Media {
      */
     fetchSeasons() {
         const self = this;
-        let params = { thetvdb_id: this.thetvdb_id };
+        const params = { thetvdb_id: this.thetvdb_id };
         let force = false;
         if (this.thetvdb_id <= 0) {
             delete params.thetvdb_id;
@@ -3747,7 +4451,7 @@ class Show extends Media {
         }
         return Base.callApi(HTTP_VERBS.GET, 'shows', 'seasons', params, force)
             .then((data) => {
-            self.seasons = new Array();
+            self.seasons = [];
             if (data?.seasons?.length <= 0) {
                 return self;
             }
@@ -3761,13 +4465,14 @@ class Show extends Media {
     }
     /**
      * Récupère les personnages de la série
+     * @override
      * @returns {Promise<Show>}
      */
     fetchCharacters() {
         const self = this;
         return Base.callApi(HTTP_VERBS.GET, 'shows', 'characters', { thetvdb_id: this.thetvdb_id })
             .then((data) => {
-            self.characters = new Array();
+            self.characters = [];
             if (data?.characters?.length <= 0) {
                 return self;
             }
@@ -3776,6 +4481,84 @@ class Show extends Media {
             }
             return self;
         });
+    }
+    /**
+     * Retourne le personnage associé au nom d'acteur de la série
+     * @param   {String} name - Nom de l'acteur
+     * @returns {Character | null}
+     */
+    getCharacterByName(name) {
+        const comp = name.toLocaleLowerCase();
+        for (const actor of this.characters) {
+            if (actor.actor.toLocaleLowerCase() === comp)
+                return actor;
+        }
+        return null;
+    }
+    /**
+     * Récupère les acteurs sur l'API BetaSeries
+     * @returns {Promise<Show>}
+     */
+    fetchPersons() {
+        const self = this;
+        return Base.callApi(HTTP_VERBS.GET, 'persons', 'show', { id: this.id })
+            .then(data => {
+            this.persons = [];
+            if (data.persons) {
+                for (let p = 0; p < data.persons.length; p++) {
+                    self.persons.push(new Person(data.persons[p]));
+                }
+            }
+            return self;
+        });
+    }
+    /**
+     * Récupère les acteurs sur l'API BetaSeries à partir
+     * des personnages de la série
+     * @async
+     * @returns {Promise<Show>}
+     */
+    async fetchPersonsFromCharacters() {
+        const self = this;
+        if (this.characters.length <= 0) {
+            await this.fetchCharacters();
+        }
+        const promises = [];
+        for (let c = 0; c < self.characters.length; c++) {
+            promises.push(Person.fetch(self.characters[c].person_id));
+        }
+        return Promise.all(promises).then((persons) => {
+            for (let p = 0; p < persons.length; p++) {
+                if (persons[p])
+                    self.persons.push(persons[p]);
+            }
+            return self;
+        });
+    }
+    /**
+     * Retourne un acteur en le cherchant par son nom
+     * @param   {String} name - Nom de l'acteur
+     * @returns {Person | null}
+     */
+    getPersonByName(name) {
+        const comp = name.toLocaleLowerCase();
+        for (const actor of this.persons) {
+            if (actor.name.toLocaleLowerCase() === comp)
+                return actor;
+        }
+        return null;
+    }
+    /**
+     * Retourne un acteur en le cherchant par son ID
+     * @param   {number} id - Identifiant de l'acteur
+     * @returns {Person | null}
+     */
+    getPersonById(id) {
+        for (const actor of this.persons) {
+            if (actor.id === id)
+                return actor;
+        }
+        return null;
     }
     /**
      * isEnded - Indique si la série est terminée
@@ -3866,14 +4649,14 @@ class Show extends Media {
      * @return {Promise<Show>} Promise of show
      */
     archive() {
-        const _this = this;
+        const self = this;
         return new Promise((resolve, reject) => {
-            Media.callApi('POST', 'shows', 'archive', { id: _this.id })
+            Media.callApi('POST', 'shows', 'archive', { id: self.id })
                 .then(data => {
-                _this.fill(data.show);
-                _this.save();
-                _this._callListeners(EventTypes.ARCHIVE);
-                resolve(_this);
+                self.fill(data.show);
+                self.save();
+                self._callListeners(EventTypes.ARCHIVE);
+                resolve(self);
             }, err => {
                 reject(err);
             });
@@ -3884,14 +4667,14 @@ class Show extends Media {
      * @return {Promise<Show>} Promise of show
      */
     unarchive() {
-        const _this = this;
+        const self = this;
         return new Promise((resolve, reject) => {
-            Media.callApi('DELETE', 'shows', 'archive', { id: _this.id })
+            Media.callApi('DELETE', 'shows', 'archive', { id: self.id })
                 .then(data => {
-                _this.fill(data.show);
-                _this.save();
-                _this._callListeners(EventTypes.UNARCHIVE);
-                resolve(_this);
+                self.fill(data.show);
+                self.save();
+                self._callListeners(EventTypes.UNARCHIVE);
+                resolve(self);
             }, err => {
                 reject(err);
             });
@@ -3902,13 +4685,13 @@ class Show extends Media {
      * @return {Promise<Show>} Promise of show
      */
     favorite() {
-        const _this = this;
+        const self = this;
         return new Promise((resolve, reject) => {
-            Media.callApi('POST', 'shows', 'favorite', { id: _this.id })
+            Media.callApi('POST', 'shows', 'favorite', { id: self.id })
                 .then(data => {
-                _this.fill(data.show);
-                _this.save();
-                resolve(_this);
+                self.fill(data.show);
+                self.save();
+                resolve(self);
             }, err => {
                 reject(err);
             });
@@ -3919,13 +4702,13 @@ class Show extends Media {
      * @return {Promise<Show>} Promise of show
      */
     unfavorite() {
-        const _this = this;
+        const self = this;
         return new Promise((resolve, reject) => {
-            Media.callApi('DELETE', 'shows', 'favorite', { id: _this.id })
+            Media.callApi('DELETE', 'shows', 'favorite', { id: self.id })
                 .then(data => {
-                _this.fill(data.show);
-                _this.save();
-                resolve(_this);
+                self.fill(data.show);
+                self.save();
+                resolve(self);
             }, err => {
                 reject(err);
             });
@@ -3933,19 +4716,19 @@ class Show extends Media {
     }
     /**
      * Met à jour les données de la série
-     * @param  {Boolean}  [force=false] Forcer la récupération des données sur l'API
-     * @param  {Function} [cb=noop]     Fonction de callback
-     * @return {Promise<Show>}          Promesse (Show)
+     * @param  {Boolean}  [force=false]     Forcer la récupération des données sur l'API
+     * @param  {Callback} [cb = Base.noop]  Fonction de callback
+     * @return {Promise<Show>}              Promesse (Show)
      */
     update(force = false, cb = Base.noop) {
-        const _this = this;
+        const self = this;
         return new Promise((resolve, reject) => {
-            _this.fetch(force).then(data => {
-                _this.fill(data.show);
-                _this.updateRender(() => {
-                    resolve(_this);
+            self.fetch(force).then(data => {
+                self.fill(data.show);
+                self.updateRender(() => {
+                    resolve(self);
                     cb();
-                    _this._callListeners(EventTypes.UPDATE);
+                    self._callListeners(EventTypes.UPDATE);
                 });
             })
                 .catch(err => {
@@ -3958,14 +4741,14 @@ class Show extends Media {
     /**
      * Met à jour le rendu de la barre de progression
      * et du prochain épisode
-     * @param  {Function} cb Fonction de callback
+     * @param  {Callback} [cb=Base.noop] Fonction de callback
      * @return {void}
      */
     updateRender(cb = Base.noop) {
         const self = this;
         this.updateProgressBar();
         this.updateNextEpisode();
-        let note = this.objNote;
+        const note = this.objNote;
         if (Base.debug) {
             console.log('Next ID et status', {
                 next: this.user.next.id,
@@ -3975,10 +4758,10 @@ class Show extends Media {
             });
         }
         // Si il n'y a plus d'épisodes à regarder
-        if (this.user.remaining === 0 && this.in_account) {
+        if (this.user.remaining === 0 && this.in_account && this.currentSeason.getNbEpisodesUnwatched() == 0) {
             let promise = new Promise(resolve => { return resolve(void 0); });
             // On propose d'archiver si la série n'est plus en production
-            if (this.in_account && this.isEnded() && !this.isArchived()) {
+            if (this.isEnded() && !this.isArchived()) {
                 if (Base.debug)
                     console.log('Série terminée, popup confirmation archivage');
                 promise = new Promise(resolve => {
@@ -4016,13 +4799,17 @@ class Show extends Media {
                             return true;
                         },
                         onClose: function () {
-                            if (retourCallback)
+                            if (retourCallback) {
+                                self.objNote.updateStars();
                                 self.objNote.createPopupForVote();
+                            }
                         }
                     });
                 });
             }
-            promise.then(() => { cb(); });
+            promise.then(() => {
+                cb();
+            });
         }
         else {
             cb();
@@ -4040,26 +4827,50 @@ class Show extends Media {
     }
     /**
      * Met à jour le bloc du prochain épisode à voir
-     * @param   {Function} [cb=noop] Fonction de callback
+     * @param   {Callback} [cb=noop] Fonction de callback
      * @returns {void}
      */
     updateNextEpisode(cb = Base.noop) {
         if (Base.debug)
             console.log('updateNextEpisode');
+        const self = this;
         const $nextEpisode = jQuery('a.blockNextEpisode');
+        /**
+         * Retourne le nombre total d'épisodes non vus dans la série
+         * @return {string} le nombre total d'épisodes non vus
+         */
+        const getNbEpisodesUnwatchedTotal = function () {
+            let nbEpisodes = 0;
+            for (let s = 0; s < self.seasons.length; s++) {
+                nbEpisodes += self.seasons[s].getNbEpisodesUnwatched();
+            }
+            return nbEpisodes.toString();
+        };
         if ($nextEpisode.length > 0 && this.user.next && !isNaN(this.user.next.id)) {
+            const seasonNext = parseInt(this.user.next.code.match(/S\d+/)[0].replace('S', ''), 10);
+            let next = this.user.next;
+            const episode = this.currentSeason?.getNextEpisodeUnwatched();
+            if (seasonNext < this.currentSeason?.number && episode) {
+                next = new Next({
+                    id: episode.id,
+                    code: episode.code,
+                    date: episode.date,
+                    title: episode.title,
+                    image: ''
+                });
+            }
             if (Base.debug)
-                console.log('nextEpisode et show.user.next OK', this.user);
+                console.log('nextEpisode et show.user.next OK', this.user, next);
             // Modifier l'image
-            const $img = $nextEpisode.find('img'), $remaining = $nextEpisode.find('.remaining div'), $parent = $img.parent('div'), height = $img.attr('height'), width = $img.attr('width'), next = this.user.next, src = `${Base.api.url}/pictures/episodes?key=${Base.userKey}&id=${next.id}&width=${width}&height=${height}`;
+            const $img = $nextEpisode.find('img'), $remaining = $nextEpisode.find('.remaining div'), $parent = $img.parent('div'), height = $img.attr('height'), width = $img.attr('width'), src = `${Base.api.url}/pictures/episodes?key=${Base.userKey}&id=${next.id}&width=${width}&height=${height}`;
             $img.remove();
-            $parent.append(`<img src="${src}" height="${height}" width="${width}" />`);
+            $parent.append(`<img data-src="${src}" class="js-lazy-image" height="${height}" width="${width}" />`);
             // Modifier le titre
             $nextEpisode.find('.titleEpisode').text(`${next.code.toUpperCase()} - ${next.title}`);
             // Modifier le lien
             $nextEpisode.attr('href', $nextEpisode.attr('href').replace(/s\d{2}e\d{2}/, next.code.toLowerCase()));
             // Modifier le nombre d'épisodes restants
-            $remaining.text($remaining.text().trim().replace(/^\d+/, this.user.remaining.toString()));
+            $remaining.text($remaining.text().trim().replace(/^\d+/, getNbEpisodesUnwatchedTotal()));
         }
         else if ($nextEpisode.length <= 0 && this.user.next && !isNaN(this.user.next.id)) {
             if (Base.debug)
@@ -4091,7 +4902,7 @@ class Show extends Media {
                         ${res.user.next.code.toUpperCase()} - ${res.user.next.title}
                     </div>
                     <div class="remaining">
-                        <div class="u-colorWhiteOpacity05">${res.user.remaining} épisode${(res.user.remaining > 1) ? 's' : ''} à regarder</div>
+                        <div class="u-colorWhiteOpacity05">${getNbEpisodesUnwatchedTotal()} épisode${(res.user.remaining > 1) ? 's' : ''} à regarder</div>
                     </div>
                     </div>
                 </a>`);
@@ -4121,9 +4932,9 @@ class Show extends Media {
                     <div class="label">${Base.trans('show.button.add.label')}</div>
                 </div>`);
             this.addBtnToSee();
-            let title = this.title.replace(/"/g, '\\"').replace(/'/g, "\\'");
+            const title = this.title.replace(/"/g, '\\"').replace(/'/g, "\\'");
             const templateOpts = `<a class="header-navigation-item" href="javascript:;" onclick="showUpdate('${title}', ${this.id}, '0')">Demander une mise à jour</a>`;
-            jQuery('#dropdownOptions').siblings('.dropdown-menu.header-navigation')
+            jQuery('.blockInformations__action .dropdown-menu.header-navigation[aria-labelledby="dropdownOptions"]')
                 .append(templateOpts);
             // On ajoute un event click pour masquer les vignettes
             jQuery('#reactjs-show-actions > div > button').off('click').one('click', (e) => {
@@ -4161,9 +4972,10 @@ class Show extends Media {
          * @return {void}
          */
         function changeBtnAdd(show) {
-            let $optionsLinks = jQuery('#dropdownOptions').siblings('.dropdown-menu').children('a.header-navigation-item');
+            const $optionsLinks = jQuery('.blockInformations__action .dropdown-menu a.header-navigation-item');
             if ($optionsLinks.length <= 3) {
-                let react_id = jQuery('script[id^="/reactjs/"]').get(0).id.split('.')[1], urlShow = show.resource_url.substring(location.origin.length), title = show.title.replace(/"/g, '\\"').replace(/'/g, "\\'"), templateOpts = `
+                const react_id = jQuery('script[id^="/reactjs/"]').get(0).id.split('.')[1], urlShow = show.resource_url.substring(location.origin.length), title = show.title.replace(/"/g, '\\"').replace(/'/g, "\\'");
+                let templateOpts = `
                         <button type="button" class="btn-reset header-navigation-item" onclick="new PopupAlert({
                         showClose: true,
                         type: "popin-subtitles",
@@ -4188,11 +5000,14 @@ class Show extends Media {
                                 <div class="autocomplete__response js-display-response"></div>
                             </div>
                         </form>
+                        <script>
+                            new SearchFriend({url: document.querySelector("[data-show-url]").dataset.showUrl});
+                        </script>
                         <a class="header-navigation-item" href="javascript:;">Supprimer de mes séries</a>`;
                 if ($optionsLinks.length === 2) {
                     templateOpts = `<a class="header-navigation-item" href="${urlShow}/actions">Vos actions sur la série</a>` + templateOpts;
                 }
-                jQuery('#dropdownOptions').siblings('.dropdown-menu.header-navigation')
+                jQuery('.blockInformations__action .dropdown-menu.header-navigation[aria-labelledby="dropdownOptions"]')
                     .append(templateOpts);
             }
             // On remplace le bouton Ajouter par les boutons Archiver et Favoris
@@ -4257,7 +5072,7 @@ class Show extends Media {
                 // On supprime le btn ToSeeLater
                 self.elt.find('.blockInformations__action .btnMarkToSee').parent().remove();
                 self.elt.find('.blockInformations__title .fa-clock-o').remove();
-                let toSee = Base.gm_funcs.getValue('toSee', {});
+                const toSee = Base.gm_funcs.getValue('toSee', {});
                 if (toSee[self.id] !== undefined) {
                     delete toSee[self.id];
                     Base.gm_funcs.setValue('toSee', toSee);
@@ -4278,7 +5093,7 @@ class Show extends Media {
      */
     deleteShowClick() {
         const self = this;
-        let $optionsLinks = $('#dropdownOptions').siblings('.dropdown-menu').children('a.header-navigation-item');
+        const $optionsLinks = $('#dropdownOptions').siblings('.dropdown-menu').children('a.header-navigation-item');
         // Le menu Options est au complet
         if (this.in_account && $optionsLinks.length > 2) {
             this.addEventBtnsArchiveAndFavoris();
@@ -4373,7 +5188,7 @@ class Show extends Media {
                                 console.groupEnd();
                         });
                     },
-                    callback_no: function () { }
+                    callback_no: Base.noop
                 });
             });
         }
@@ -4393,7 +5208,7 @@ class Show extends Media {
                 <div class="label">A voir</div>
             </div>`;
         const toggleToSeeShow = (showId) => {
-            let storeToSee = Base.gm_funcs.getValue('toSee', {});
+            const storeToSee = Base.gm_funcs.getValue('toSee', {});
             let toSee;
             if (storeToSee[showId] === undefined) {
                 storeToSee[showId] = true;
@@ -4416,16 +5231,16 @@ class Show extends Media {
             if (toSee) {
                 $btn.find('i.fa').css('color', 'var(--body_background)');
                 $btn.attr('title', 'Retirer la série des séries à voir');
-                self.elt.find('.blockInformations__title').append('<i class="fa fa-clock-o" aria-hidden="true" style="font-size:0.6em;" title="Série à voir plus tard"></i>');
+                self.elt.find('.blockInformations__title').append('<i class="fa fa-clock-o" aria-hidden="true" style="font-size:0.6em;margin-left:5px;vertical-align:middle;" title="Série à voir plus tard"></i>');
             }
             else {
                 $btn.find('i.fa').css('color', 'var(--default-color)');
                 $btn.attr('title', 'Ajouter la série aux séries à voir');
-                self.elt.find('.blockInforations__title .fa').remove();
+                self.elt.find('.blockInformations__title .fa').remove();
             }
             $btn.blur();
         });
-        let toSee = Base.gm_funcs.getValue('toSee', {});
+        const toSee = Base.gm_funcs.getValue('toSee', {});
         if (toSee[this.id] !== undefined) {
             $btn.find('i.fa').css('color', 'var(--body_background)');
             $btn.attr('title', 'Retirer la série des séries à voir');
@@ -4437,7 +5252,7 @@ class Show extends Media {
      * @returns {void}
      */
     addEventBtnsArchiveAndFavoris() {
-        const _this = this;
+        const self = this;
         let $btnArchive = jQuery('#reactjs-show-actions button.btn-archive'), $btnFavoris = jQuery('#reactjs-show-actions button.btn-favoris');
         if ($btnArchive.length === 0 || $btnFavoris.length === 0) {
             $('#reactjs-show-actions button:first').addClass('btn-archive');
@@ -4465,11 +5280,11 @@ class Show extends Media {
                         console.groupEnd();
                 });
             }
-            if (!_this.isArchived()) {
-                updateBtnArchive(_this.archive(), 'rotate(180deg)', 'show.button.unarchive.label', 'Erreur d\'archivage de la série');
+            if (!self.isArchived()) {
+                updateBtnArchive(self.archive(), 'rotate(180deg)', 'show.button.unarchive.label', 'Erreur d\'archivage de la série');
             }
             else {
-                updateBtnArchive(_this.unarchive(), 'rotate(0deg)', 'show.button.archive.label', 'Erreur désarchivage de la série');
+                updateBtnArchive(self.unarchive(), 'rotate(0deg)', 'show.button.archive.label', 'Erreur désarchivage de la série');
             }
         });
         // Event bouton Favoris
@@ -4478,8 +5293,8 @@ class Show extends Media {
             e.preventDefault();
             if (Base.debug)
                 console.groupCollapsed('show-favoris');
-            if (!_this.isFavorite()) {
-                _this.favorite()
+            if (!self.isFavorite()) {
+                self.favorite()
                     .then(() => {
                     jQuery(e.currentTarget).children('span').replaceWith(`
                             <span class="svgContainer">
@@ -4496,7 +5311,7 @@ class Show extends Media {
                 });
             }
             else {
-                _this.unfavorite()
+                self.unfavorite()
                     .then(() => {
                     $(e.currentTarget).children('span').replaceWith(`
                             <span class="svgContainer">
@@ -4521,7 +5336,7 @@ class Show extends Media {
         if (Base.debug)
             console.log('addRating');
         if (this.rating) {
-            let rating = Base.ratings[this.rating] !== undefined ? Base.ratings[this.rating] : null;
+            const rating = Base.ratings[this.rating] !== undefined ? Base.ratings[this.rating] : null;
             if (rating !== null) {
                 // On ajoute la classification
                 jQuery('.blockInformations__details')
@@ -4566,6 +5381,148 @@ class Show extends Media {
         }
         return null;
     }
+    _getTvdbUrl() {
+        const proxy = Base.serverBaseUrl + '/proxy/';
+        const initFetch = {
+            method: 'GET',
+            headers: {
+                'origin': 'https://www.betaseries.com',
+                'x-requested-with': '',
+                'Accept': 'application/json'
+            },
+            mode: 'cors',
+            cache: 'no-cache'
+        };
+        return new Promise((res, rej) => {
+            fetch(`${proxy}?tab=series&id=${this.thetvdb_id}`, initFetch)
+                .then(res => {
+                // console.log('_getTvdbUrl response', res);
+                if (res.ok) {
+                    return res.json();
+                }
+                return rej();
+            }).then(data => {
+                // console.log('_getTvdbUrl data', data);
+                if (data) {
+                    res(data.url);
+                }
+                else {
+                    rej();
+                }
+            });
+        });
+    }
+    /**
+     * Retourne une image, si disponible, en fonction du format désiré
+     * @param  {string = Images.formats.poster} format   Le format de l'image désiré
+     * @return {Promise<string>}                         L'URL de l'image
+     */
+    getDefaultImage(format = Images.formats.poster) {
+        const proxy = Base.serverBaseUrl + '/proxy/';
+        const initFetch = {
+            method: 'GET',
+            headers: {
+                'origin': 'https://www.betaseries.com',
+                'x-requested-with': ''
+            },
+            mode: 'cors',
+            cache: 'no-cache'
+        };
+        return new Promise((res, rej) => {
+            if (format === Images.formats.poster) {
+                if (Base.debug)
+                    console.log('getDefaultImage poster', this.images.poster);
+                if (this.images.poster)
+                    res(this.images.poster);
+                else {
+                    fetch(`${proxy}?tab=series&id=${this.thetvdb_id}`, initFetch)
+                        .then((resp) => {
+                        if (resp.ok) {
+                            return resp.text();
+                        }
+                        return null;
+                    }).then(html => {
+                        if (html == null) {
+                            return rej('HTML error');
+                        }
+                        const parser = new DOMParser();
+                        const doc = parser.parseFromString(html, 'text/html');
+                        const link = doc.querySelector('.container .row a[rel="artwork_posters"]');
+                        res(link.href.replace('original', 'w500'));
+                    }).catch(err => rej(err));
+                }
+            }
+            else if (format === Images.formats.wide) {
+                if (this.images.show !== null)
+                    res(this.images.show);
+                else if (this.images.box !== null)
+                    res(this.images.box);
+                else {
+                    fetch(`${proxy}?tab=series&id=${this.thetvdb_id}`, initFetch)
+                        .then((resp) => {
+                        if (resp.ok) {
+                            return resp.text();
+                        }
+                        return null;
+                    }).then(html => {
+                        if (html == null) {
+                            return rej('HTML error');
+                        }
+                        const parser = new DOMParser();
+                        const doc = parser.parseFromString(html, 'text/html');
+                        const link = doc.querySelector('.container .row a[rel="artwork_backgrounds"]');
+                        res(link.href.replace('original', 'w500'));
+                    }).catch(err => rej(err));
+                }
+            }
+        });
+    }
+    getAllPosters() {
+        if (this._posters) {
+            return new Promise(res => res(this._posters));
+        }
+        const proxy = Base.serverBaseUrl + '/posters';
+        const initFetch = {
+            method: 'GET',
+            headers: {
+                'origin': 'https://www.betaseries.com',
+                'x-requested-with': ''
+            },
+            mode: 'cors',
+            cache: 'no-cache'
+        };
+        return new Promise((res, rej) => {
+            const posters = {};
+            if (this.images?._local.poster)
+                posters['local'] = [this.images._local.poster];
+            this._getTvdbUrl().then(url => {
+                console.log('getAllPosters url', url);
+                if (!url)
+                    return res(posters);
+                const urlTvdb = new URL(url);
+                fetch(`${proxy}${urlTvdb.pathname}/artwork/posters`, initFetch)
+                    .then((resp) => {
+                    if (resp.ok) {
+                        return resp.text();
+                    }
+                    return null;
+                }).then(html => {
+                    if (html == null) {
+                        return rej('HTML error');
+                    }
+                    posters['TheTVDB'] = [];
+                    const parser = new DOMParser();
+                    const doc = parser.parseFromString(html, 'text/html');
+                    const imgs = doc.querySelectorAll('a.thumbnail img');
+                    for (let l = 0; l < imgs.length; l++) {
+                        posters['TheTVDB'].push(imgs[l].dataset.src);
+                    }
+                    this._posters = posters;
+                    res(posters);
+                }).catch(err => rej(err));
+            });
+        });
+    }
 }
 
 var MovieStatus;
@@ -4579,6 +5536,24 @@ class Movie extends Media {
     /***************************************************/
     /*                      STATIC                     */
     /***************************************************/
+    static propsAllowedOverride = {
+        poster: { path: 'poster' }
+    };
+    static overrideType = 'movies';
+    /**
+     * Méthode static servant à récupérer un film sur l'API BS
+     * @param  {Obj} params - Critères de recherche du film
+     * @param  {boolean} [force=false] - Indique si on utilise le cache ou non
+     * @return {Promise<Show>}
+     * @private
+     */
+    static _fetch(params, force = false) {
+        return new Promise((resolve, reject) => {
+            Base.callApi('GET', 'movies', 'movie', params, force)
+                .then(data => resolve(new Movie(data.movie, jQuery('.blockInformations'))))
+                .catch(err => reject(err));
+        });
+    }
     /**
      * Methode static servant à retourner un objet show
      * à partir de son ID
@@ -4587,11 +5562,17 @@ class Movie extends Media {
      * @return {Promise<Movie>}
      */
     static fetch(id, force = false) {
-        return new Promise((resolve, reject) => {
-            Base.callApi('GET', 'movies', 'movie', { id: id }, force)
-                .then(data => resolve(new Movie(data.movie, jQuery('.blockInformations'))))
-                .catch(err => reject(err));
-        });
+        return Movie._fetch({ id }, force);
+    }
+    /**
+     * Méthode static servant à récupérer un film sur l'API BS à partir
+     * de son identifiant TheMovieDB
+     * @param id - Identifiant du film sur TheMovieDB
+     * @param force - Indique si on utilise le cache ou non
+     * @returns {Promise<Movie>}
+     */
+    static fetchByTmdb(id, force = false) {
+        return this._fetch({ tmdb_id: id }, force);
     }
     static search(title, force = false) {
         return new Promise((resolve, reject) => {
@@ -4615,6 +5596,8 @@ class Movie extends Media {
     tagline;
     tmdb_id;
     trailer;
+    _posters;
+    _local;
     /***************************************************/
     /*                      METHODS                    */
     /***************************************************/
@@ -4626,6 +5609,7 @@ class Movie extends Media {
      */
     constructor(data, element) {
         super(data, element);
+        this._local = { poster: null };
         return this.fill(data);
     }
     /**
@@ -4635,7 +5619,7 @@ class Movie extends Media {
      * @override
      */
     fill(data) {
-        if (data.user.in_account !== undefined) {
+        if (data.user?.in_account !== undefined) {
             data.in_account = data.user.in_account;
             delete data.user.in_account;
         }
@@ -4649,6 +5633,7 @@ class Movie extends Media {
         this.other_title = data.other_title;
         this.platform_links = data.platform_links;
         this.poster = data.poster;
+        this._local = { poster: this.poster };
         this.production_year = parseInt(data.production_year);
         this.release_date = new Date(data.release_date);
         this.sale_date = new Date(data.sale_date);
@@ -4686,7 +5671,7 @@ class Movie extends Media {
      * @returns {Promise<Movie>}    L'instance du film
      */
     changeStatus(state) {
-        const _this = this;
+        const self = this;
         if (!Base.userIdentified() || this.user.status === state) {
             if (Base.debug)
                 console.info('User not identified or state is equal with user status');
@@ -4694,13 +5679,108 @@ class Movie extends Media {
         }
         return Base.callApi(HTTP_VERBS.POST, this.mediaType.plural, 'movie', { id: this.id, state: state })
             .then((data) => {
-            _this.fill(data.movie);
+            self.fill(data.movie);
             return this;
         })
             .catch(err => {
             console.warn("Erreur ajout film sur compte", err);
             Base.notification('Ajout du film', "Erreur lors de l'ajout du film sur votre compte");
             return this;
+        });
+    }
+    /**
+     * Retourne une image, si disponible, en fonction du format désiré
+     * @param  {string = Images.formats.poster} format   Le format de l'image désiré
+     * @return {Promise<string>}                         L'URL de l'image
+     */
+    getDefaultImage(format = 'poster') {
+        const initFetch = {
+            method: 'GET',
+            mode: 'cors',
+            cache: 'no-cache'
+        };
+        return new Promise((res, rej) => {
+            if (format === 'poster') {
+                if (this.poster)
+                    res(this.poster);
+                else {
+                    const baseImgTmdb = 'https://image.tmdb.org/t/p/w500';
+                    const api_key = Base.themoviedb_api_user_key;
+                    const uri = `https://api.themoviedb.org/3/movie/${this.tmdb_id}?api_key=${api_key}&language=fr`;
+                    // https://api.themoviedb.org/3/movie/961330?api_key=e506df46268747316e82bbd38c1a1439&language=fr
+                    fetch(uri, initFetch)
+                        .then((resp) => {
+                        if (resp.ok) {
+                            return resp.json();
+                        }
+                        return null;
+                    }).then(data => {
+                        if (data == null) {
+                            return rej('Response JSON error');
+                        }
+                        else if (data.poster)
+                            res(baseImgTmdb + data.poster);
+                        else
+                            rej('no data poster');
+                    }).catch(err => rej(err));
+                }
+            }
+        });
+    }
+    /**
+     * Récupère les personnages du film
+     * @returns {Promise<this>}
+     */
+    fetchCharacters() {
+        const self = this;
+        return Base.callApi(HTTP_VERBS.GET, 'movies', 'characters', { id: this.id }, true)
+            .then((data) => {
+            self.characters = [];
+            if (data?.characters?.length <= 0) {
+                return self;
+            }
+            for (let c = 0; c < data.characters.length; c++) {
+                self.characters.push(new Character(data.characters[c]));
+            }
+            return self;
+        });
+    }
+    getAllPosters() {
+        if (this._posters) {
+            return new Promise(res => res(this._posters));
+        }
+        const initFetch = {
+            method: 'GET',
+            mode: 'cors',
+            cache: 'no-cache'
+        };
+        return new Promise((res, rej) => {
+            const posters = {};
+            if (this.poster)
+                posters['local'] = [this._local.poster];
+            const baseImgTmdb = 'https://image.tmdb.org/t/p/w500';
+            const api_key = Base.themoviedb_api_user_key;
+            const uri = `https://api.themoviedb.org/3/movie/${this.tmdb_id}/images?api_key=${api_key}`;
+            // https://api.themoviedb.org/3/movie/961330?api_key=e506df46268747316e82bbd38c1a1439&language=fr
+            fetch(uri, initFetch)
+                .then((resp) => {
+                if (resp.ok) {
+                    return resp.json();
+                }
+                return null;
+            }).then(data => {
+                if (data == null) {
+                    return rej('Response JSON error');
+                }
+                else if (data.posters && data.posters.length > 0) {
+                    posters['TheMovieDB'] = [];
+                    for (let p = 0; p < data.posters.length; p++) {
+                        posters['TheMovieDB'].push(baseImgTmdb + data.posters[p].file_path);
+                    }
+                }
+                this._posters = posters;
+                res(posters);
+            }).catch(err => rej(err));
         });
     }
 }
@@ -4757,14 +5837,12 @@ var SortTypeSubtitles;
     SortTypeSubtitles["QUALITY"] = "quality";
     SortTypeSubtitles["DATE"] = "date";
 })(SortTypeSubtitles = SortTypeSubtitles || (SortTypeSubtitles = {}));
-;
 var SubtitleTypes;
 (function (SubtitleTypes) {
     SubtitleTypes["EPISODE"] = "episode";
     SubtitleTypes["SEASON"] = "season";
     SubtitleTypes["SHOW"] = "show";
 })(SubtitleTypes = SubtitleTypes || (SubtitleTypes = {}));
-;
 var SubtitleLanguages;
 (function (SubtitleLanguages) {
     SubtitleLanguages["ALL"] = "all";
@@ -4772,7 +5850,6 @@ var SubtitleLanguages;
     SubtitleLanguages["VO"] = "vo";
     SubtitleLanguages["VF"] = "vf";
 })(SubtitleLanguages = SubtitleLanguages || (SubtitleLanguages = {}));
-;
 class Subtitles {
     /**
      * @type {Array<Subtitle>} - Collection de subtitles
@@ -4796,7 +5873,7 @@ class Subtitles {
         });
     }
     constructor(data) {
-        this.subtitles = new Array();
+        this.subtitles = [];
         if (data && data.length > 0) {
             for (let s = 0; s < data.length; s++) {
                 this.subtitles.push(new Subtitle(data[s]));
@@ -4831,6 +5908,11 @@ class Season {
      */
     episodes;
     /**
+     * Nombre d'épisodes dans la saison
+     * @type {number}
+     */
+    nbEpisodes;
+    /**
      * @type {boolean} Possède des sous-titres
      */
     has_subtitles;
@@ -4841,7 +5923,7 @@ class Season {
     /**
      * @type {string} URL de l'image
      */
-    image;
+    _image;
     /**
      * @type {boolean} Saison vu
      */
@@ -4863,7 +5945,7 @@ class Season {
     constructor(data, show) {
         this.number = parseInt(data.number, 10);
         this._show = show;
-        this.episodes = new Array();
+        this.episodes = [];
         this.has_subtitles = !!data.has_subtitles || false;
         this.hidden = !!data.hidden || false;
         this.seen = !!data.seen || false;
@@ -4873,10 +5955,32 @@ class Season {
         if (data.episodes && data.episodes instanceof Array && data.episodes[0] instanceof Episode) {
             this.episodes = data.episodes;
         }
+        else if (data.episodes && typeof data.episodes === 'number') {
+            this.nbEpisodes = data.episodes;
+        }
         return this;
     }
     get length() {
         return this.episodes.length;
+    }
+    /**
+     * Setter pour l'attribut image
+     * @param {string} src - L'URL d'accès à l'image
+     */
+    set image(src) {
+        this._image = src;
+        if (src) {
+            const $imgs = jQuery('#seasons .slide_flex .slide__image img');
+            if ($imgs.length >= this.number) {
+                $($imgs.get(this.number - 1)).attr('src', src);
+            }
+        }
+    }
+    /**
+     * Getter pour l'attribut image
+     */
+    get image() {
+        return this._image;
     }
     /**
      * Récupère les épisodes de la saison sur l'API
@@ -4886,15 +5990,15 @@ class Season {
         if (!this.number || this.number <= 0) {
             throw new Error('season number incorrect');
         }
-        const _this = this;
+        const self = this;
         return new Promise((resolve, reject) => {
-            Base.callApi('GET', 'shows', 'episodes', { id: _this._show.id, season: _this.number }, true)
+            Base.callApi('GET', 'shows', 'episodes', { id: self._show.id, season: self.number }, true)
                 .then(data => {
-                _this.episodes = [];
+                self.episodes = [];
                 for (let e = 0; e < data.episodes.length; e++) {
-                    _this.episodes.push(new Episode(data.episodes[e], _this));
+                    self.episodes.push(new Episode(data.episodes[e], self));
                 }
-                resolve(_this);
+                resolve(self);
             }, err => {
                 reject(err);
             });
@@ -4904,7 +6008,7 @@ class Season {
         const self = this;
         const params = { id: this.episodes[this.length - 1].id, bulk: true };
         return Base.callApi(HTTP_VERBS.POST, 'episodes', 'watched', params)
-            .then((data) => {
+            .then(() => {
             let update = false;
             for (let e = 0; e < self.episodes.length; e++) {
                 if (e == self.episodes.length - 1)
@@ -4919,7 +6023,7 @@ class Season {
         const self = this;
         const params = { id: this._show.id, season: this.number };
         return Base.callApi(HTTP_VERBS.POST, 'seasons', 'hide', params)
-            .then((data) => {
+            .then(() => {
             self.hidden = true;
             jQuery(`#seasons .slide_flex:nth-child(${self.number}) .slide__image`).prepend('<div class="checkSeen"></div><div class="hideIcon"></div>');
             let update = false;
@@ -4956,6 +6060,22 @@ class Season {
                 nbEpisodesSeen++;
         }
         return nbEpisodesSeen;
+    }
+    /**
+     * Retourne le nombre d'épisodes non vus
+     * @returns {number} Le nombre d'épisodes non vus dans la saison
+     */
+    getNbEpisodesUnwatched() {
+        let nbEpisodes = 0;
+        if (this.episodes.length <= 0 && !this.seen)
+            return this.nbEpisodes;
+        else if (this.episodes.length <= 0 || this.hidden)
+            return 0;
+        for (let e = 0; e < this.episodes.length; e++) {
+            if (!this.episodes[e].user.seen)
+                nbEpisodes++;
+        }
+        return nbEpisodes;
     }
     /**
      * Retourne le nombre d'épisodes spéciaux
@@ -5066,13 +6186,24 @@ class Season {
         this._show.in_account = true;
         return this;
     }
+    /**
+     * Retourne le prochain épisode non vu
+     * @return {Episode} Le prochain épisode non vu
+     */
+    getNextEpisodeUnwatched() {
+        for (let e = 0; e < this.episodes.length; e++) {
+            if (!this.episodes[e].user.seen)
+                return this.episodes[e];
+        }
+        return null;
+    }
 }
 
 class Episode extends Base {
     static fetch(epId) {
         return Base.callApi(HTTP_VERBS.GET, 'episodes', 'display', { id: epId })
             .then((data) => {
-            return new Episode(data.episode);
+            return new Episode(data.episode, null, jQuery('.blockInformations'));
         });
     }
     /**
@@ -5145,14 +6276,17 @@ class Episode extends Base {
      * @param   {Season}    season  L'objet Season contenant l'épisode
      * @returns {Episode}
      */
-    constructor(data, season) {
+    constructor(data, season, elt) {
         super(data);
         this._season = season;
+        if (elt) {
+            this.elt = elt;
+        }
         return this.fill(data);
     }
     /**
      * Remplit l'objet avec les données fournit en paramètre
-     * @param  {any} data Les données provenant de l'API
+     * @param  {Obj} data Les données provenant de l'API
      * @returns {Episode}
      * @override
      */
@@ -5303,16 +6437,18 @@ class Episode extends Base {
     updateStatus(status, method) {
         const self = this;
         const pos = this.elt.find('.checkSeen').data('pos');
+        const args = { id: this.id, bulk: true };
         let promise = new Promise(resolve => { resolve(false); });
-        let args = { id: this.id, bulk: true };
         this.toggleSpinner(true);
         if (method === HTTP_VERBS.POST) {
-            let createPromise = () => {
+            const createPromise = () => {
                 return new Promise(resolve => {
                     // eslint-disable-next-line no-undef
                     new PopupAlert({
                         title: 'Episodes vus',
-                        text: 'Doit-on cocher les épisodes précédents comme vu ?',
+                        contentHtml: '<p>Doit-on cocher les épisodes précédents comme vu ?</p>',
+                        yes: Base.trans('popup.yes'),
+                        no: Base.trans('popup.no'),
                         callback_yes: () => {
                             resolve(true);
                         },
@@ -5320,9 +6456,9 @@ class Episode extends Base {
                             resolve(false);
                         }
                     });
-                    let btnNo = jQuery('#popin-dialog #popupalertno'), btnYes = jQuery('#popin-dialog #popupalertyes');
+                    const btnNo = jQuery('#popin-dialog #popupalertno'), btnYes = jQuery('#popin-dialog #popupalertyes');
                     btnNo.attr('tabIndex', 0).focus();
-                    btnYes.attr('tabIndex', 0);
+                    btnYes.attr('tabIndex', 0).show();
                 });
             };
             const $vignettes = jQuery('#episodes .checkSeen');
@@ -5464,6 +6600,60 @@ class Episode extends Base {
         }
         return this;
     }
+    /**
+     * Retourne une image, si disponible, en fonction du format désiré
+     * @return {Promise<string>}                         L'URL de l'image
+     */
+    getDefaultImage() {
+        /*const proxy = Base.serverBaseUrl + '/proxy/';
+        const initFetch: RequestInit = { // objet qui contient les paramètres de la requête
+            method: 'GET',
+            headers: {
+                'origin': 'https://www.betaseries.com',
+                'x-requested-with': ''
+            },
+            mode: 'cors',
+            cache: 'no-cache'
+        };*/
+        return new Promise((res) => {
+            return res(`${Base.api.url}/pictures/episodes?id=${this.id}`);
+            /*else {
+                fetch(`${proxy}https://thetvdb.com/?tab=series&id=${this.thetvdb_id}`, initFetch)
+                .then((resp: Response) => {
+                    if (resp.ok) {
+                        return resp.text();
+                    }
+                    return null;
+                }).then(html => {
+                    if (html == null) {
+                        return rej('HTML error');
+                    }
+                    const parser = new DOMParser();
+                    const doc: Document = parser.parseFromString(html, 'text/html');
+                    const link: HTMLLinkElement = doc.querySelector('.container .row a[rel="artwork_backgrounds"]');
+                    res(link.href.replace('original', 'w500'));
+                }).catch(err => rej(err));
+            }*/
+        });
+    }
+    /**
+     * Récupère les personnages de l'épisode
+     * @returns {Promise<this>}
+     */
+    fetchCharacters() {
+        const self = this;
+        return Base.callApi(HTTP_VERBS.GET, 'episodes', 'characters', { id: this.id }, true)
+            .then((data) => {
+            self.characters = [];
+            if (data?.characters?.length <= 0) {
+                return self;
+            }
+            for (let c = 0; c < data.characters.length; c++) {
+                self.characters.push(new Character(data.characters[c]));
+            }
+            return self;
+        });
+    }
 }
 
 class Similar extends Media {
@@ -5499,6 +6689,7 @@ class Similar extends Media {
     social_links;
     status;
     thetvdb_id;
+    persons;
     constructor(data, type) {
         if (type.singular === MediaType.movie) {
             data.in_account = data.user.in_account;
@@ -5534,7 +6725,7 @@ class Similar extends Media {
             if (data.platforms !== undefined && data.platforms !== null) {
                 this.platforms = new Platforms(data.platforms);
             }
-            this.seasons = new Array();
+            this.seasons = [];
             this.nbSeasons = parseInt(data.seasons, 10);
             this.showrunner = null;
             if (data.showrunner !== undefined && data.showrunner !== null) {
@@ -5543,7 +6734,8 @@ class Similar extends Media {
             this.social_links = data.social_links;
             this.status = data.status;
             this.thetvdb_id = parseInt(data.thetvdb_id, 10);
-            this.pictures = new Array();
+            this.pictures = [];
+            this.persons = [];
         }
         else if (this.mediaType.singular === MediaType.movie) {
             if (data.user.in_account !== undefined) {
@@ -5612,13 +6804,13 @@ class Similar extends Media {
      * @returns {Similar}
      */
     wrench(dialog) {
-        const $title = this.elt.find('.slide__title'), _this = this;
+        const $title = this.elt.find('.slide__title'), self = this;
         $title.html($title.html() +
             `<i class="fa fa-wrench popover-wrench"
                 aria-hidden="true"
                 style="margin-left:5px;cursor:pointer;"
-                data-id="${_this.id}"
-                data-type="${_this.mediaType.singular}">
+                data-id="${self.id}"
+                data-type="${self.mediaType.singular}">
             </i>`);
         $title.find('.popover-wrench').click((e) => {
             e.stopPropagation();
@@ -5626,7 +6818,7 @@ class Similar extends Media {
             //if (debug) console.log('Popover Wrench', eltId, self);
             this.fetch().then(function (data) {
                 // eslint-disable-next-line no-undef
-                dialog.setContent(renderjson.set_show_to_level(2)(data[_this.mediaType.singular]));
+                dialog.setContent(renderjson.set_show_to_level(2)(data[self.mediaType.singular]));
                 dialog.setCounter(Base.counter.toString());
                 dialog.setTitle('Données du similar');
                 dialog.show();
@@ -5658,7 +6850,7 @@ class Similar extends Media {
                     html += `<u>Pays:</u> <strong>${self.country}</strong>`;
                 }
                 if (self.creation) {
-                    html += `<strong style="margin-left:5px;">${self.creation}</strong>`;
+                    html += `<span style="margin-left:5px;">${self.creation}</span>`;
                 }
                 html += '</p>';
             }
@@ -5752,8 +6944,14 @@ class Similar extends Media {
                 this.objNote.mean.toFixed(2) + ' / 5</span>';
         }
         if (this.mediaType.singular === MediaType.show)
-            title += ` <span style="float:right;"><a href="http://www.thetvdb.com/?tab=series&id=${this.thetvdb_id}" target="_blank" title="Lien vers la page de TheTVDB"><img src="https://thetvdb.com/images/logo.svg" width="40px" /></a>
-            <a href="javascript:;" onclick="showUpdate('${this.title}', ${this.id}, '0')" style="margin-left:5px; color:var(--default_color);" title="Mettre à jour les données venant de TheTVDB"><i class="fa fa-refresh" aria-hidden="true"></i></a></span>`;
+            title += ` <span style="float:right;">
+                <a href="http://www.thetvdb.com/?tab=series&id=${this.thetvdb_id}" target="_blank" title="Lien vers la page de TheTVDB">
+                    <img src="https://thetvdb.com/images/logo.svg" width="40px" />
+                </a>
+                <a href="javascript:;" onclick="showUpdate('${this.title}', ${this.id}, '0')" style="margin-left:5px; color:var(--default_color);" title="Mettre à jour les données venant de TheTVDB">
+                    <i class="fa fa-refresh" aria-hidden="true"></i>
+                </a>
+            </span>`;
         return title;
     }
     /**
@@ -5792,44 +6990,71 @@ class Similar extends Media {
      */
     checkImg() {
         const $img = this.elt.find('img.js-lazy-image'), self = this;
-        if ($img.length <= 0) {
-            if (this.mediaType.singular === MediaType.show) {
-                let src;
-                if (this.images.poster !== null)
-                    src = this.images.poster;
-                else if (this.images.show !== null)
-                    src = this.images.show;
-                else if (this.images.box !== null)
-                    src = this.images.box;
-                if (src.length > 0) {
-                    // On tente de remplacer le block div 404 par une image
-                    this.elt.find('div.block404').replaceWith(`
-                        <img class="u-opacityBackground fade-in"
-                                width="125"
-                                height="188"
-                                alt="Poster de ${this.title}"
-                                src="${src}"/>`);
-                }
+        if ($img.length > 0) {
+            return this;
+        }
+        if (this.mediaType.singular === MediaType.show) {
+            if (this.images.poster !== null) {
+                // On tente de remplacer le block div 404 par une image
+                this.elt.find('div.block404').replaceWith(`
+                    <img class="u-opacityBackground fade-in"
+                            width="125"
+                            height="188"
+                            alt="Affiche de la série ${this.title}"
+                            src="${this.images.poster}"/>`);
             }
-            else if (this.mediaType.singular === MediaType.movie && this.tmdb_id && this.tmdb_id > 0) {
-                if (Base.themoviedb_api_user_key.length <= 0)
-                    return;
-                const uriApiTmdb = `https://api.themoviedb.org/3/movie/${this.tmdb_id}?api_key=${Base.themoviedb_api_user_key}&language=fr-FR`;
-                fetch(uriApiTmdb).then(response => {
-                    if (!response.ok)
-                        return null;
-                    return response.json();
-                }).then(data => {
-                    if (data !== null && data.poster_path !== undefined && data.poster_path !== null) {
-                        self.elt.find('div.block404').replaceWith(`
+            else {
+                const proxy = Base.serverBaseUrl + '/proxy/';
+                const initFetch = {
+                    method: 'GET',
+                    headers: {
+                        'origin': 'https://www.betaseries.com',
+                        'x-requested-with': 'userscript-bs'
+                    },
+                    mode: 'cors',
+                    cache: 'no-cache'
+                };
+                fetch(`${proxy}?tab=series&id=${this.thetvdb_id}`, initFetch)
+                    .then((resp) => {
+                    if (resp.ok) {
+                        return resp.text();
+                    }
+                    return null;
+                }).then(html => {
+                    if (html == null)
+                        return;
+                    const parser = new DOMParser();
+                    const doc = parser.parseFromString(html, 'text/html');
+                    const link = doc.querySelector('.container .row a[rel="artwork_posters"]');
+                    if (link) {
+                        this.elt.find('div.block404').replaceWith(`
                             <img class="u-opacityBackground fade-in"
                                     width="125"
                                     height="188"
-                                    alt="Poster de ${self.title}"
-                                    src="https://image.tmdb.org/t/p/original${data.poster_path}"/>`);
+                                    alt="Affiche de la série ${self.title}"
+                                    src="${link.href}"/>`);
                     }
                 });
             }
+        }
+        else if (this.mediaType.singular === MediaType.movie && this.tmdb_id && this.tmdb_id > 0) {
+            if (Base.themoviedb_api_user_key.length <= 0)
+                return;
+            const uriApiTmdb = `https://api.themoviedb.org/3/movie/${this.tmdb_id}?api_key=${Base.themoviedb_api_user_key}&language=fr-FR`;
+            fetch(uriApiTmdb).then(response => {
+                if (!response.ok)
+                    return null;
+                return response.json();
+            }).then(data => {
+                if (data !== null && data.poster_path !== undefined && data.poster_path !== null) {
+                    self.elt.find('div.block404').replaceWith(`
+                        <img class="u-opacityBackground fade-in"
+                                width="125"
+                                height="188"
+                                alt="Poster de ${self.title}"
+                                src="https://image.tmdb.org/t/p/original${data.poster_path}"/>`);
+                }
+            });
         }
         return this;
     }
@@ -5851,8 +7076,8 @@ class Similar extends Media {
         if (state < -1 || state > 2) {
             throw new Error("Parameter state is incorrect: " + state.toString());
         }
-        const _this = this;
-        let params = { id: this.id };
+        const self = this;
+        const params = { id: this.id };
         let verb = HTTP_VERBS.POST;
         if (state === -1 && this.mediaType.singular === MediaType.movie) {
             verb = HTTP_VERBS.DELETE;
@@ -5862,19 +7087,19 @@ class Similar extends Media {
         }
         return Base.callApi(verb, this.mediaType.plural, this.mediaType.singular, params)
             .then((data) => {
-            _this.fill(data[_this.mediaType.singular]);
+            self.fill(data[self.mediaType.singular]);
             // En attente de la résolution du bug https://www.betaseries.com/bugs/api/462
             if (verb === HTTP_VERBS.DELETE) {
-                _this.in_account = false;
-                _this.user.status = -1;
-                _this.save();
+                self.in_account = false;
+                self.user.status = -1;
+                self.save();
             }
-            return _this;
+            return self;
         })
             .catch(err => {
             console.warn('Erreur changeState similar', err);
             Base.notification('Change State Similar', 'Erreur lors du changement de statut: ' + err.toString());
-            return _this;
+            return self;
         });
     }
     /**
@@ -5882,7 +7107,7 @@ class Similar extends Media {
      * @param   {number} note Note du membre connecté pour le média
      * @returns {Promise<boolean>}
      */
-    // eslint-disable-next-line no-unused-vars
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
     addVote(note) {
         throw new Error('On ne vote pas pour un similar');
     }
@@ -5901,23 +7126,62 @@ class UpdateAuto {
         { val: 45, label: '45 min.' },
         { val: 60, label: '60 min.' }
     ];
+    /**
+     * Objet Show contenant les infos de la série
+     * @type {Show}
+     */
     _show;
+    /**
+     * Identifiant de la série
+     * @type {number}
+     */
     _showId;
+    /**
+     * Flag indiquant si une config updateAuto existe déjà
+     * en mémoire
+     * @type {boolean}
+     */
     _exist;
+    /**
+     * Etat de la tâche de mise à jour
+     * @type {boolean}
+     */
     _status;
+    /**
+     * Flag indiquant si la mise à jour doit être lancée automatiquement
+     * @type {boolean}
+     */
     _auto;
+    /**
+     * Intervalle des mises à jour
+     * @type {number}
+     */
     _interval;
+    /**
+     * Timer des mises à jour
+     * @type {NodeJS.Timer}
+     */
     _timer;
-    _remaining;
-    _timerR;
+    /**
+     * DateTime de la dernière mise à jour
+     * @type {Date}
+     */
+    _lastUpdate;
+    /**
+     * Constructeur privé, modèle Singleton
+     * @private
+     * @param {Show} show - L'objet Show sur lequel faire les mises à jour
+     * @returns {UpdateAuto} L'instance de mise à jour
+     */
     constructor(show) {
         if (UpdateAuto.instance) {
             return UpdateAuto.instance;
         }
         this._show = show;
         this._showId = show.id;
-        let objUpAuto = Base.gm_funcs.getValue('objUpAuto', {});
+        const objUpAuto = Base.gm_funcs.getValue('objUpAuto', {});
         this._exist = false;
+        this._lastUpdate = null;
         if (objUpAuto[this._showId] !== undefined) {
             this._exist = true;
             this._status = objUpAuto[this._showId].status;
@@ -5934,6 +7198,7 @@ class UpdateAuto {
     }
     /**
      * Retourne l'instance de l'objet de mise à jour auto des épisodes
+     * @static
      * @param   {Show} s - L'objet de la série
      * @returns {UpdateAuto}
      */
@@ -5947,11 +7212,12 @@ class UpdateAuto {
      * _save - Sauvegarde les options de la tâche d'update
      * auto dans l'espace de stockage de Tampermonkey
      *
+     * @private
      * @return {UpdateAuto} L'instance unique UpdateAuto
      */
     _save() {
-        let objUpAuto = Base.gm_funcs.getValue('objUpAuto', {});
-        let obj = {
+        const objUpAuto = Base.gm_funcs.getValue('objUpAuto', {});
+        const obj = {
             status: this._status,
             auto: this._auto,
             interval: this._interval
@@ -6027,6 +7293,13 @@ class UpdateAuto {
         this._save();
     }
     /**
+     * Retourne la date de la dernière mise à jour éffectuée
+     * @return {Date} La date de la dernière mise à jour
+     */
+    get lastUpdate() {
+        return this._lastUpdate;
+    }
+    /**
      * changeColorBtn - Modifie la couleur du bouton d'update
      * des épisodes sur la page Web
      *
@@ -6065,11 +7338,9 @@ class UpdateAuto {
             this._auto = false;
         }
         this.status = false;
-        clearInterval(this._timerR);
-        this._remaining = 0;
-        this._timerR = null;
         clearInterval(this._timer);
         this._timer = null;
+        this._lastUpdate = null;
         return this;
     }
     /**
@@ -6080,7 +7351,7 @@ class UpdateAuto {
      */
     delete() {
         this.stop();
-        let objUpAuto = Base.gm_funcs.getValue('objUpAuto', {});
+        const objUpAuto = Base.gm_funcs.getValue('objUpAuto', {});
         if (objUpAuto[this._showId] !== undefined) {
             delete objUpAuto[this._showId];
             Base.gm_funcs.setValue('objUpAuto', objUpAuto);
@@ -6100,14 +7371,20 @@ class UpdateAuto {
     launch() {
         // Si les options sont modifiées pour arrêter la tâche
         // et que le statut est en cours
-        if (this._status && (!this._auto || this._interval <= 0)) {
+        if (this.status && (!this.auto || this.interval <= 0)) {
             if (Base.debug)
                 console.log('close interval updateEpisodeListAuto');
             return this.stop();
         }
         // Si les options modifiées pour lancer
-        else if (this._auto && this._interval > 0) {
+        else if (this.auto && this.interval > 0) {
             if (this._show.user.remaining <= 0) {
+                // Si il reste des épisodes non vus dans la saison courante
+                if (this._show.currentSeason.getNbEpisodesUnwatched() > 0) {
+                    // On check une dernière fois
+                    this._tick();
+                }
+                // On arrête la mise à jour automatique
                 this.stop();
                 return this;
             }
@@ -6116,54 +7393,50 @@ class UpdateAuto {
                     console.log('close old interval timer');
                 clearInterval(this._timer);
             }
-            const self = this;
             this.status = true;
-            const run = function () {
-                // if (debug) console.log('UpdateAuto setInterval objShow', Object.assign({}, self._objShow));
-                if (!self._auto || self._show.user.remaining <= 0) {
-                    if (Base.debug)
-                        console.log('Arrêt de la mise à jour auto des épisodes');
-                    self.stop();
-                    return;
-                }
-                if (Base.debug) {
-                    let prefix = '';
-                    if (typeof moment !== 'undefined') {
-                        const now = new Date();
-                        // eslint-disable-next-line no-undef
-                        prefix = '[' + moment(now).format('DD/MM/YY HH:mm') + ']: ';
-                    }
-                    console.log('%supdate episode list', prefix);
-                }
-                const btnUpEpisodeList = $('.updateEpisodes');
-                if (btnUpEpisodeList.length > 0) {
-                    btnUpEpisodeList.trigger('click');
-                    if (!self._status) {
-                        self.status = true;
-                    }
-                }
-                self._remaining = self._interval * 60;
-                if (self._timerR == null)
-                    self._timerR = setInterval(() => { --self._remaining; }, 1000);
-            };
-            run();
-            this._timer = setInterval(run, (this._interval * 60) * 1000);
+            this._tick();
+            this._timer = setInterval(this._tick.bind(this), (this.interval * 60) * 1000);
         }
         return this;
     }
     /**
+     * _tick: Fonction Tick pour la mise à jour des épisodes à intervalle régulère
+     * @private
+     * @returns {void}
+     */
+    _tick() {
+        const now = new Date();
+        this._lastUpdate = Date.now();
+        if (Base.debug) {
+            console.log('%s update episode list', `[${now.format('datetime')}]`);
+        }
+        const btnUpEpisodeList = jQuery('.updateEpisodes');
+        if (btnUpEpisodeList.length > 0) {
+            btnUpEpisodeList.trigger('click');
+            if (!this.status) {
+                this.status = true;
+            }
+        }
+        // if (Base.debug) console.log('UpdateAuto setInterval objShow', Object.assign({}, this));
+        if (!this.auto || this.show.user.remaining <= 0) {
+            if (Base.debug)
+                console.log('Arrêt de la mise à jour auto des épisodes');
+            this.stop();
+        }
+    }
+    /**
      * Retourne le temps restant avant le prochain update
      * sous forme mm:ss
-     * @returns string
+     * @returns {string}
      */
     remaining() {
-        const minutes = Math.floor(this._remaining / 60);
-        const seconds = this._remaining - minutes * 60;
-        let result = minutes.toString() + ':';
-        if (seconds < 10) {
-            result += '0';
-        }
-        return result + seconds.toString();
+        if (this._lastUpdate == null)
+            return 'not running';
+        const elapsedTime = Date.now() - this._lastUpdate;
+        const remainingTime = Math.floor((((this._interval * 60) * 1000) - elapsedTime) / 1000);
+        const minutes = Math.floor(remainingTime / 60);
+        const seconds = remainingTime - minutes * 60;
+        return minutes.toString() + ':' + ((seconds < 10) ? '0' + seconds.toString() : seconds.toString());
     }
 }
 
@@ -6207,7 +7480,7 @@ class Stats {
     time_on_movies;
     time_to_spend_movies;
     constructor(data) {
-        for (let key in Object.keys(data)) {
+        for (const key in Object.keys(data)) {
             this[key] = data[key];
         }
     }
@@ -6227,13 +7500,37 @@ class Options {
     notification_news;
     twitter_auto;
     constructor(data) {
-        for (let key in Object.keys(data)) {
+        for (const key in Object.keys(data)) {
             this[key] = data[key];
         }
     }
 }
 /* eslint-disable-next-line no-unused-vars */
 class Member {
+    /*
+                    STATIC
+     */
+    /**
+     * Retourne les infos du membre connecté
+     * @returns {Promise<Member>} Une instance du membre connecté
+     */
+    static fetch() {
+        const params = {};
+        if (Base.userId !== null) {
+            params.id = Base.userId;
+        }
+        return Base.callApi(HTTP_VERBS.GET, 'members', 'infos', params)
+            .then((data) => {
+            return new Member(data.member);
+        })
+            .catch(err => {
+            console.warn('Erreur lors de la récupération des infos du membre', err);
+            throw new Error("Erreur de récupération du membre");
+        });
+    }
+    /*
+                    PROPERTIES
+     */
     /**
      * @type {number} Identifiant du membre
      */
@@ -6299,6 +7596,13 @@ class Member {
      */
     options;
     /**
+     * @type {NotificationList} Tableau des notifications du membre
+     */
+    notifications;
+    /*
+                    METHODS
+     */
+    /**
      * Constructeur de la classe Membre
      * @param data Les données provenant de l'API
      * @returns {Member}
@@ -6320,24 +7624,347 @@ class Member {
         this.twitterLogin = data.twitterLogin;
         this.stats = new Stats(data.stats);
         this.options = new Options(data.options);
+        this.checkNotifs();
+    }
+    checkNotifs() {
+        /**
+         * Fonction de traitement de récupération des notifications du membre
+         * Alerte le membre de nouvelles notifications à l'aide d'un badge sur l'icone Bell dans le header
+         */
+        const fetchNotifs = () => {
+            NotificationList.fetch(50).then(notifs => {
+                this.notifications = notifs;
+                const $badge = jQuery('#menuUnseenNotifications');
+                if (notifs.new.length > 0) {
+                    if ($badge.length <= 0) {
+                        // Alerter le membre de nouvelles notifications
+                        jQuery('.menu-wrapper .js-iconNotifications').append(`<i class="unread-count unread-notifications" id="menuUnseenNotifications">${notifs.new.length}</i>`);
+                    }
+                    else {
+                        $badge.text(notifs.new.length);
+                    }
+                    jQuery('.menu-icon--bell').removeClass('has-notifications');
+                }
+                else if ($badge.length > 0) {
+                    $badge.remove();
+                }
+            });
+        };
+        // On met à jour les notifications toutes les 5 minutes
+        setInterval(fetchNotifs, 300000);
+        fetchNotifs();
     }
     /**
-     * Retourne les infos du membre connecté
-     * @returns {Promise<Member>} Une instance du membre connecté
+     * renderNotifications - Affiche les notifications du membre
      */
-    static fetch() {
-        let params = {};
-        if (Base.userId !== null) {
-            params.id = Base.userId;
+    renderNotifications() {
+        const $growl = jQuery('#growl'), $loader = jQuery('#growl .notifications__loader'), $deleteAll = jQuery('#growl .notification.notification--delete-all'), $notifNew = jQuery('#growl .js-notificationsNew-list'), $notifOld = jQuery('#growl .js-notificationsOld-list'), $lists = jQuery('#growl .notificationsList'), $notifs = {
+            'old': $notifOld,
+            'new': $notifNew
+        };
+        // On vide les listes de notifications pour commencer
+        $notifNew.empty();
+        $notifOld.empty();
+        $deleteAll.hide(); // On masque la partie actions de suppression
+        $lists.hide(); // On masque les listes de notifications
+        // On affiche le conteneur de listes de notifications et le loader
+        $growl.addClass('visible');
+        $loader.show();
+        // On ajoute les notifications aux conteneurs
+        for (const key of this.notifications) {
+            for (let n = 0; n < this.notifications[key].length; n++) {
+                $notifs[key].append(this.notifications[key][n].render());
+            }
+            // On affiche la liste, si il y a du contenu
+            if (this.notifications[key].length > 0) {
+                $notifs[key].parents('.notificationsList').show();
+            }
         }
-        return Base.callApi(HTTP_VERBS.GET, 'members', 'infos', params)
+        // On masque le loader
+        $loader.hide();
+        if (this.notifications.length > 0) {
+            // On affiche la partie actions de suppression
+            $deleteAll.show();
+            // On passe toutes les nouvelles notifications en anciennes (déjà vues)
+            if (this.notifications.new.length > 0) {
+                this.notifications.seen = true;
+            }
+            jQuery('#menuUnseenNotifications').remove();
+        }
+    }
+}
+
+/*
+{
+    "id": 1733094685,
+    "type": "episode",
+    "ref_id": "2688065",
+    "text": "Nouvel \u00e9pisode : HPI S02E06 - S comme Italie\ufeff",
+    "html": "Nouvel \u00e9pisode : <a href=\"\/serie\/hpi\">HPI<\/a> S02E06 - <a href=\"\/episode\/hpi\/s02e06\">S comme Italie<\/a>\ufeff",
+    "date": "2022-06-02 03:21:02",
+    "seen": "2022-06-02 09:39:25",
+    "payload": {
+        "title": "S comme Italie",
+        "code": "S02E06",
+        "show_title": "HPI",
+        "picture": "https:\/\/pictures.betaseries.com\/banners\/episodes\/387368\/a8f59c7993bc92134626899f38a7e830.jpg",
+        "url": "https:\/\/www.betaseries.com\/episode\/hpi\/s02e06"
+    }
+},
+*/
+/**
+ * Les différents types de notifications
+ */
+var NotifTypes;
+(function (NotifTypes) {
+    NotifTypes["episode"] = "episode";
+    NotifTypes["reportNew"] = "report_new";
+    NotifTypes["reportTreated"] = "report_treated";
+    NotifTypes["xpMany"] = "xp_many";
+    NotifTypes["bugResolved"] = "bug_resolved";
+    NotifTypes["bugCommented"] = "bug_commented";
+    NotifTypes["poll"] = "poll";
+    NotifTypes["season"] = "season";
+    NotifTypes["comment"] = "comment";
+    NotifTypes["badge"] = "badge";
+    NotifTypes["banner"] = "banner";
+    NotifTypes["character"] = "character";
+    NotifTypes["movie"] = "movie";
+    NotifTypes["forum"] = "forum";
+    NotifTypes["friend"] = "friend";
+    NotifTypes["message"] = "message";
+    NotifTypes["quizz"] = "quizz";
+    NotifTypes["recommend"] = "recommend";
+    NotifTypes["site"] = "site";
+    NotifTypes["subtitles"] = "subtitles";
+    NotifTypes["video"] = "video";
+})(NotifTypes = NotifTypes || (NotifTypes = {}));
+/**
+ * Classe NotifPayload
+ * Contient les data de l'objet Payload dans les notifications
+ * @class NotifPayload
+ */
+class NotifPayload {
+    /**
+     * Tableau des différentes propriétés de la classe NotifPayload
+     * avec leur type, leur valeur par défaut et leur fonction de traitement
+     */
+    static props = [
+        { key: 'url', type: 'string', fn: null, default: '' },
+        { key: 'title', type: 'string', fn: null, default: '' },
+        { key: 'code', type: 'string', fn: null, default: '' },
+        { key: 'show_title', type: 'string', fn: null, default: '' },
+        { key: 'picture', type: 'string', fn: null, default: '' },
+        { key: 'season', type: 'number', fn: parseInt, default: 0 },
+        { key: 'name', type: 'string', fn: null, default: '' },
+        { key: 'xp', type: 'number', fn: parseInt, default: 0 },
+        { key: 'user', type: 'string', fn: null, default: '' },
+        { key: 'user_id', type: 'number', fn: parseInt, default: 0 },
+        { key: 'user_picture', type: 'string', fn: null, default: 'https://img.betaseries.com/5gtv-uQY0aSPqDtcyu7rhHLcu6Q=/40x40/smart/https%3A%2F%2Fwww.betaseries.com%2Fimages%2Fsite%2Flogo-64x64.png' },
+        { key: 'type', type: 'string', fn: null, default: '' },
+        { key: 'type_id', type: 'number', fn: parseInt, default: 0 }
+    ];
+    url; // all
+    title; // season, episode, comment
+    code; // episode
+    show_title; // episode
+    picture; // badge, episode, season, comment
+    season; // season
+    name; // badge
+    xp; // xp_many
+    user; // report_treated, comment
+    user_id; // report_treated, comment
+    user_picture; // report_treated, comment
+    type; // comment
+    type_id; // comment
+    constructor(data) {
+        let prop, val;
+        for (let p = 0; p < NotifPayload.props.length; p++) {
+            prop = NotifPayload.props[p];
+            val = NotifPayload.props[p].default;
+            // eslint-disable-next-line no-prototype-builtins
+            if (data && data.hasOwnProperty(prop.key)) {
+                val = data[prop.key];
+                if (prop.fn !== null) {
+                    val = prop.fn(val, 10);
+                }
+            }
+            this[prop.key] = val;
+        }
+    }
+}
+/**
+ * Classe NotificationList
+ * Contient les notifications anciennes et nouvelles
+ * @class NotificationList
+ */
+class NotificationList {
+    /**
+     * Retourne les notifications du membre
+     * @param   {number} [nb = 10] Nombre de notifications à récupérer
+     * @returns {Promise<NotificationList>}
+     * @throws  {Error}
+     */
+    static fetch(nb = 20) {
+        const params = {
+            all: true,
+            sort: 'DESC',
+            number: nb
+        };
+        return Base.callApi(HTTP_VERBS.GET, 'members', 'notifications', params)
             .then((data) => {
-            return new Member(data.member);
+            const notifications = new NotificationList();
+            for (let n = 0; n < data.notifications.length; n++) {
+                notifications.add(new NotificationBS(data.notifications[n]));
+            }
+            return notifications;
         })
             .catch(err => {
-            console.warn('Erreur lors de la récupération des infos du membre', err);
-            throw new Error("Erreur de récupération du membre");
+            console.warn('Erreur de récupération des notifications du membre', err);
+            throw new Error('Erreur de récupération des notifications');
         });
+    }
+    old;
+    new;
+    seen;
+    constructor() {
+        this.old = [];
+        this.new = [];
+        this.seen = false;
+    }
+    /**
+     * Symbol Iterator pour pouvoir itérer sur l'objet dans les boucles for
+     */
+    *[Symbol.iterator]() {
+        yield "new";
+        yield "old";
+    }
+    /**
+     * length - Retourne le nombre total de notifications
+     * @returns {number}
+     */
+    get length() {
+        return this.old.length + this.new.length;
+    }
+    /**
+     * add - Ajoute une notification
+     * @param {NotificationBS} notif La notification à ajouter
+     */
+    add(notif) {
+        const category = (notif.seen === null) ? 'new' : 'old';
+        this[category].push(notif);
+    }
+    /**
+     * markAllAsSeen - Met à jour les nouvelles notifications en ajoutant
+     * la date à la propriété seen et en déplacant les notifs dans le
+     * tableau old
+     */
+    markAllAsSeen() {
+        if (this.seen && this.new.length > 0) {
+            for (let n = this.new.length - 1; n >= 0; n--) {
+                this.new[n].seen = new Date();
+                this.old.unshift(this.new[n]);
+            }
+            this.new = [];
+            this.seen = false;
+        }
+    }
+}
+/**
+ * Classe NotificationBS
+ * Définit l'objet Notification reçu de l'API BetaSeries
+ * @class NotificationBS
+ */
+class NotificationBS {
+    /**
+     * Identifiant de la notification
+     * @type {number}
+     */
+    id;
+    /**
+     * Type de notification
+     * @type {NotifTypes}
+     */
+    type;
+    /**
+     * Identifiant correspondant à l'objet définit par le type de notification
+     * @type {number}
+     */
+    ref_id;
+    /**
+     * Texte brut de la notification
+     * @type {string}
+     */
+    text;
+    /**
+     * Version HTML du texte de la notification
+     * @type {string}
+     */
+    html;
+    /**
+     * Date de création de la notification
+     * @type {Date}
+     */
+    date;
+    /**
+     * Date à laquelle le membre à vu la notification
+     * @type {Date}
+     */
+    seen;
+    /**
+     * Payload - contient les données de référence liées à la notification
+     */
+    payload; // sauf report_new
+    constructor(data) {
+        this.id = parseInt(data.id, 10);
+        this.type = NotifTypes[String(data.type).camelCase()];
+        this.ref_id = parseInt(data.ref_id, 10);
+        this.text = data.text;
+        this.html = data.html;
+        this.date = new Date(data.date);
+        this.seen = data.seen != null ? new Date(data.seen) : null;
+        this.payload = new NotifPayload(data.payload);
+    }
+    render() {
+        if (0 === this.text.length)
+            return null;
+        let link;
+        if (this.payload.user.length > 0) {
+            link = `<a
+                    href="https://www.betaseries.com/membre/${this.payload.user}"
+                    target="_blank" class="avatar" data-displaylink="1"
+                    >
+                <img src="${this.payload.user_picture}" width="40" height="40" alt="avatar" />
+            </a>`;
+        }
+        else {
+            link = `<span class="avatar"><img src="${this.payload.user_picture}" width="40" height="40" alt="avatar" /></span>`;
+        }
+        const img = (this.payload.picture?.length > 0) ?
+            `<div class="notification__image alignSelfFlexStart" data-displayimage="1"}"><img src="${this.payload.picture}" alt="image ${this.type}" height="38" width="38" /></div>` : '';
+        return `
+            <div
+                class="notification${this.seen == null ? ' notification--unread' : ''}"
+                id="i${this.id.toString()}"
+                data-ref-id="${this.ref_id.toString()}"
+                data-type="${this.type}"
+            >
+                <div class="media">
+                    <div class="media-left">${link}</div>
+                    <div class="media-body">
+                        <div class="displayFlex">
+                            <div class="notification__text alignSelfFlexStart">
+                                <p>${this.html}</p>
+                                <div class="notification__datas">
+                                    <span class="mainTime" title="${this.date.format('datetime')}">${this.date.duration()}</span>
+                                    <button type="button" class="btn-reset" onclick="deleteNotification('${this.id.toString()}');"><span class="mainTime">∙</span> Masquer</button>
+                                </div>
+                            </div>
+                            ${img}
+                        </div>
+                    </div>
+                </div>
+            </div>`.trim();
     }
 }
 
@@ -6361,13 +7988,15 @@ Show.prototype.fill = function (data) {
     this.next_trailer_host = data.next_trailer_host;
     this.rating = data.rating;
     this.platforms = null;
-    if (data.platforms !== undefined && data.platforms != null) {
-        this.platforms = new Platforms(data.platforms);
-    }
+    // if (data.platforms !== undefined && data.platforms != null) {
+    this.platforms = new Platforms(data.platforms);
+    // }
     if (this.id == null && this.seasons == null) {
-        this.seasons = new Array(parseInt(data.seasons, 10));
-        for (let s = 0; s < data.seasons_details.length; s++) {
-            this.seasons.push(new Season(data.seasons_details[s], this));
+        this.seasons = [];
+        if (data.seasons_details) {
+            for (let s = 0; s < data.seasons_details.length; s++) {
+                this.seasons.push(new Season(data.seasons_details[s], this));
+            }
         }
     }
     this.showrunner = null;
@@ -6379,6 +8008,7 @@ Show.prototype.fill = function (data) {
     this.thetvdb_id = parseInt(data.thetvdb_id, 10);
     this.pictures = null;
     this.mediaType = { singular: MediaType.show, plural: 'shows', className: Show };
+    this.persons = [];
     Media.prototype.fill.call(this, data);
     return this.save();
 };
@@ -6387,18 +8017,18 @@ Show.prototype.fill = function (data) {
  * @return {Promise<Media>}
  */
 Media.prototype.fetchSimilars = function () {
-    const _this = this;
+    const self = this;
     this.similars = [];
     return new Promise((resolve, reject) => {
         Base.callApi('GET', this.mediaType.plural, 'similars', { id: this.id, details: true }, true)
             .then(data => {
             if (data.similars) {
                 for (let s = 0; s < data.similars.length; s++) {
-                    _this.similars.push(new Similar(data.similars[s][_this.mediaType.singular], _this.mediaType));
+                    self.similars.push(new Similar(data.similars[s][self.mediaType.singular], self.mediaType));
                 }
             }
-            _this.save();
-            resolve(_this);
+            self.save();
+            resolve(self);
         }, err => {
             reject(err);
         });
