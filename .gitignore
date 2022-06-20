@@ -3,3 +3,4 @@ package-lock.json
 css/dark.*
 css/show.*
 config/ext/client_bs.json
+userscripts/local.*

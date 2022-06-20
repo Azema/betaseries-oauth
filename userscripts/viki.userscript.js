@@ -78,6 +78,7 @@ EventTarget.prototype._getEventListeners = function(a) {
     }
     return events;
 };
+const observers = [];
 let fnPageExplore,
     fnPageShow,
     fnPageVideo;
@@ -109,6 +110,10 @@ let fnPageExplore,
         const fn = getFnFromUrl(url);
         console.log('utilityFunc run (from: %s) URL: %s', caller, url, {title, state, fn});
         if (typeof fn === 'function') {
+            for (let o = 0; o < observers.length; o++) {
+                observers[o].disconnect();
+            }
+            observers.splice(0, observers.length);
             fn();
         }
     };
@@ -259,6 +264,7 @@ const launchScript = function() {
                 }
             }
         });
+        observers.push(observerExplore);
         observerExplore.observe(document.querySelector('#pjaxify-container'), {childList: true, subtree: true, attributes: true});
     };
 
@@ -841,6 +847,7 @@ const launchScript = function() {
 
             function launchObs(videos) {
                 console.log('Observers launched');
+                observers.push(observerVid);
                 observerVid.disconnect();
                 const params = {
                     childList: false,
@@ -855,6 +862,7 @@ const launchScript = function() {
                 }
                 const btnSubtitles = 'li.vjs-menu-item:nth-child(6) > div:nth-child(2)';
                 betaseries.waitDomPresent(btnSubtitles, () => {
+                    observers.push(observerST);
                     observerST.disconnect();
                     observerST.observe(document.querySelector(btnSubtitles), { attributes: true });
                     const video = betaseries.getPlayer();
@@ -1033,6 +1041,7 @@ const launchScript = function() {
                     }
                 });
             }
+            observers.push(observerBody);
             observerBody.observe(document.body, {childList: true, subtree: true, attributes: false});
         });
     };
