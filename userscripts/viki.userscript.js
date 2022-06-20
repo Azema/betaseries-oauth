@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Viki
 // @namespace    http://tampermonkey.net/
-// @version      0.3
+// @version      0.4
 // @description  try to take over the world!
 // @author       You
 // @match        https://www.viki.com/videos/*
@@ -78,6 +78,55 @@ EventTarget.prototype._getEventListeners = function(a) {
     }
     return events;
 };
+let fnPageExplore,
+    fnPageShow,
+    fnPageVideo;
+/**
+ * Fonction qui sert à gérer un site Single Page
+ * Le userscript doit obligatoirement démarrer au stade document-start
+ */
+(function utilityFunc() {
+
+    const run = (caller, state, title, url) => {
+        let loop = 0;
+        const getFnFromUrl = (url) => {
+            let fn = -1;
+            if (/^\/tv\/\d*/.test(url)) {
+                fn = {fn: fnPageShow, page: 'show'};
+            } else if (/^\/v1\/explore/.test(url)) {
+                fn = {fn: fnPageExplore, page: 'explore'};
+            } else if (/^\/videos\/\d+/.test(url)) {
+                fn = {fn: fnPageVideo, page: 'videos'};
+            }
+            if (fn !== -1 && loop < 50 && typeof fn.fn !== 'function') {
+                loop++;
+                setTimeout(getFnFromUrl, 100, url);
+            } else {
+                console.log('getFnFromUrl loop', loop, fn);
+                return fn.fn;
+            }
+        };
+        const fn = getFnFromUrl(url);
+        console.log('utilityFunc run (from: %s) URL: %s', caller, url, {title, state, fn});
+        if (typeof fn === 'function') {
+            fn();
+        }
+    };
+
+    const pS = unsafeWindow.history.pushState;
+    const rS = unsafeWindow.history.replaceState;
+
+    unsafeWindow.history.pushState = function(a, b, url) {
+        run('pushState', a, b, url);
+        pS.apply(this, arguments);
+    };
+
+    unsafeWindow.history.replaceState = function(a, b, url) {
+        run('replaceState', a, b, url);
+        rS.apply(this, arguments);
+    };
+})();
+// eslint-disable-next-line no-unused-vars
 function getCSSSelector(el) {
     let selector = el.tagName.toLowerCase();
     const attrs = el.attributes
@@ -109,72 +158,6 @@ function getConfig() {
     });
 }
 
-/**
- * Fonction de chargement dynamique de scripts JS
- * @param   {string}    src         La source du script
- * @param   {Object}    attributes  Les attributs du script
- * @param   {Function}  callback    Fonction de callback après le chargement du script
- * @param   {Function}  onerror     Fonction de callback en cas d'erreur
- * @returns {HTMLScriptElement}     L'objet script
- */
-const loadJS = function( src, attributes, callback, onerror ) {
-    // Arguments explained:
-    // `href` [REQUIRED] is the URL for your CSS file.
-    // `before` [OPTIONAL] is the element the script should use as a reference for injecting our stylesheet <link> before
-    // By default, loadCSS attempts to inject the link after the last stylesheet or script in the DOM. However, you might desire a more specific location in your document.
-    // `media` [OPTIONAL] is the media type or query of the stylesheet. By default it will be 'all'
-    // `attributes` [OPTIONAL] is the Object of attribute name/attribute value pairs to set on the stylesheet's DOM Element.
-    const doc = window.document;
-    const ss = doc.createElement( "script" );
-    const refs = ( doc.body || doc.getElementsByTagName( "head" )[ 0 ] ).childNodes;
-    const ref = refs[0];
-
-    // Set any of the provided attributes to the stylesheet DOM Element.
-    if ( attributes ) {
-        for ( let attributeName in attributes ) {
-            if ( attributes[attributeName] !== undefined ) {
-                ss.setAttribute( attributeName, attributes[attributeName] );
-            }
-        }
-    }
-    ss.src = src;
-
-    // wait until body is defined before injecting link. This ensures a non-blocking load in IE11.
-    function ready( cb ){
-        if( doc.body ){
-            return cb();
-        }
-        setTimeout(function(){
-            ready( cb );
-        });
-    }
-    // Inject link
-    // Note: the ternary preserves the existing behavior of "before" argument, but we could choose to change the argument to "after" in a later release and standardize on ref.nextSibling for all refs
-    // Note: `insertBefore` is used instead of `appendChild`, for safety re: http://www.paulirish.com/2011/surefire-dom-element-insertion/
-    ready( function() {
-        ref.parentNode.insertBefore( ss, ref.nextSibling );
-    });
-
-    let called = false;
-	function newcb() {
-        if ( ss.addEventListener ) {
-            ss.removeEventListener( "load", newcb );
-            if (onerror) ss.removeEventListener('error', onerror);
-        }
-        if ( !called && callback ) {
-            called = true;
-            callback.call( ss );
-        }
-	}
-
-    // once loaded, set link's media back to `all` so that the stylesheet applies once it loads
-    if ( ss.addEventListener ) {
-        ss.addEventListener( "load", newcb);
-        if (onerror) { ss.addEventListener('error', onerror); }
-    }
-    return ss;
-};
-
 const launchScript = function() {
     'use strict';
     const debug = true;
@@ -202,7 +185,7 @@ const launchScript = function() {
     /*
      *                  PAGE EXPLORE
      */
-    if (window.location.path == '/v1/explore') {
+    fnPageExplore = () => {
         if (debug) console.log('Page exploration des séries');
         let showsWatched = GM_getValue('showsWatched', []),
             added = false;
@@ -243,8 +226,10 @@ const launchScript = function() {
                 e.preventDefault();
                 const showId = e.currentTarget.parentElement.dataset.watchMarkerCta;
                 console.log('addShow', showId, e.currentTarget.parentElement);
-                showsWatched.push(showId);
-                GM_setValue('showsWatched', showsWatched);
+                if (showsWatched.indexOf(showId) < 0) {
+                    showsWatched.push(showId);
+                    GM_setValue('showsWatched', showsWatched);
+                }
                 const thumbnail = e.currentTarget.parentElement.parentElement.parentElement.parentElement.parentElement.parentElement;
                 const img = thumbnail.querySelector('div.thumbnail-wrapper > a.thumbnail-img > img');
                 img.style.opacity = 0.3;
@@ -275,12 +260,12 @@ const launchScript = function() {
             }
         });
         observerExplore.observe(document.querySelector('#pjaxify-container'), {childList: true, subtree: true, attributes: true});
+    };
 
-    }
     /*
      *                      PAGE SERIE
      */
-    else if (/^\/tv\/\d*/.test(window.location.path)) {
+    fnPageShow = () => {
 
         getConfig().then(data => {
             const betaseries = new BS({
@@ -315,12 +300,11 @@ const launchScript = function() {
                 }
             });
         });
-    }
+    };
     /*
      *                      PAGE VIDEOS
      */
-    else
-    {
+    fnPageVideo = () => {
         getConfig().then(data => {
             if (!data) {
                 return null;
@@ -337,12 +321,6 @@ const launchScript = function() {
                 selBtnNext: '.vjs-control-bar button.vkp-next-button'
             });
             unsafeWindow.betaseries = betaseries;
-            /*const playerLoadMD = function(e) {
-                console.log('Event playerLoadMD', e);
-            };
-            betaseries.waitDomPresent('#' + betaseries.playerId, () => {
-                document.getElementById(betaseries.playerId).addEventListener('loadedmetadata', playerLoadMD);
-            });*/
             let videosAd = [];
             let stops = {};
 
@@ -606,21 +584,6 @@ const launchScript = function() {
             }
 
             function addSelectSpeed() {
-                const iconRate = `<svg version="1.1" id="playbackRateMenu" xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" x="0px" y="0px"
-                        viewBox="0 0 385.072 385.072" style="" xml:space="preserve" width="40" height="30">
-                            <g>
-                                <path d="M288.824,99.842c-0.001-0.001-0.003-0.001-0.004-0.002c-59.388-34.366-133.172-34.368-192.561-0.003
-                                    c-0.003,0.002-0.007,0.003-0.01,0.005C38.527,133.231,0,195.607,0,266.603c0,4.143,3.358,7.5,7.5,7.5h141.278
-                                    c3.576,20.924,21.831,36.904,43.758,36.904c22.02,0,39.793-15.259,43.698-36.904h141.338c4.142,0,7.5-3.357,7.5-7.5
-                                    C385.073,195.579,346.522,133.217,288.824,99.842z M148.776,259.103H15.158c2.515-59.71,34.459-112.003,82.184-142.38
-                                    l66.824,115.741C155.961,239.294,150.533,248.928,148.776,259.103z M192.537,296.007c-16.214,0-29.405-13.19-29.405-29.404
-                                    c0-16.191,13.198-29.407,29.407-29.407c15.852,0,29.188,12.725,29.396,29.015C221.868,281.12,210.877,296.007,192.537,296.007z
-                                    M207.924,224.951c-9.574-3.541-20.619-3.758-30.775,0l-66.823-115.74c51.35-26.866,113.072-26.866,164.421,0L207.924,224.951z
-                                    M233.704,249.64c-1.333-3.229-3.06-6.304-5.168-9.162l20.29-5.295L233.704,249.64z M245.514,259.102l34.574-33.056
-                                    c5.568-5.325,0.386-14.622-7.077-12.678l-48.365,12.622l63.086-109.268c47.719,30.373,79.669,82.663,82.184,142.38H245.514z"
-                                    stroke="black" stroke-width="3%" fill="black"/>
-                            </g>
-                    </svg>`;
                 const menuPlaybackSpeed = `
                     <li class="vkp-menu-item vjs-menu-item vkp-back-item vjs-hidden vjs-playback">
                         <span class="vkp-action vkp-icon-arrow-left"></span>
@@ -850,7 +813,7 @@ const launchScript = function() {
                         }
                     }
                 });
-                htmlPlayerId.addEventListener('keyup', (ek) => {
+                htmlPlayerId.addEventListener('keyup', () => {
                     if (evtWheelRate) {
                         vid.removeEventListener('wheel', wheelRate);
                         evtWheelRate = false;
@@ -876,7 +839,7 @@ const launchScript = function() {
                 observerPlaybck.observe(document.querySelector('#playerSettings > div.vjs-menu'), {attributes: true, attributeOldValue: true, attributeFilter: ['class']});
             }
 
-            function launchObs(videos /*, cb */) {
+            function launchObs(videos) {
                 console.log('Observers launched');
                 observerVid.disconnect();
                 const params = {
@@ -997,23 +960,25 @@ const launchScript = function() {
                     cache: 'no-cache',
                     headers: {'Content-Type': 'application/json'}
                 };
-    /*
-    Appels API:
-    - Serie : https://api.viki.io/v4/containers/${showId}.json?token=ex1WB2V6BZE27XDYXV4B4KX777ZHYMK2_2u0058251801uti00m5cga9100000_djA0&t=1655374651&app=100000a
-    - Episodes : https://api.viki.io/v4/containers/${showId}/episodes.json?token=ex1WB2V6BZE27XDYXV4B4KX777ZHYMK2_2u0058251801uti00m5cga9100000_djA0&direction=asc&with_upcoming=true&sort=number&blocked=true&only_ids=true&app=100000a
-    - Episode : https://api.viki.io/v4/videos/${episodeId}.json?token=ex1WB2V6BZE27XDYXV4B4KX777ZHYMK2_2u0058251801uti00m5cga9100000_djA0&t=1655374651&app=100000a
+                /*
+                Appels API:
+                - Serie : https://api.viki.io/v4/containers/${showId}.json?token=ex1WB2V6BZE27XDYXV4B4KX777ZHYMK2_2u0058251801uti00m5cga9100000_djA0&t=1655374651&app=100000a
+                - Episodes : https://api.viki.io/v4/containers/${showId}/episodes.json?token=ex1WB2V6BZE27XDYXV4B4KX777ZHYMK2_2u0058251801uti00m5cga9100000_djA0&direction=asc&with_upcoming=true&sort=number&blocked=true&only_ids=true&app=100000a
+                - Episode : https://api.viki.io/v4/videos/${episodeId}.json?token=ex1WB2V6BZE27XDYXV4B4KX777ZHYMK2_2u0058251801uti00m5cga9100000_djA0&t=1655374651&app=100000a
 
-    __NEXT_DATA__
-    - token : props.pageProps.userInfo.token
-    - app : props.aggregatedConfig.custom.appID
-    - apiUrl : runtimeConfig.apiClientEndpoint
-    - showId : props.pageProps.containerApiData.id
-    - episodeId : props.pageProps.videoApiData.id (comparer episodeId avec l'ID dans l'URL window.location.path.split('/')[2])
-    */
+                __NEXT_DATA__
+                - token : props.pageProps.userInfo.token
+                - app : props.aggregatedConfig.custom.appID
+                - apiUrl : runtimeConfig.apiClientEndpoint
+                - showId : props.pageProps.containerApiData.id
+                - episodeId : props.pageProps.videoApiData.id (comparer episodeId avec l'ID dans l'URL window.location.path.split('/')[2])
+                */
                 return new Promise((resolve, reject) => {
                     let infos = betaseries.getSerieBlank();
-                    const episodeIdLocation = window.location.path.split('/')[2].replace(/-.*$/, '');
-                    if (__NEXT_DATA__ && __NEXT_DATA__.props.pageProps.videoApiData.id == episodeIdLocation) {
+                    const episodeIdLocation = window.location.path.split('/').pop().replace(/-.*$/, '');
+                    if (__NEXT_DATA__ && __NEXT_DATA__.props.pageProps.videoApiData &&
+                        __NEXT_DATA__.props.pageProps.videoApiData?.id == episodeIdLocation)
+                    {
                         console.log('getInfosSerie use __NEXT_DATA__');
                         const data = __NEXT_DATA__.props.pageProps.videoApiData;
                         infos.title = data.container.i18n_title;
@@ -1044,7 +1009,7 @@ const launchScript = function() {
                                 return resp.json();
                             }
                         }).then(data => {
-                            infos.title = __NEXT_DATA__.props.pageProps.videoApiData.container.i18n_title;
+                            infos.title = __NEXT_DATA__.props.pageProps.containerJson.i18n_title;
                             infos.saison = 1;
                             const reg = /\s(\d{1})$/;
                             const result = infos.title.match(reg);
@@ -1066,43 +1031,77 @@ const launchScript = function() {
                         console.error('__NEXT_DATA__ not found');
                         reject('__NEXT_DATA__ not found');
                     }
-                    /*fetch(window.location.href, paramsFetch).then(resp => {
-                        if ( ! resp.ok) {
-                            console.error('Fetch URI video Viki', resp);
-                            reject('Erreur Fetch getInfosSerie');
-                            return;
-                        }
-                        resp.text().then((text) => {
-                            const found = text.match(/<script id="__NEXT_DATA__" type="application\/json">([^<]*)<\/script>/);
-                            if (!found || found.length <= 1) {
-                                console.warn('Le JSON __NEXT_DATA__ n\'a pas été trouvé dans le code source de la page');
-                                reject('__NEXT_DATA__ not found');
-                                return;
-                            }
-                            const data = JSON.parse(found[1]).props.pageProps.videoApiData;
-                            // While You Were Sleeping - Saison 1 épisode 3 EN VOSTFR
-                            //let data = document.title;
-                            infos.title = data.container.i18n_title;
-                            infos.saison = 1;
-                            const reg = /\s(\d{1})$/;
-                            const result = infos.title.match(reg);
-                            if (result) {
-                                infos.saison = parseInt(result[1], 10);
-                                infos.title = infos.title.replace(reg, '');
-                            }
-                            infos.episode = data.number;
-                            infos.country = data.container.origin.country;
-                            infos.platform.showId = data.container.id;
-                            console.log('getInfosSerie:', infos);
-                            resolve(infos);
-                            return infos;
-                        });
-                    })*/
                 });
             }
             observerBody.observe(document.body, {childList: true, subtree: true, attributes: false});
         });
+    };
+};
+
+/**
+ * Fonction de chargement dynamique de scripts JS
+ * @param   {string}    src         La source du script
+ * @param   {Object}    attributes  Les attributs du script
+ * @param   {Function}  callback    Fonction de callback après le chargement du script
+ * @param   {Function}  onerror     Fonction de callback en cas d'erreur
+ * @returns {HTMLScriptElement}     L'objet script
+ */
+const loadJS = function( src, attributes, callback, onerror ) {
+    // Arguments explained:
+    // `href` [REQUIRED] is the URL for your CSS file.
+    // `before` [OPTIONAL] is the element the script should use as a reference for injecting our stylesheet <link> before
+    // By default, loadCSS attempts to inject the link after the last stylesheet or script in the DOM. However, you might desire a more specific location in your document.
+    // `media` [OPTIONAL] is the media type or query of the stylesheet. By default it will be 'all'
+    // `attributes` [OPTIONAL] is the Object of attribute name/attribute value pairs to set on the stylesheet's DOM Element.
+    const doc = window.document;
+    const ss = doc.createElement( "script" );
+    const refs = ( doc.body || doc.getElementsByTagName( "head" )[ 0 ] ).childNodes;
+    const ref = refs[0];
+
+    // Set any of the provided attributes to the stylesheet DOM Element.
+    if ( attributes ) {
+        for ( let attributeName in attributes ) {
+            if ( attributes[attributeName] !== undefined ) {
+                ss.setAttribute( attributeName, attributes[attributeName] );
+            }
+        }
     }
+    ss.src = src;
+
+    // wait until body is defined before injecting link. This ensures a non-blocking load in IE11.
+    function ready( cb ){
+        if( doc.body ){
+            return cb();
+        }
+        setTimeout(function(){
+            ready( cb );
+        });
+    }
+    // Inject link
+    // Note: the ternary preserves the existing behavior of "before" argument, but we could choose to change the argument to "after" in a later release and standardize on ref.nextSibling for all refs
+    // Note: `insertBefore` is used instead of `appendChild`, for safety re: http://www.paulirish.com/2011/surefire-dom-element-insertion/
+    ready( function() {
+        ref.parentNode.insertBefore( ss, ref.nextSibling );
+    });
+
+    let called = false;
+    function newcb() {
+        if ( ss.addEventListener ) {
+            ss.removeEventListener( "load", newcb );
+            if (onerror) ss.removeEventListener('error', onerror);
+        }
+        if ( !called && callback ) {
+            called = true;
+            callback.call( ss );
+        }
+    }
+
+    // once loaded, set link's media back to `all` so that the stylesheet applies once it loads
+    if ( ss.addEventListener ) {
+        ss.addEventListener( "load", newcb);
+        if (onerror) { ss.addEventListener('error', onerror); }
+    }
+    return ss;
 };
 const now = new Date().getTime();
 // let loop = 0;
