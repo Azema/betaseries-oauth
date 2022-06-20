@@ -1,0 +1,28 @@
+{
+    "version": "1.0.0",
+    "css": {
+        "popover": {
+            "popover.min.css": "sha384-yebLb3hn+3mwaxg0KwLhE2YYLEKsMRsxRvUPyBOF6gzkzLEOWEeD9ELZeDACSwO7"
+        },
+        "stylehome": {
+            "style.min.css": "sha384-Cekddv8gf4cq4AusXXtPX3r9DlcjafJgbufsVTp6JWWlh8r1Jq11d0DKiB53wlIc"
+        },
+        "tablecss": {
+            "table.min.css": "sha384-tRMvWzqbXtOp2OM+OPoYpWVxHw8eXcFKgzi4q9m6i0rvWTU33pdb8Bx33wBWjlo9"
+        },
+        "comments": {
+            "comments.min.css": "sha384-37/ghsJZTBvNPxUAy6GMPGxa3BKjrZ2ykMb7gUpkkVvoZwAsm4WhigKhMyYCN+Ft"
+        }
+    },
+    "js": {
+        "renderjson": {
+            "renderjson.min.js": "sha384-/mHGJ/3gaDqVJCEeed/Uh1fJVO01E+CLBZrFqjv1REaFAZxEBvGMHQyBmwln/uhx"
+        },
+        "textcomplete": {
+            "jquery.textcomplete.min.js": "sha384-kf6mqav/ZhBkPgNGorOiE7+/0GmfN9NDz0ov5G3fy6PuV/wqAggrTaWkTVfPM79L"
+        },
+        "lazyload": {
+            "lazyload.min.js": "sha384-8gXW/wktVOP4rpxLl4HiT2HgQ3hXR5ZKKGLEUafE8nZJUV//CkBmec2tlAMaSj4Y"
+        }
+    }
+}

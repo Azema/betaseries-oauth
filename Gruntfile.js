@@ -11,7 +11,7 @@ module.exports = function(grunt) {
     // On définit les fins de ligne en mode linux
     grunt.util.linefeed = '\n';
 
-    grunt.registerTask('build', ['cssmin', 'uglify', 'sri']);
+    grunt.registerTask('build', ['cssmin', 'uglify', 'sri', 'version']);
 
     grunt.initConfig({
         pkg: grunt.file.readJSON('package.json'),
@@ -46,8 +46,11 @@ module.exports = function(grunt) {
                     algorithm: 'sha384'
                 },
                 src: ['css/*.min.css', 'js/*.min.js'],
-                dest: './sri.sha384'
+                dest: ['./sri.sha384', './config/betaseries/manifest.json']
             }
+        },
+        version: {
+            v: '<%= pkg.version %>'
         }
     });
     grunt.registerMultiTask('sri', 'Calcule le SRI des fichiers statiques', function() {
@@ -71,15 +74,27 @@ module.exports = function(grunt) {
                 grunt.log.error(`Le fichier de destination (${dest}) n'existe pas.`);
                 return;
             }
-            const reg = new RegExp(`^${filename}:\\s.*$`, 'm');
-            grunt.verbose.writeln(`filename: ${filename}, dest: ${dest}, reg: ${reg}, sri: ${sri}`);
-            let content = grunt.file.read(dest)
-                        .replace(reg, `${filename}: ${sri}`);
-            if (content.length <= 0) {
-                grunt.log.error('Erreur durant le remplacement du hash dans le fichier ' + dest);
-                return;
+            if (dest === './sri.sha384') {
+                const reg = new RegExp(`^${filename}:\\s.*$`, 'm');
+                grunt.verbose.writeln(`filename: ${filename}, dest: ${dest}, reg: ${reg}, sri: ${sri}`);
+                let content = grunt.file.read(dest)
+                            .replace(reg, `${filename}: ${sri}`);
+                if (content.length <= 0) {
+                    grunt.log.error('Erreur durant le remplacement du hash dans le fichier ' + dest);
+                    return;
+                }
+                grunt.file.write(dest, content);
+            } else if (dest === './config/betaseries/manifest.json') {
+                const reg = new RegExp(`"${filename}":\\s".*"$`, 'm');
+                grunt.verbose.writeln(`filename: ${filename}, dest: ${dest}, reg: ${reg}, sri: ${sri}`);
+                let content = grunt.file.read(dest)
+                            .replace(reg, `"${filename}": "${sri}"`);
+                if (content.length <= 0) {
+                    grunt.log.error('Erreur durant le remplacement du hash dans le fichier ' + dest);
+                    return;
+                }
+                grunt.file.write(dest, content);
             }
-            grunt.file.write(dest, content);
         };
         this.files.forEach(
             /**
@@ -98,10 +113,42 @@ module.exports = function(grunt) {
                     const hash = calcHash(filepath, options.algorithm);
                     grunt.verbose.writeln('hash: ' + hash);
                     const sri = `${options.algorithm}-${hash}`;
-                    changeSri(path.basename(filepath), f.dest, sri);
+                    if (f.dest instanceof Array) {
+                        for (let d = 0; d < f.dest.length; d++) {
+                            changeSri(path.basename(filepath), f.dest[d], sri);
+                        }
+                    } else {
+                        changeSri(path.basename(filepath), f.dest, sri);
+                    }
                 });
             }
         );
+    });
+    grunt.registerMultiTask('version', 'Remplace le numéro de version du manifest par celui du package', function() {
+        const version = this.data;
+        if (!version || version.length <= 0) {
+            grunt.log.error('Le paramètre "v" est requis');
+            return false;
+        }
+        function incrementVersion(numero) {
+            let minor = parseInt(numero.split('.').pop(), 10);
+            return numero.replace(/\d+$/, ++minor);
+        }
+        const filepaths = [
+            path.resolve('./package.json'),
+            path.resolve('./config/betaseries/manifest.json')
+        ];
+        const numero = incrementVersion(version);
+        for (let p = 0; p < filepaths.length; p++) {
+            grunt.verbose.writeln('Change Version in ' + filepaths[p]);
+            if (!grunt.file.exists(filepaths[p])) {
+                grunt.log.error(`Le fichier de destination (${filepaths[p]}) n'existe pas.`);
+                continue;
+            }
+            let content = grunt.file.read(filepaths[p])
+                        .replace(/"version":(\s+)"[0-9.]*"/, `"version":$1"${numero}"`);
+            grunt.file.write(filepaths[p], content);
+        }
     });
     grunt.loadNpmTasks('grunt-contrib-cssmin');
     grunt.loadNpmTasks('grunt-contrib-uglify');
