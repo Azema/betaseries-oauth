@@ -39,6 +39,8 @@
     };
 
     function lazyLoad(images, options) {
+        this.domain = window.location.hostname;
+        this.regDomain = new RegExp(this.domain, 'i');
         this.settings = Object.assign({}, defaults, options || {});
         this.images = images || document.querySelectorAll(this.settings.selector);
         this.observer = null;
@@ -100,19 +102,29 @@
                 }
             });
         },
-
+        /**
+         *
+         * @param {string} urlSrc - URL de l'image
+         * @returns {Promise}
+         */
         fetchImg: function(urlSrc) {
             return new Promise((resolv, reject) => {
-                const n = new Image;
-                n.src = urlSrc;
-                n.onload = resolv;
-                n.onerror = reject;
+                const img = new Image;
+                if (!this.regDomain.test(urlSrc)) {
+                    img.crossOrigin = 'anonymous';
+                }
+                img.src = urlSrc;
+                img.onload = resolv;
+                img.onerror = reject;
             });
         },
 
         applyImg: function(elt, urlSrc, attr) {
             // console.log('applyImg', {urlSrc, attr});
             elt.classList.add("js-lazy-image-handled");
+            if (!this.regDomain.test(urlSrc)) {
+                elt.crossorigin = 'anonymous';
+            }
             elt[attr] = urlSrc;
             elt.classList.add("fade-in");
         },
