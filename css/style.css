@@ -7,6 +7,19 @@
   --clr4: #eec290;
   --clr5: #eeaa88;
 }
+
+body {
+  padding-top: 0;
+}
+
+nav#top {
+  position: sticky;
+}
+nav#top.scrolled .mainlogo {
+  margin-top: 0;
+  margin-bottom: 0;
+}
+
 .updateElements {vertical-align: middle;}
 .updateElement {
   cursor:pointer;

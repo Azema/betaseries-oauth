@@ -7,7 +7,7 @@ Repository servant pour l'authentification OAuth avec l'API de BetaSeries, ainsi
 
 ### CSS
 * popover.min.css:  `sha384-yebLb3hn+3mwaxg0KwLhE2YYLEKsMRsxRvUPyBOF6gzkzLEOWEeD9ELZeDACSwO7`
-* style.min.css:    `sha384-Cekddv8gf4cq4AusXXtPX3r9DlcjafJgbufsVTp6JWWlh8r1Jq11d0DKiB53wlIc`
+* style.min.css:    `sha384-xRl1UicHKPxmjxr1Q/JBN0IykSFHMRAAvLvETx4lq7AYzzdEmIplZygVDWRT9Oea`
 * table.min.css:    `sha384-tRMvWzqbXtOp2OM+OPoYpWVxHw8eXcFKgzi4q9m6i0rvWTU33pdb8Bx33wBWjlo9`
 * comments.min.css: `sha384-37/ghsJZTBvNPxUAy6GMPGxa3BKjrZ2ykMb7gUpkkVvoZwAsm4WhigKhMyYCN+Ft`
 
