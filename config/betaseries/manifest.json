@@ -1,11 +1,11 @@
 {
-    "version": "1.0.1",
+    "version": "1.0.7",
     "css": {
         "popover": {
             "popover.min.css": "sha384-yebLb3hn+3mwaxg0KwLhE2YYLEKsMRsxRvUPyBOF6gzkzLEOWEeD9ELZeDACSwO7"
         },
         "stylehome": {
-            "style.min.css": "sha384-Cekddv8gf4cq4AusXXtPX3r9DlcjafJgbufsVTp6JWWlh8r1Jq11d0DKiB53wlIc"
+            "style.min.css": "sha384-xRl1UicHKPxmjxr1Q/JBN0IykSFHMRAAvLvETx4lq7AYzzdEmIplZygVDWRT9Oea"
         },
         "tablecss": {
             "table.min.css": "sha384-tRMvWzqbXtOp2OM+OPoYpWVxHw8eXcFKgzi4q9m6i0rvWTU33pdb8Bx33wBWjlo9"
@@ -22,7 +22,7 @@
             "jquery.textcomplete.min.js": "sha384-kf6mqav/ZhBkPgNGorOiE7+/0GmfN9NDz0ov5G3fy6PuV/wqAggrTaWkTVfPM79L"
         },
         "lazyload": {
-            "lazyload.min.js": "sha384-8gXW/wktVOP4rpxLl4HiT2HgQ3hXR5ZKKGLEUafE8nZJUV//CkBmec2tlAMaSj4Y"
+            "lazyload.min.js": "sha384-qNGLAfFS7zUcc8ogJ2RqlWAZ85kdeNxue0cWcq3FW0WUqI28OwrW6Exgsgk/kzP6"
         }
     }
 }
