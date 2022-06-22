@@ -209,9 +209,10 @@
          * getBSUrl - Récupère et retourne l'URL de la page de la série sur le site BetaSeries
          * @param  {number} id -    L'identifiant BetaSeries de la série
          * @param  {string} title - Le titre de la série
+         * @param  {number} year - L'année de création du média
          * @return {string | null}       L'URL de la page de la série sur BetaSeries
          */
-        getBSUrl: function(id, title) {
+        getBSUrl: function(id, title, year) {
             let resultSearch = this.searchSerieById(id);
             if (resultSearch !== null) {
                 const idBS = resultSearch.id;
@@ -228,7 +229,14 @@
             return this.callBetaSeries('GET', 'search', 'shows', params)
                 .then(data => {
                     console.log('callBetaSeries ', data);
-                    if (data.total != 1 || data.errors.length > 0) {
+                    if (data.errors.length > 0) {
+                        return null;
+                    } else if (data.total != 1) {
+                        for (const show of data.shows) {
+                            if (show.release_data == year) {
+                                return show.slug;
+                            }
+                        }
                         return null;
                     }
                     return data.shows[0].slug;
