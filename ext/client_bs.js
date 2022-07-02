@@ -216,9 +216,13 @@
             let resultSearch = this.searchSerieById(id);
             if (resultSearch !== null) {
                 const idBS = resultSearch.id;
+                if (resultSearch.slug) {
+                    return Promise.resolve(resultSearch.slug);
+                }
                 return this.callBetaSeries('GET', 'shows', 'display', {id: idBS})
                     .then(data => {
                         if (data && data.show) {
+                            this.saveSerie(id, idBS, resultSearch.title, {slug: data.show.slug});
                             return data.show.slug;
                         }
                         return null;
@@ -232,8 +236,10 @@
                     if (data.errors.length > 0) {
                         return null;
                     } else if (data.total != 1) {
+                        console.log('getBSUrl result > 1', {id, title, year});
                         for (const show of data.shows) {
-                            if (show.release_data == year) {
+                            // console.log('test release_date')
+                            if (show.release_date == year) {
                                 return show.slug;
                             }
                         }
@@ -332,7 +338,7 @@
                             const resultID = self.searchSerieByIdBS(showId);
                             if (resultID && serie.title != resultID.title) {
                                 console.log('Le titre de la série est différent {title: %s, alias: %s}', resultID.title, serie.title);
-                                self.saveSerie(serie.platform.showId, showId, resultID.title, [serie.title]);
+                                self.saveSerie(serie.platform.showId, showId, resultID.title, {alias: [serie.title]});
                             }
                         }
                     }
@@ -345,7 +351,7 @@
                             if (resultID && window.confirm(`L'identifiant de la série est il bien le ${data.shows[s].id}`)) {
                                 showId = data.shows[s].id;
                                 if (serie.title != resultID.title) {
-                                    self.saveSerie(serie.platform.showId, data.shows[s].id, resultID.title, [serie.title]);
+                                    self.saveSerie(serie.platform.showId, data.shows[s].id, resultID.title, {alias: [serie.title]});
                                 }
                                 break;
                             }
@@ -384,7 +390,7 @@
                             if (result) {
                                 if (serie.title != result.title) {
                                     if (self.debug) console.log('Le titre de la série est différent {title: %s, alias: %s}', result.title, serie.title);
-                                    self.saveSerie(serie.platform.showId, showId, result.title, [serie.title]);
+                                    self.saveSerie(serie.platform.showId, showId, result.title, {alias: [serie.title]});
                                 }
                             }
                             showId = parseInt(showId, 10);
@@ -399,9 +405,9 @@
                     serie.showId = showId;
                     let result = self.searchSerieByIdBS(showId);
                     if (!result) {
-                        result = self.saveSerie(serie.platform.showId, showId, serie.title, []);
+                        result = self.saveSerie(serie.platform.showId, showId, serie.title);
                     } else if (result.title != serie.title) {
-                        result = self.saveSerie(serie.platform.showId, showId, result.title, [serie.title], result.intro);
+                        result = self.saveSerie(serie.platform.showId, showId, result.title, {alias: [serie.title], intro: result.intro});
                     }
                     getEpisode(showId).finally(cb);
                     self.skipIntro(result.intro);
@@ -456,31 +462,39 @@
          * @param  {number} platformId  L'identifiant de la série sur Viki
          * @param  {number} BSid        L'identifiant de la série sur BetaSeries
          * @param  {string} title       Le titre de la série
-         * @param  {Array}  [alias=[]]  Tableau des alias de la série
-         * @param  {Number} [intro=-1]  Durée de l'intro de la série
+         * @param  {object} args        Les paramètres optionnels
+         * @param  {Array}  args.alias=[]  Tableau des alias de la série
+         * @param  {Number} args.intro=-1  Durée de l'intro de la série
+         * @param  {string} args.slug      Le slug de la série
          * @return {Object}             L'objet contenant les infos de la série
          */
-        saveSerie: function(platformId, BSid, title, alias = [], intro = -1) {
+        saveSerie: function(platformId, BSid, title, args = {}) {
             //console.log('saveSerie params: ', {id, title, alias, intro});
             const showIdsSaved = this.getValue('showIdsSaved', {});
             if (platformId == null || BSid == null || title == null) {
                 console.warn("L'identifiant ou le titre de la série sont nul.", {platformId, BSid, title});
                 return;
             }
+            let alias = (args.alias) ? args.alias : [];
+            let intro = (args.intro) ? args.intro : -1;
+            let slug = (args.slug) ? args.slug : null;
             const result = this.searchSerieById(platformId);
             if (result) {
-                alias = result.alias.concat(alias);
+                // On supprime les doublons
+                alias = [...(new Set(result.alias.concat(alias)))];
                 if (intro === -1) {
-                    intro = result.intro;
+                    intro = (result.intro) ? result.intro : intro;
                 }
+                if (slug == null)
+                    slug = (result.slug) ? result.slug : null;
             }
             if (intro === -1) intro = 0;
-            showIdsSaved[platformId] = {id: BSid, title, alias, intro};
+            showIdsSaved[platformId] = {id: BSid, title, alias, intro, slug};
             this.setValue('showIdsSaved', showIdsSaved);
             let showsWatched = this.getValue('showsWatched', []);
             if (showsWatched.indexOf(platformId) < 0) {
                 showsWatched.unshift(platformId);
-                this.setValue('showsWatched', showsWatched);
+                this.setValue('showsWatched', showsWatched.sort());
             }
             //console.log('saveSerie', showIdsSaved[id]);
             return showIdsSaved[platformId];
