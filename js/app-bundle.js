@@ -1,4 +1,4 @@
-/*! betaseries_userscript - v1.3.5 - 2022-06-19
+/*! betaseries_userscript - v1.4.2 - 2022-07-02
  * https://github.com/Azema/betaseries
  * Copyright (c) 2022 Azema;
  * Licensed Apache-2.0
@@ -12,6 +12,7 @@ var DataTypesCache;
     DataTypesCache["movies"] = "movies";
     DataTypesCache["members"] = "members";
     DataTypesCache["updates"] = "updateAuto";
+    DataTypesCache["db"] = "db";
 })(DataTypesCache = DataTypesCache || (DataTypesCache = {}));
 /**
  * @class Gestion du Cache pour le script
@@ -23,7 +24,7 @@ class CacheUS {
     }
     /**
      * Initialize le cache pour chaque type
-     * @returns this
+     * @returns {CacheUS}
      */
     _init() {
         this._data = {};
@@ -31,6 +32,7 @@ class CacheUS {
         this._data[DataTypesCache.episodes] = {};
         this._data[DataTypesCache.movies] = {};
         this._data[DataTypesCache.members] = {};
+        this._data[DataTypesCache.db] = {};
         return this;
     }
     /**
@@ -54,7 +56,7 @@ class CacheUS {
     /**
      * Clears all cache entries.
      * @param   {DataTypesCache} [type=null] Le type de ressource à nettoyer
-     * @returns this
+     * @returns {CacheUS}
      */
     clear(type = null) {
         // On nettoie juste un type de ressource
@@ -96,7 +98,7 @@ class CacheUS {
      * @param {DataTypesCache}  type  Le type de ressource
      * @param {String|number}   key   the key to set
      * @param {*}               value the value to set
-     * @returns this
+     * @returns {CacheUS}
      */
     set(type, key, value) {
         if (this._data[type] !== undefined) {
@@ -108,7 +110,7 @@ class CacheUS {
      * Removes the cache entry for the given key.
      * @param {DataTypesCache}  type  Le type de ressource
      * @param {String|number}   key the key to remove
-     * @returns this
+     * @returns {CacheUS}
      */
     remove(type, key) {
         if (this.has(type, key)) {
@@ -1428,7 +1430,7 @@ class CommentsBS {
              */
             let template = `
                 <div class="evaluations">
-                    <div class="size-base">${nbEvaluations} évaluation${nbEvaluations > 1 ? 's' : ''} parmis les commentaires et ${this.media.objNote.total} au total</div>
+                    <div class="size-base">${this.media.objNote.total} évaluation${this.media.objNote.total > 1 ? 's' : ''} dont ${nbEvaluations} parmis les commentaires</div>
                     <div class="size-base average">Note globale: <strong>${self._parent.objNote.mean.toFixed(2)}</strong></div>
                     <div><table><tbody>`;
             for (let i = 5; i > 0; i--) {
@@ -2608,10 +2610,50 @@ class Note {
      * @type {Base}
      */
     _parent;
+    __initial;
+    __changes = {};
     constructor(data, parent) {
-        this.total = parseInt(data.total, 10);
-        this.mean = parseFloat(data.mean);
-        this.user = parseInt(data.user, 10);
+        this.__initial = true;
+        this._parent = parent ? parent : null;
+        return this.fill(data);
+    }
+    fill(data) {
+        const self = this;
+        const fnTransform = {
+            total: parseInt,
+            user: parseInt,
+            mean: parseFloat
+        };
+        for (const propKey of Object.keys(fnTransform)) {
+            const descriptor = {
+                configurable: true,
+                enumerable: true,
+                get: () => {
+                    return self['_' + propKey];
+                },
+                set: (newValue) => {
+                    const oldValue = self['_' + propKey];
+                    if (oldValue === newValue)
+                        return;
+                    self['_' + propKey] = newValue;
+                    if (!self.__initial) {
+                        self.__changes[propKey] = { oldValue, newValue };
+                        if (self._parent)
+                            self._parent.updatePropRenderNote();
+                    }
+                }
+            };
+            Object.defineProperty(this, propKey, descriptor);
+            const value = fnTransform[propKey](data[propKey]);
+            Reflect.set(this, propKey, value);
+        }
+        this.__initial = false;
+        return this;
+    }
+    get parent() {
+        return this._parent;
+    }
+    set parent(parent) {
         this._parent = parent;
     }
     /**
@@ -2775,7 +2817,7 @@ class Note {
      * Met à jour l'affichage de la note
      */
     updateStars(elt = null) {
-        elt = elt || jQuery('.blockInformations__metadatas .js-render-stars');
+        elt = elt || jQuery('.blockInformations__metadatas .js-render-stars', this._parent.elt);
         let color = '';
         const $stars = elt.find('.star-svg use');
         const result = $($stars.get(0)).attr('xlink:href').match(/(grey|blue)/);
@@ -2821,7 +2863,7 @@ class Next {
     title;
     image;
     constructor(data) {
-        this.id = (data.id !== undefined) ? parseInt(data.id, 10) : NaN;
+        this.id = (data.id != undefined) ? parseInt(data.id, 10) : NaN;
         this.code = data.code;
         this.date = new Date(data.date) || null;
         this.title = data.title;
@@ -2864,13 +2906,26 @@ class User {
         this.tags = data.tags || '';
         this.twitter = !!data.twitter || false;
     }
+    compare(data) {
+        const props = Object.getOwnPropertyNames(this);
+        for (const prop of props) {
+            if (typeof this[prop] !== 'object' && Object.hasOwn(data, prop) && this[prop] != data[prop]) {
+                return true;
+            }
+        }
+        return false;
+    }
 }
 
-// declare const getScrollbarWidth, subscribeToggle;
 function ExceptionIdentification(message) {
     this.message = message;
     this.name = "ExceptionIdentification";
 }
+var NetworkState;
+(function (NetworkState) {
+    NetworkState[NetworkState["offline"] = 0] = "offline";
+    NetworkState[NetworkState["online"] = 1] = "online";
+})(NetworkState = NetworkState || (NetworkState = {}));
 var MediaType;
 (function (MediaType) {
     MediaType["show"] = "show";
@@ -2898,22 +2953,174 @@ var HTTP_VERBS;
     HTTP_VERBS["DELETE"] = "DELETE";
     HTTP_VERBS["OPTIONS"] = "OPTIONS";
 })(HTTP_VERBS = HTTP_VERBS || (HTTP_VERBS = {}));
+function objToArr(obj, data) {
+    if (data instanceof Array)
+        return data;
+    const values = [];
+    for (const key in data) {
+        values.push(data[key]);
+    }
+    return values;
+}
+function isNull(val) {
+    return val === null || val === undefined;
+}
+/**
+ * FakePromise - Classe servant à simuler une promesse
+ * d'appel à l'API lorsque le réseau est offline et
+ * de réaliser le souhait lorsque le réseau est online
+ * @class
+ */
+class FakePromise {
+    /**
+     * Permet de vérifier si la fonction se trouve déjà dans le
+     * tableau des fonctions callback
+     * @param   {any} fn - Fonction callback de référence
+     * @param   {any[]} funcs - Tableau des fonctions
+     * @returns {boolean}
+     */
+    static fnAlreadyInclude(fn, funcs) {
+        const strFn = fn.toString();
+        for (let t = 0; t < funcs.length; t++) {
+            if (funcs[t].toString() === strFn) {
+                return true;
+            }
+        }
+        return false;
+    }
+    /**
+     * Tableau des fonctions callback de type **then**
+     * @type {Array<(data: Obj) => void>}
+     */
+    thenQueue;
+    /**
+     * Tableau des fonctions callback de type **catch**
+     * @type {Array<(reason: any) => void>}
+     */
+    catchQueue;
+    /**
+     * Tableau des fonctions callback de type **finally**
+     * @type {Array<() => void>}
+     */
+    finallyQueue;
+    /**
+     * Fonction qui sera executée lors de l'appel à la méthode **launch** {@see FakePromise.launch}
+     * @type {() => Promise<Obj>}
+     */
+    promiseFunc;
+    /**
+     * Constructor
+     * @param   {() => Promise<Obj>} [func] - Fonction promise qui sera executée plus tard
+     * @returns {FakePromise}
+     */
+    constructor(func) {
+        this.thenQueue = [];
+        this.catchQueue = [];
+        this.finallyQueue = [];
+        this.promiseFunc = func;
+        return this;
+    }
+    /**
+     * Permet de définir la fonction qui retourne la vraie promesse
+     * @param   {() => Promise<Obj>} func Fonction promise qui sera executée plus tard
+     * @returns {FakePromise}
+     */
+    setFunction(func) {
+        this.promiseFunc = func;
+        return this;
+    }
+    /**
+     * Simule un objet promise et stocke les fonctions pour plus tard
+     * @param   {(data: Obj) => void} onfulfilled - Fonction appelée lorsque la promesse est tenue
+     * @param   {(reason: any) => PromiseLike<never>} [onrejected] - Fonction appelée lorsque la promesse est rejetée
+     * @returns {FakePromise}
+     */
+    then(onfulfilled, onrejected) {
+        if (onfulfilled && !FakePromise.fnAlreadyInclude(onfulfilled, this.thenQueue)) {
+            this.thenQueue.push(onfulfilled);
+        }
+        if (onrejected && !FakePromise.fnAlreadyInclude(onrejected, this.catchQueue)) {
+            this.catchQueue.push(onrejected);
+        }
+        return this;
+    }
+    /**
+     * Simule un objet promise et stocke les fonctions pour plus tard
+     * @param   {(reason: any) => void | PromiseLike<void>} [onrejected] - Fonction appelée lorsque la promesse est rejetée
+     * @returns {FakePromise}
+     */
+    catch(onrejected) {
+        if (onrejected && !FakePromise.fnAlreadyInclude(onrejected, this.catchQueue)) {
+            this.catchQueue.push(onrejected);
+        }
+        return this;
+    }
+    /**
+     * Simule un objet promise et stocke les fonctions pour plus tard
+     * @param   {() => void} [onfinally] - Fonction appelée lorsque la promesse est terminée
+     * @returns {FakePromise}
+     */
+    finally(onfinally) {
+        if (!onfinally && FakePromise.fnAlreadyInclude(onfinally, this.finallyQueue)) {
+            this.finallyQueue.push(onfinally);
+        }
+        return this;
+    }
+    /**
+     * Permet de lancer la fonction qui retourne la vraie promesse
+     * ainsi que d'appliquer les fonctions (then, catch et finally) précédemment stockées
+     * @returns {Promise<any>}
+     */
+    launch() {
+        return this.promiseFunc()
+            .then((data) => {
+            const thens = this.thenQueue;
+            for (let t = thens.length; t >= 0; t--) {
+                if (typeof thens[t] === 'function') {
+                    thens[t](data);
+                    return;
+                }
+            }
+        })
+            .catch(err => {
+            const catchs = this.catchQueue;
+            for (let c = catchs.length; c >= 0; c--) {
+                if (typeof catchs[c] === 'function') {
+                    catchs[c](err);
+                    return;
+                }
+            }
+        })
+            .finally(() => {
+            const finallies = this.finallyQueue;
+            for (let f = finallies.length; f >= 0; f--) {
+                if (typeof finallies[f] === 'function') {
+                    finallies[f]();
+                    return;
+                }
+            }
+        });
+    }
+}
 class Base {
     /*
                     STATIC
     */
     /**
      * Flag de debug pour le dev
+     * @static
      * @type {boolean}
      */
     static debug = false;
     /**
      * L'objet cache du script pour stocker les données
+     * @static
      * @type {CacheUS}
      */
     static cache = null;
     /**
      * Objet contenant les informations de l'API
+     * @static
      * @type {Obj}
      */
     static api = {
@@ -2997,42 +3204,52 @@ class Base {
         }
     };
     /**
-     * Le token d'authentification de l'API
+     * Le token d'authentification de l'API BetaSeries
+     * @static
      * @type {String}
      */
     static token = null;
     /**
-     * La clé d'utilisation de l'API
+     * La clé d'utilisation de l'API BetaSeries
+     * @static
      * @type {String}
      */
     static userKey = null;
     /**
      * L'identifiant du membre connecté
+     * @static
      * @type {Number}
      */
     static userId = null;
     /**
-     * Clé pour l'API TheMovieDB
+     * Clé d'authentification pour l'API TheMovieDB
+     * @static
      * @type {string}
      */
     static themoviedb_api_user_key = null;
     /**
-     * Le nombre d'appels à l'API
+     * Compteur d'appels à l'API
+     * @static
      * @type {Number}
      */
     static counter = 0;
     /**
      * L'URL de base du serveur contenant les ressources statiques
+     * et les proxy
+     * @static
      * @type {String}
      */
     static serverBaseUrl = '';
     /**
-     * L'URL de base du serveur servant pour l'authentification
+     * L'URL de base du serveur pour l'authentification
+     * @static
+     * @see Base.authenticate
      * @type {String}
      */
     static serverOauthUrl = '';
     /**
      * Indique le theme d'affichage du site Web (light or dark)
+     * @static
      * @type {string}
      */
     static theme = 'light';
@@ -3081,15 +3298,23 @@ class Base {
         EventTypes.SAVE,
         EventTypes.NOTE
     ];
+    /**
+     * Méthode servant à afficher le loader sur la page Web
+     * @static
+     */
     static showLoader() {
         jQuery('#loader-bg').show();
     }
+    /**
+     * Méthode servant à masque le loader sur la page Web
+     * @static
+     */
     static hideLoader() {
         jQuery('#loader-bg').hide();
     }
     /**
-     * Fonction d'authentification sur l'API BetaSeries
-     *
+     * Fonction d'authentification à l'API BetaSeries
+     * @static
      * @return {Promise}
      */
     static authenticate() {
@@ -3137,12 +3362,13 @@ class Base {
     }
     /**
      * Fonction servant à appeler l'API de BetaSeries
-     *
+     * @static
      * @param  {String}   type - Type de methode d'appel Ajax (GET, POST, PUT, DELETE)
      * @param  {String}   resource - La ressource de l'API (ex: shows, seasons, episodes...)
      * @param  {String}   action - L'action à appliquer sur la ressource (ex: search, list...)
      * @param  {Obj}      args - Un objet (clef, valeur) à transmettre dans la requête
-     * @param  {bool}     [force=false] - Indique si on doit utiliser le cache ou non (Par défaut: false)
+     * @param  {bool}     [force=false] - Indique si on doit forcer l'appel à l'API ou
+     * si on peut utiliser le cache (Par défaut: false)
      * @return {Promise<Obj>} Les données provenant de l'API
      * @throws Error
      */
@@ -3161,12 +3387,14 @@ class Base {
             // Identification required
             throw new ExceptionIdentification("Identification required");
         }
-        Base.showLoader();
         let check = false;
         let display = true;
         // On vérifie si on doit afficher les infos de requêtes dans la console
         if (Base.api.notDisplay.indexOf(resource + action) >= 0) {
             display = false;
+        }
+        else {
+            Base.showLoader();
         }
         // Les en-têtes pour l'API
         const myHeaders = {
@@ -3192,6 +3420,22 @@ class Base {
                 resolve(Base.cache.get(resource, args.id));
                 Base.hideLoader();
             });
+        }
+        // Vérification de l'état du réseau, doit être placé après la gestion du cache
+        if (Base.networkState === NetworkState.offline) {
+            const key = type + resource + action;
+            if (Base.__networkQueue[key]) {
+                return Base.__networkQueue[key];
+            }
+            else {
+                const promise = new FakePromise(() => {
+                    return Base.callApi(type, resource, action, args, force)
+                        .then(data => data)
+                        .catch(err => err);
+                });
+                Base.__networkQueue[key] = promise;
+                return Base.__networkQueue[key];
+            }
         }
         // On check si on doit vérifier la validité du token
         // (https://www.betaseries.com/bugs/api/461)
@@ -3303,7 +3547,7 @@ class Base {
         });
     }
     /**
-     * setPropValue - Permet de modifier la valeur d'une propriété dans un objet,
+     * *setPropValue* - Permet de modifier la valeur d'une propriété dans un objet,
      * ou dans un sous objet de manière dynamique
      * @param obj - Objet à modifier
      * @param key - chemin d'accès à la propriété à modifier
@@ -3340,10 +3584,10 @@ class Base {
         }
     }
     /**
-     * replaceParams - Permet de remplacer des paramètres par des valeurs dans une chaîne de caractères
-     * @param   {string} path - Chaine à modifier avec les valeurs
+     * *replaceParams* - Permet de remplacer des paramètres par des valeurs dans une chaîne de caractères
+     * @param   {string} path -   Chaine à modifier avec les valeurs
      * @param   {object} params - Objet contenant les paramètres autorisés et leur type
-     * @param   {object} data - Objet contenant les valeurs des paramètres
+     * @param   {object} data -   Objet contenant les valeurs des paramètres
      * @returns {string}
      */
     static replaceParams(path, params, data) {
@@ -3366,21 +3610,77 @@ class Base {
         }
         return path;
     }
+    static relatedProps = {};
+    static selectorsCSS = {};
+    /**
+     * Etat du réseau
+     * @type {NetworkState}
+     */
+    static networkState = NetworkState.online;
+    /**
+     * Stockage des appels à l'API lorsque le réseau est offline
+     * @type {Record<string, FakePromise>}
+     */
+    static __networkQueue = {};
+    /**
+     * Modifie la variable de l'état du réseau
+     * Et gère les promesses d'appels à l'API lorsque le réseau est online
+     * @param {NetworkState} state - Etat du réseau
+     */
+    static changeNetworkState(state) {
+        this.networkState = state;
+        if (state === NetworkState.online && Object.keys(this.__networkQueue).length > 0) {
+            const keys = Reflect.ownKeys(this.__networkQueue);
+            for (const key of keys) {
+                const promise = this.__networkQueue[key].launch();
+                promise.finally(() => delete this.__networkQueue[key]);
+            }
+            this.__networkQueue = {};
+        }
+    }
     /*
                     PROPERTIES
     */
+    /** @type {string} */
     description;
-    characters;
-    comments;
+    /** @type {number} */
     nbComments;
+    /** @type {number} */
     id;
+    /** @type {Note} */
     objNote;
+    /** @type {string} */
     resource_url;
+    /** @type {string} */
     title;
+    /** @type {User} */
     user;
+    /** @type {Array<Character>} */
+    characters;
+    /** @type {CommentsBS} */
+    comments;
+    /** @type {MediaTypes} */
     mediaType;
-    _elt;
-    _listeners;
+    /**
+     * @type {boolean} Flag d'initialisation de l'objet, nécessaire pour les methodes fill and compare
+     */
+    __initial;
+    /**
+     * @type {Record<string, Changes} Stocke les changements des propriétés de l'objet
+     */
+    __changes;
+    /**
+     * @type {Array<string>} Tableau des propriétés énumerables de l'objet
+     */
+    __props;
+    /**
+     * @type {JQuery<HTMLElement>} Element HTML de référence du média
+     */
+    __elt;
+    /**
+     * @type {object} Contient les écouteurs d'évènements de l'objet
+     */
+    __listeners;
     /*
                     METHODS
     */
@@ -3388,8 +3688,35 @@ class Base {
         if (!(data instanceof Object)) {
             throw new Error("data is not an object");
         }
+        this.__initial = true;
+        this.__changes = {};
+        this.characters = [];
+        this.__elt = null;
+        this.__props = ['characters', 'comments', 'mediaType'];
         this._initListeners();
         return this;
+    }
+    /**
+     * Symbol.Iterator - Methode Iterator pour les boucles for..of
+     * @returns {object}
+     */
+    [Symbol.iterator]() {
+        const self = this;
+        return {
+            pos: 0,
+            props: self.__props,
+            next() {
+                if (this.pos < this.props.length) {
+                    const item = { value: this.props[this.pos], done: false };
+                    this.pos++;
+                    return item;
+                }
+                else {
+                    this.pos = 0;
+                    return { value: null, done: true };
+                }
+            }
+        };
     }
     /**
      * Remplit l'objet avec les données fournit en paramètre
@@ -3398,23 +3725,165 @@ class Base {
      * @virtual
      */
     fill(data) {
-        this.id = parseInt(data.id, 10);
-        this.characters = [];
-        if (data.characters && data.characters instanceof Array) {
-            for (let c = 0; c < data.characters.length; c++) {
-                this.characters.push(new Character(data.characters[c]));
+        const self = this;
+        for (const propKey in this.constructor.relatedProps) {
+            if (!Reflect.has(data, propKey))
+                continue;
+            const relatedProp = this.constructor.relatedProps[propKey];
+            const dataProp = data[propKey];
+            let descriptor;
+            if (this.__initial) {
+                descriptor = {
+                    configurable: true,
+                    enumerable: true,
+                    get: () => {
+                        return self['_' + relatedProp.key];
+                    },
+                    set: (newValue) => {
+                        if (self.__initial) {
+                            self['_' + relatedProp.key] = newValue;
+                            return;
+                        }
+                        const oldValue = self['_' + relatedProp.key];
+                        if (oldValue === newValue) {
+                            return;
+                        }
+                        else if (Array.isArray(oldValue) && oldValue.length === newValue.length) {
+                            let diff = false;
+                            for (let i = 0, _len = oldValue.length; i < _len; i++) {
+                                if (oldValue[i] !== newValue[i]) {
+                                    diff = true;
+                                    break;
+                                }
+                            }
+                            if (!diff)
+                                return;
+                        }
+                        else if (typeof newValue === 'object') {
+                            // console.log('fill setter[%s]', relatedProp.key, {oldValue, newValue});
+                            let changed = false;
+                            const keysNew = Reflect.ownKeys(newValue)
+                                .filter((key) => !key.startsWith('_'));
+                            for (let k = 0, _len = keysNew.length; k < _len; k++) {
+                                if (oldValue[keysNew[k]] !== newValue[keysNew[k]]) {
+                                    changed = true;
+                                    break;
+                                }
+                            }
+                            if (!changed)
+                                return;
+                        }
+                        self['_' + relatedProp.key] = newValue;
+                        if (!self.__initial) {
+                            self.__changes[relatedProp.key] = { oldValue, newValue };
+                            self.updatePropRender(relatedProp.key);
+                        }
+                    }
+                };
+            }
+            let setValue = false, value = undefined;
+            switch (relatedProp.type) {
+                case 'string':
+                    value = String(dataProp);
+                    setValue = true;
+                    break;
+                case 'number':
+                    value = (!isNull(dataProp)) ? parseInt(dataProp, 10) : null;
+                    setValue = true;
+                    break;
+                case 'boolean':
+                case 'bool':
+                    value = !!dataProp;
+                    setValue = true;
+                    break;
+                case 'date':
+                    value = new Date(dataProp);
+                    setValue = true;
+                    break;
+                case 'object':
+                    value = Object.assign({}, dataProp);
+                    setValue = true;
+                    break;
+                case 'array': {
+                    value = dataProp;
+                    setValue = true;
+                    break;
+                }
+                default: {
+                    if (typeof relatedProp.type === 'function' && dataProp) {
+                        // if (Base.debug) console.log('fill type function', {type: relatedProp.type, dataProp});
+                        value = Reflect.construct(relatedProp.type, [dataProp]);
+                        if (value && Reflect.has(value, 'parent')) {
+                            value.parent = self;
+                        }
+                        setValue = true;
+                    }
+                    break;
+                }
+            }
+            if (!setValue && value == undefined && Reflect.has(relatedProp, 'default')) {
+                value = relatedProp.default;
+                setValue = true;
+            }
+            if (setValue) {
+                if (typeof relatedProp.transform === 'function') {
+                    const dataToTransform = (dataProp != undefined) ? dataProp : data;
+                    value = relatedProp.transform(this, dataToTransform);
+                }
+                // if (Base.debug) console.log('Base.fill descriptor[%s]', propKey, relatedProp, value);
+                if (this.__initial) {
+                    Object.defineProperty(this, relatedProp.key, descriptor);
+                    Reflect.set(this, relatedProp.key, value);
+                    this.__props.push(relatedProp.key);
+                }
+                else {
+                    this[relatedProp.key] = value;
+                }
             }
         }
-        this.nbComments = data.comments ? parseInt(data.comments, 10) : 0;
-        if (!(this.comments instanceof CommentsBS)) {
-            this.comments = new CommentsBS(this.nbComments, this);
+        if (this.__initial) {
+            this.__props.sort();
+            this.__initial = false;
         }
-        this.objNote = (data.note) ? new Note(data.note, this) : (data.notes) ? new Note(data.notes, this) : null;
-        this.resource_url = data.resource_url;
-        this.title = data.title;
-        this.user = (data.user !== undefined) ? new User(data.user) : null;
-        this.description = data.description;
-        return this;
+        return this.save();
+    }
+    _initRender() {
+        if (!this.elt)
+            return;
+        this.changeTitleNote(true);
+        this.decodeTitle();
+        this.objNote.updateStars();
+    }
+    /**
+     * Met à jour le rendu HTML des propriétés de l'objet
+     * si un sélecteur CSS exite pour la propriété (cf. Class.selectorCSS)
+     * Méthode appelée automatiquement par le setter de la propriété
+     * @see Show.selectorsCSS
+     * @param   {string} propKey - La propriété de l'objet à mettre à jour
+     * @returns {void}
+     */
+    updatePropRender(propKey) {
+        if (!this.elt)
+            return;
+        const fnPropKey = 'updatePropRender' + propKey.camelCase().upperFirst();
+        // if (Base.debug) console.log('updatePropRender', propKey, fnPropKey);
+        if (Reflect.has(this, fnPropKey)) {
+            // if (Base.debug) console.log('updatePropRender Reflect has method');
+            this[fnPropKey]();
+        }
+        else if (Reflect.has(this.constructor.selectorsCSS, propKey)) {
+            // if (Base.debug) console.log('updatePropRender default');
+            const selectorCSS = this.constructor.selectorsCSS[propKey];
+            jQuery(selectorCSS).text(this[propKey].toString());
+            delete this.__changes[propKey];
+        }
+    }
+    updatePropRenderNote() {
+        if (Base.debug)
+            console.log('updatePropRenderNote');
+        this.objNote.updateStars();
+        this.changeTitleNote(true);
+        this._callListeners(EventTypes.NOTE);
     }
     /**
      * Initialize le tableau des écouteurs d'évènements
@@ -3422,10 +3891,10 @@ class Base {
      * @sealed
      */
     _initListeners() {
-        this._listeners = {};
+        this.__listeners = {};
         const EvtTypes = this.constructor.EventTypes;
         for (let e = 0; e < EvtTypes.length; e++) {
-            this._listeners[EvtTypes[e]] = [];
+            this.__listeners[EvtTypes[e]] = [];
         }
         return this;
     }
@@ -3442,21 +3911,21 @@ class Base {
         if (this.constructor.EventTypes.indexOf(name) < 0) {
             throw new Error(`${name} ne fait pas partit des events gérés par cette classe`);
         }
-        if (this._listeners[name] === undefined) {
-            this._listeners[name] = [];
+        if (this.__listeners[name] === undefined) {
+            this.__listeners[name] = [];
         }
-        for (const func in this._listeners[name]) {
+        for (const func in this.__listeners[name]) {
             if (func.toString() == fn.toString())
                 return;
         }
         if (args.length > 0) {
-            this._listeners[name].push({ fn: fn, args: args });
+            this.__listeners[name].push({ fn: fn, args: args });
         }
         else {
-            this._listeners[name].push(fn);
+            this.__listeners[name].push(fn);
         }
         if (Base.debug)
-            console.log('Base[%s] add Listener on event %s', this.constructor.name, name, this._listeners[name]);
+            console.log('Base[%s] add Listener on event %s', this.constructor.name, name, this.__listeners[name]);
         return this;
     }
     /**
@@ -3467,11 +3936,11 @@ class Base {
      * @sealed
      */
     removeListener(name, fn) {
-        if (this._listeners[name] !== undefined) {
-            for (let l = 0; l < this._listeners[name].length; l++) {
-                if ((typeof this._listeners[name][l] === 'function' && this._listeners[name][l].toString() === fn.toString()) ||
-                    this._listeners[name][l].fn.toString() == fn.toString()) {
-                    this._listeners[name].splice(l, 1);
+        if (this.__listeners[name] !== undefined) {
+            for (let l = 0; l < this.__listeners[name].length; l++) {
+                if ((typeof this.__listeners[name][l] === 'function' && this.__listeners[name][l].toString() === fn.toString()) ||
+                    this.__listeners[name][l].fn.toString() == fn.toString()) {
+                    this.__listeners[name].splice(l, 1);
                 }
             }
         }
@@ -3484,22 +3953,30 @@ class Base {
      * @sealed
      */
     _callListeners(name) {
-        if (this.constructor.EventTypes.indexOf(name) >= 0 && this._listeners[name].length > 0) {
+        // if (Base.debug) console.log('Base[%s] call Listeners of event %s', this.constructor.name, name, this.__listeners);
+        if (this.constructor.EventTypes.indexOf(name) >= 0 && this.__listeners[name].length > 0) {
             if (Base.debug)
-                console.log('Base[%s] call %d Listeners on event %s', this.constructor.name, this._listeners[name].length, name, this._listeners);
+                console.log('Base[%s] call %d Listeners on event %s', this.constructor.name, this.__listeners[name].length, name, this.__listeners);
             const event = new CustomEvent('betaseries', { detail: { name: name } });
-            for (let l = 0; l < this._listeners[name].length; l++) {
-                if (typeof this._listeners[name][l] === 'function') {
-                    this._listeners[name][l].call(this, event, this);
+            for (let l = 0; l < this.__listeners[name].length; l++) {
+                if (typeof this.__listeners[name][l] === 'function') {
+                    this.__listeners[name][l].call(this, event, this);
                 }
                 else {
-                    this._listeners[name][l].fn.apply(this, this._listeners[name][l].args);
+                    this.__listeners[name][l].fn.apply(this, this.__listeners[name][l].args);
                 }
             }
         }
         return this;
     }
+    /**
+     * Méthode d'initialisation de l'objet
+     * @returns {Promise<Base>}
+     */
     init() {
+        if (this.elt) {
+            this.comments = new CommentsBS(this.nbComments, this);
+        }
         return new Promise(resolve => resolve(this));
     }
     /**
@@ -3514,18 +3991,20 @@ class Base {
         return this;
     }
     /**
-     * Retourne le DOMElement correspondant au média
-     * @returns {JQuery} Le DOMElement jQuery
+     * Retourne le DOMElement de référence du média
+     * @returns {JQuery<HTMLElement>} Le DOMElement jQuery
      */
     get elt() {
-        return this._elt;
+        return this.__elt;
     }
     /**
-     * Définit le DOMElement de référence pour ce média
-     * @param  {JQuery} elt - DOMElement auquel est rattaché le média
+     * Définit le DOMElement de référence du média\
+     * Nécessaire **uniquement** pour le média principal de la page Web\
+     * Il sert à mettre à jour les données du média sur la page Web
+     * @param  {JQuery<HTMLElement>} elt - DOMElement auquel est rattaché le média
      */
     set elt(elt) {
-        this._elt = elt;
+        this.__elt = elt;
     }
     /**
      * Retourne le nombre d'acteurs référencés dans ce média
@@ -3546,11 +4025,11 @@ class Base {
         return this;
     }
     /**
-     * Ajoute le nombre de votes à la note dans l'attribut title de la balise
-     * contenant la représentation de la note de la ressource
+     * Ajoute le nombre de votes, à la note, dans l'attribut title de la balise
+     * contenant la représentation de la note du média
      *
-     * @param  {Boolean} [change=true] - Indique si on doit changer l'attribut title du DOMElement
-     * @return {String} Le titre modifié de la note
+     * @param  {boolean} [change=true] - Indique si on doit changer l'attribut title du DOMElement
+     * @return {string} Le titre modifié de la note
      */
     changeTitleNote(change = true) {
         const $elt = this.elt.find('.js-render-stars');
@@ -3566,45 +4045,7 @@ class Base {
         return title;
     }
     /**
-     * Ajoute le nombre de votes à la note de la ressource
-     * @return {Base} L'instance du média
-     */
-    addNumberVoters() {
-        const self = this;
-        const votes = $('.stars.js-render-stars'); // ElementHTML ayant pour attribut le titre avec la note de la série
-        let title = this.changeTitleNote(true);
-        // if (Base.debug) console.log('addNumberVoters - title: %s', title);
-        // On ajoute un observer sur l'attribut title de la note, en cas de changement lors d'un vote
-        new MutationObserver((mutationsList) => {
-            const changeTitleMutation = () => {
-                // On met à jour le nombre de votants, ainsi que la note du membre connecté
-                const upTitle = self.changeTitleNote(false);
-                // if (Base.debug) console.log('Observer upTitle: %s', upTitle);
-                // On évite une boucle infinie
-                if (upTitle !== title) {
-                    votes.attr('title', upTitle);
-                    title = upTitle;
-                }
-            };
-            let mutation;
-            for (mutation of mutationsList) {
-                // On vérifie si le titre a été modifié
-                // @TODO: A tester
-                if (!/vote/.test(mutation.target.nodeValue) && mutation.target.nodeValue != title) {
-                    changeTitleMutation();
-                }
-            }
-        }).observe(votes.get(0), {
-            attributes: true,
-            childList: false,
-            characterData: false,
-            subtree: false,
-            attributeFilter: ['title']
-        });
-        return this;
-    }
-    /**
-     * Ajoute une note au média
+     * Ajoute le vote du membre connecté pour le média
      * @param   {number} note - Note du membre connecté pour le média
      * @returns {Promise<boolean>}
      */
@@ -3623,7 +4064,7 @@ class Base {
         });
     }
     /**
-     * fetchCharacters - Récupère les acteurs du média
+     * *fetchCharacters* - Récupère les acteurs du média
      * @abstract
      * @returns {Promise<this>}
      */
@@ -3631,7 +4072,7 @@ class Base {
         throw new Error('Method abstract');
     }
     /**
-     * getCharacter - Retourne un personnage à partir de son identifiant
+     * *getCharacter* - Retourne un personnage à partir de son identifiant
      * @param   {number} id - Identifiant du personnage
      * @returns {Character | null}
      */
@@ -3782,7 +4223,7 @@ const calculDuration = function () {
 }();
 const upperFirst = function () {
     return function (word) {
-        return word.charAt(0).toUpperCase() + word.slice(1).toLowerCase();
+        return word.charAt(0).toUpperCase() + word.slice(1);
     };
 }();
 const camelCase = function () {
@@ -3811,12 +4252,17 @@ String.prototype.camelCase = function () {
     return camelCase(this);
 };
 
+/* eslint-disable @typescript-eslint/no-explicit-any */
 class Media extends Base {
     /***************************************************/
     /*                      STATIC                     */
     /***************************************************/
     static propsAllowedOverride = {};
     static overrideType;
+    static selectorsCSS = {
+        genres: '.blockInformations .blockInformations__details li:nth-child(#n#) span',
+        duration: '.blockInformations .blockInformations__details li:nth-child(#n#) span'
+    };
     /**
      * Méthode static servant à récupérer un média sur l'API BS
      * @param  {Obj} params - Critères de recherche du média
@@ -3860,7 +4306,7 @@ class Media extends Base {
     /**
      * @type {number} Durée du média en minutes
      */
-    length;
+    duration;
     /**
      * @type {string} Titre original du média
      */
@@ -3876,21 +4322,26 @@ class Media extends Base {
     /**
      * @type {boolean} Indique si le média se trouve sur le compte du membre connecté
      */
-    _in_account;
+    in_account;
     /**
      * @type {string} slug - Identifiant du média servant pour l'URL
      */
     slug;
+    __fetches;
     /**
      * Constructeur de la classe Media
+     * Le DOMElement est nécessaire que pour le média principal sur la page Web
      * @param   {Obj} data - Les données du média
-     * @param   {JQuery<HTMLElement>} [element] - Le DOMElement associé au média
+     * @param   {JQuery<HTMLElement>} [element] - Le DOMElement de référence du média
      * @returns {Media}
      */
     constructor(data, element) {
         super(data);
         if (element)
             this.elt = element;
+        this.__fetches = {};
+        this.similars = [];
+        this.genres = [];
         return this;
     }
     /**
@@ -3898,62 +4349,20 @@ class Media extends Base {
      * @returns {Promise<Media>}
      */
     init() {
-        return new Promise(resolve => {
-            this._overrideProps();
-            resolve(this);
-        });
+        if (this.elt) {
+            return super.init().then(() => {
+                this._overrideProps();
+                return this;
+            });
+        }
+        return super.init();
     }
-    /**
-     * Remplit l'objet avec les données fournit en paramètre
-     * @param  {Obj} data Les données provenant de l'API
-     * @returns {Media}
-     * @override
-     */
-    fill(data) {
-        this.followers = parseInt(data.followers, 10);
-        this.imdb_id = data.imdb_id;
-        this.language = data.language;
-        this.length = parseInt(data.length, 10);
-        this.original_title = data.original_title;
-        if (!this.similars || this.similars.length <= 0) {
-            this.similars = [];
+    updatePropRenderGenres() {
+        const $genres = jQuery(Media.selectorsCSS.genres);
+        if ($genres.length > 0) {
+            $genres.text(this.genres.join(', '));
         }
-        this.nbSimilars = 0;
-        if (data.similars && data.similars instanceof Array) {
-            this.similars = data.similars;
-            this.nbSimilars = this.similars.length;
-        }
-        else if (data.similars) {
-            this.nbSimilars = parseInt(data.similars);
-        }
-        this.genres = [];
-        if (data.genres && data.genres instanceof Array) {
-            this.genres = data.genres;
-        }
-        else if (data.genres instanceof Object) {
-            for (const g in data.genres) {
-                this.genres.push(data.genres[g]);
-            }
-        }
-        this.in_account = !!data.in_account;
-        this.slug = data.slug;
-        super.fill(data);
-        return this;
-    }
-    /**
-     * Indique si le média est enregistré sur le compte du membre
-     * @returns {boolean}
-     */
-    get in_account() {
-        return this._in_account;
-    }
-    /**
-     * Définit si le média est enregistré sur le compte du membre
-     * @param {boolean} i Flag
-     */
-    set in_account(i) {
-        this._in_account = !!i;
-        this.save();
+        delete this.__changes.genres;
     }
     /**
      * Retourne les similars associés au media
@@ -3985,12 +4394,12 @@ class Media extends Base {
      * @param   {string} prop - Nom de la propriété à modifier
      * @param   {string} value - Nouvelle valeur de la propriété
      * @param   {object} [params] - Optional: paramètres à fournir pour modifier le path de la propriété
-     * @returns {boolean}
+     * @returns {Promise<boolean>}
      */
-    override(prop, value, params) {
+    async override(prop, value, params) {
         const type = this.constructor;
         if (type.propsAllowedOverride[prop]) {
-            const override = Base.gm_funcs.getValue('override', { shows: {}, movies: {} });
+            const override = await Base.gm_funcs.getValue('override', { shows: {}, movies: {} });
             if (override[type.overrideType][this.id] === undefined)
                 override[type.overrideType][this.id] = {};
             override[type.overrideType][this.id][prop] = value;
@@ -4001,7 +4410,7 @@ class Media extends Base {
                 console.log('override', { prop, value, params, path });
             }
             Base.setPropValue(this, path, value);
-            Base.gm_funcs.setValue('override', override);
+            await Base.gm_funcs.setValue('override', override);
             return true;
         }
         return false;
@@ -4010,12 +4419,13 @@ class Media extends Base {
      * _overrideProps - Permet de restaurer les valeurs personalisées dans l'objet
      * @see Show.propsAllowedOverride
      * @private
-     * @returns {Media}
+     * @returns {Promise<Media>}
      */
-    _overrideProps() {
+    async _overrideProps() {
         const type = this.constructor;
         const overrideType = type.overrideType;
-        const override = Base.gm_funcs.getValue('override', { shows: {}, movies: {} });
+        const override = await Base.gm_funcs.getValue('override', { shows: {}, movies: {} });
+        console.log('_overrideProps override', override);
         if (override[overrideType][this.id]) {
             console.log('_overrideProps override found', override[overrideType][this.id]);
             for (const prop in override[overrideType][this.id]) {
@@ -4070,11 +4480,24 @@ class Media extends Base {
     }
 }
 
+/**
+ * Classe représentant les différentes images d'une série
+ * @class
+ */
 class Images {
+    /**
+     * Les formats des images
+     * @static
+     * @type {object}
+     */
     static formats = {
         poster: 'poster',
         wide: 'wide'
     };
+    /**
+     * Contructeur
+     * @param {Obj} data - Les données de l'objet
+     */
     constructor(data) {
         this.show = data.show;
         this.banner = data.banner;
@@ -4087,19 +4510,33 @@ class Images {
             poster: this.poster
         };
     }
+    /** @type {string} */
     show;
+    /** @type {string} */
     banner;
+    /** @type {string} */
     box;
+    /** @type {string} */
     poster;
+    /** @type {object} */
     _local;
 }
+/** @enum {number} */
 var Picked;
 (function (Picked) {
     Picked[Picked["none"] = 0] = "none";
     Picked[Picked["banner"] = 1] = "banner";
     Picked[Picked["show"] = 2] = "show";
 })(Picked = Picked || (Picked = {}));
+/**
+ * Classe représentant une image
+ * @class
+ */
 class Picture {
+    /**
+     * Contructeur
+     * @param {Obj} data - Les données de l'objet
+     */
     constructor(data) {
         this.id = parseInt(data.id, 10);
         this.show_id = parseInt(data.show_id, 10);
@@ -4110,16 +4547,32 @@ class Picture {
         this.date = new Date(data.date);
         this.picked = data.picked;
     }
+    /** @type {number} */
     id;
+    /** @type {number} */
     show_id;
+    /** @type {number} */
     login_id;
+    /** @type {string} */
     url;
+    /** @type {number} */
     width;
+    /** @type {number} */
     height;
+    /** @type {Date} */
     date;
+    /** @type {Picked} */
     picked;
 }
+/**
+ * Classe représentant une plateforme de diffusion
+ * @class
+ */
 class Platform {
+    /**
+     * Contructeur
+     * @param {Obj} data - Les données de l'objet
+     */
     constructor(data) {
         this.id = parseInt(data.id, 10);
         this.name = data.name;
@@ -4129,26 +4582,62 @@ class Platform {
         this.logo = data.logo;
         this.partner = !data.partner || false;
     }
+    /**
+     * Identifiant de la plateforme
+     * @type {number}
+     */
     id;
+    /**
+     * Nom de la plateforme
+     * @type {string}
+     */
     name;
+    /** @type {string} */
     tag;
+    /**
+     * Lien URL d'accès au média sur la plateforme
+     * @type {string}
+     */
     link_url;
+    /** @type {object} */
     available;
+    /**
+     * URL du logo de la plateforme
+     * @type {string}
+     */
     logo;
+    /**
+     * Flag de partenariat avec la plateforme
+     * @type {boolean}
+     */
     partner;
 }
+/**
+ * Classe représentant les différentes plateformes de diffusion
+ * sous deux types de plateformes
+ * @class
+ */
 class PlatformList {
+    /** @type {Array<Platform>} */
     svod;
+    /** @type {Array<Platform>} */
     vod;
+    /** @type {string} */
     country;
+    /**
+     * Les types de plateformes
+     * @type {Obj}
+     * @static
+     */
     static types = {
         svod: 'svod',
         vod: 'vod'
     };
     /**
      * fetchPlatforms - Récupère la liste des plateformes sur l'API
-     * @param  {string}                [country = 'us'] Le pays concerné par les plateformes
-     * @return {Promise<PlatformList>}                  L'objet contenant les différentes plateformes
+     * @static
+     * @param  {string}                [country = 'us'] - Le pays concerné par les plateformes
+     * @return {Promise<PlatformList>}                    L'objet contenant les différentes plateformes
      */
     static fetchPlatforms(country = 'us') {
         return new Promise((resolve, reject) => {
@@ -4159,6 +4648,11 @@ class PlatformList {
                 .catch(err => reject(err));
         });
     }
+    /**
+     * Contructeur
+     * @param {Obj}     data -      Les données de l'objet
+     * @param {string}  country -   Le pays correspondant aux plateformes
+     */
     constructor(data, country = 'fr') {
         if (data.svod) {
             this.svod = [];
@@ -4192,9 +4686,9 @@ class PlatformList {
     }
     /**
      * Retourne les plateformes sous forme d'éléments HTML Option
-     * @param  {string}           [type = 'svod']  Le type de plateformes souhaité
-     * @param  {Array<number>}    [exclude = null] Les identifiants des plateformes à exclure
-     * @return {string}                            Les options sous forme de chaîne
+     * @param  {string}           [type = 'svod'] -     Le type de plateformes souhaité
+     * @param  {Array<number>}    [exclude = null] -    Les identifiants des plateformes à exclure
+     * @return {string}                                 Les options sous forme de chaîne
      */
     renderHtmlOptions(type = 'svod', exclude = null) {
         let options = '';
@@ -4217,7 +4711,15 @@ class PlatformList {
         return options;
     }
 }
+/**
+ * Classe représentant les différentes plateformes de diffusion d'un média
+ * @class
+ */
 class Platforms {
+    /**
+     * Contructeur
+     * @param {Obj} data - Les données de l'objet
+     */
     constructor(data) {
         this.svods = [];
         if (data?.svods && data?.svods instanceof Array) {
@@ -4235,20 +4737,40 @@ class Platforms {
             }
         }
     }
+    /** @type {Array<Platform>} */
     svods;
+    /** @type {Platform} */
     svod;
+    /** @type {Array<Platform>} */
     vod;
 }
+/**
+ * Class représentant un ShowRunner
+ * @class
+ */
 class Showrunner {
+    /**
+     * Contructeur
+     * @param {Obj} data - Les données de l'objet
+     */
     constructor(data) {
         this.id = data.id ? parseInt(data.id, 10) : null;
         this.name = data.name;
         this.picture = data.picture;
     }
+    /** @type {number} */
     id;
+    /** @type {string} */
     name;
+    /** @type {string} */
     picture;
 }
+/**
+ * Class representing a Show
+ * @class
+ * @extends Media
+ * @implements {implShow, implAddNote}
+ */
 class Show extends Media {
     /***************************************************/
     /*                      STATIC                     */
@@ -4256,6 +4778,7 @@ class Show extends Media {
     /**
      * Types d'évenements gérés par cette classe
      * @type {Array}
+     * @static
      */
     static EventTypes = [
         EventTypes.UPDATE,
@@ -4267,17 +4790,114 @@ class Show extends Media {
         EventTypes.ARCHIVE,
         EventTypes.UNARCHIVE
     ];
+    /**
+     * Propriétés pouvant être surchargées
+     * @type {object}
+     */
     static propsAllowedOverride = {
         poster: { path: 'images.poster' },
         season: { path: 'seasons[#season#].image', params: { season: 'number' } }
     };
+    /**
+     * Type de surcharge
+     * Nécessaire pour la classe parente
+     * @static
+     * @type {string}
+     */
     static overrideType = 'shows';
     /**
+     * Les différents sélecteurs CSS des propriétés de l'objet
+     * @static
+     * @type {Record<string, string>}
+     */
+    static selectorsCSS = {
+        title: '.blockInformations h1.blockInformations__title',
+        description: '.blockInformations p.blockInformations__synopsis',
+        creation: '.blockInformations .blockInformations__metadatas time',
+        followers: '.blockInformations .blockInformations__metadatas span.u-colorWhiteOpacity05.textAlignCenter:nth-of-type(2)',
+        nbSeasons: '.blockInformations .blockInformations__metadatas span.u-colorWhiteOpacity05.textAlignCenter:nth-of-type(3)',
+        nbEpisodes: '.blockInformations .blockInformations__metadatas span.u-colorWhiteOpacity05.textAlignCenter:nth-of-type(4)',
+        country: '.blockInformations .blockInformations__details li:nth-child(#n#) a',
+        genres: '.blockInformations .blockInformations__details li:nth-child(#n#) span',
+        duration: '.blockInformations .blockInformations__details li:nth-child(#n#) span',
+        status: '.blockInformations .blockInformations__details li:nth-child(#n#) span',
+        network: '.blockInformations .blockInformations__details li:nth-child(#n#) span',
+        showrunner: '.blockInformations .blockInformations__details li:nth-child(#n#) span',
+        /*rating: '#rating',
+        seasons: '#seasons',
+        episodes: '#episodes',
+        comments: '#comments',
+        characters: '#actors',
+        similars: '#similars'*/
+    };
+    /**
+     * Objet contenant les informations de relations entre les propriétés des objets de l'API
+     * et les proriétés de cette classe.
+     * Sert à la construction de l'objet
+     * @static
+     * @type {Record<string, RelatedProp>}
+     */
+    static relatedProps = {
+        // data: Obj => object: Show
+        aliases: { key: "aliases", type: 'object', default: {} },
+        comments: { key: "nbComments", type: 'number', default: 0 },
+        country: { key: "country", type: 'string', default: '' },
+        creation: { key: "creation", type: 'number', default: 0 },
+        description: { key: "description", type: 'string', default: '' },
+        episodes: { key: "nbEpisodes", type: 'number', default: 0 },
+        followers: { key: "followers", type: 'number', default: 0 },
+        genres: { key: "genres", type: 'array', transform: objToArr, default: [] },
+        id: { key: "id", type: 'number' },
+        images: { key: "images", type: Images },
+        imdb_id: { key: "imdb_id", type: 'string', default: '' },
+        in_account: { key: "in_account", type: 'boolean', default: false },
+        language: { key: "language", type: 'string', default: '' },
+        length: { key: "duration", type: 'number', default: 0 },
+        network: { key: "network", type: 'string', default: '' },
+        next_trailer: { key: "next_trailer", type: 'string', default: '' },
+        next_trailer_host: { key: "next_trailer_host", type: 'string', default: '' },
+        notes: { key: "objNote", type: Note },
+        original_title: { key: "original_title", type: 'string', default: '' },
+        platforms: { key: "platforms", type: Platforms },
+        rating: { key: "rating", type: 'string', default: '' },
+        resource_url: { key: "resource_url", type: 'string', default: '' },
+        seasons: { key: "nbSeasons", type: 'number', default: 0 },
+        seasons_details: { key: "seasons", type: "array", transform: Show.seasonsDetailsToSeasons },
+        showrunner: { key: "showrunner", type: Showrunner },
+        similars: { key: "nbSimilars", type: 'number', default: 0 },
+        slug: { key: 'slug', type: 'string', default: '' },
+        social_links: { key: "social_links", type: 'array', default: [] },
+        status: { key: "status", type: "string", default: '' },
+        thetvdb_id: { key: "thetvdb_id", type: 'number', default: 0 },
+        themoviedb_id: { key: "tmdb_id", type: 'number', default: 0 },
+        title: { key: "title", type: 'string', default: '' },
+        user: { key: "user", type: User }
+    };
+    /**
+     * Fonction statique servant à construire un tableau d'objets Season
+     * à partir des données de l'API
+     * @static
+     * @param   {Show} obj - L'objet Show
+     * @param   {Obj} data - Les données provenant de l'API
+     * @returns {Array<Season>}
+     */
+    static seasonsDetailsToSeasons(obj, data) {
+        if (Array.isArray(obj.seasons) && obj.seasons.length === data.length) {
+            return obj.seasons;
+        }
+        const seasons = [];
+        for (let s = 0; s < data.length; s++) {
+            seasons.push(new Season(data[s], obj));
+        }
+        return seasons;
+    }
+    /**
      * Méthode static servant à récupérer une série sur l'API BS
+     * @static
+     * @private
      * @param  {Obj} params - Critères de recherche de la série
      * @param  {boolean} [force=false] - Indique si on utilise le cache ou non
      * @return {Promise<Show>}
-     * @private
      */
     static _fetch(params, force = false) {
         return new Promise((resolve, reject) => {
@@ -4288,6 +4908,7 @@ class Show extends Media {
     }
     /**
      * fetchLastSeen - Méthode static retournant les 10 dernières séries vues par le membre
+     * @static
      * @param  {number}  [limit = 10]  Le nombre limite de séries retournées
      * @return {Promise<Show>}         Une promesse avec les séries
      */
@@ -4297,7 +4918,7 @@ class Show extends Media {
                 .then((data) => {
                 const shows = [];
                 for (let s = 0; s < data.shows.length; s++) {
-                    shows.push(new Show(data.shows[s], jQuery('body')));
+                    shows.push(new Show(data.shows[s]));
                 }
                 resolve(shows);
             })
@@ -4306,6 +4927,7 @@ class Show extends Media {
     }
     /**
      * Méthode static servant à récupérer plusieurs séries sur l'API BS
+     * @static
      * @param  {Array<number>} ids - Les identifiants des séries recherchées
      * @return {Promise<Array<Show>>}
      */
@@ -4316,11 +4938,11 @@ class Show extends Media {
                 const shows = [];
                 if (ids.length > 1) {
                     for (let s = 0; s < data.shows.length; s++) {
-                        shows.push(new Show(data.shows[s], jQuery('.blockInformations')));
+                        shows.push(new Show(data.shows[s]));
                     }
                 }
                 else {
-                    shows.push(new Show(data.show, jQuery('.blockInformations')));
+                    shows.push(new Show(data.show));
                 }
                 resolve(shows);
             })
@@ -4329,15 +4951,17 @@ class Show extends Media {
     }
     /**
      * Methode static servant à récupérer une série par son identifiant BS
+     * @static
      * @param  {number} id - L'identifiant de la série
      * @param  {boolean} [force=false] - Indique si on utilise le cache ou non
      * @return {Promise<Show>}
      */
     static fetch(id, force = false) {
-        return Show._fetch({ id: id }, force);
+        return Show._fetch({ id }, force);
     }
     /**
      * Methode static servant à récupérer une série par son identifiant TheTVDB
+     * @static
      * @param  {number} id - L'identifiant TheTVDB de la série
      * @param  {boolean} [force=false] - Indique si on utilise le cache ou non
      * @return {Promise<Show>}
@@ -4347,6 +4971,7 @@ class Show extends Media {
     }
     /**
      * Méthode static servant à récupérer une série par son identifiant URL
+     * @static
      * @param   {string} url - Identifiant URL (slug) de la série recherchée
      * @param   {boolean} force - Indique si on doit ignorer les données dans le cache
      * @returns {Promise<Show>}
@@ -4385,6 +5010,10 @@ class Show extends Media {
      * @type {number} Nombre total d'épisodes dans la série
      */
     nbEpisodes;
+    /**
+     * @type {number} Nombre de saisons dans la série
+     */
+    nbSeasons;
     /**
      * @type {string} Chaîne TV ayant produit la série
      */
@@ -4433,6 +5062,9 @@ class Show extends Media {
      * @type {number} Identifiant TheTVDB de la série
      */
     thetvdb_id;
+    /**
+     * @type {object} Contient les URLs des posters disponibles pour la série
+     */
     _posters;
     /***************************************************/
     /*                      METHODS                    */
@@ -4445,24 +5077,151 @@ class Show extends Media {
      */
     constructor(data, element) {
         super(data, element);
-        return this.fill(data);
+        this.__fetches = {};
+        this._posters = null;
+        this.persons = [];
+        this.seasons = [];
+        this.mediaType = { singular: MediaType.show, plural: 'shows', className: Show };
+        return this.fill(data)._initRender();
     }
     /**
-     * Initialise l'objet lors de sa construction et après son remplissage
+     * Initialisation du rendu HTML
+     * Sert à définir les sélecteurs CSS et ajouter, si nécessaire, des balises HTML supplémentaires
+     * Seulement si la propriété {@link Show.elt} est définie
+     * @returns {Show}
+     */
+    _initRender() {
+        if (!this.elt) {
+            return this;
+        }
+        super._initRender();
+        // title
+        const $title = jQuery(Show.selectorsCSS.title);
+        if ($title.length > 0) {
+            const title = $title.text();
+            $title.empty().append(`<span class="title">${title}</span>`);
+            Show.selectorsCSS.title += ' span.title';
+        }
+        const $details = jQuery('.blockInformations__details li', this.elt);
+        for (let d = 0, _len = $details.length; d < _len; d++) {
+            const $li = jQuery($details.get(d));
+            if ($li.get(0).classList.length <= 0) {
+                const title = $li.find('strong').text().trim().toLowerCase();
+                switch (title) {
+                    case 'pays':
+                        Show.selectorsCSS.country = Show.selectorsCSS.country.replace('#n#', (d + 1).toString());
+                        break;
+                    case 'genres':
+                        Media.selectorsCSS.genres = Media.selectorsCSS.genres.replace('#n#', (d + 1).toString());
+                        Show.selectorsCSS.genres = Show.selectorsCSS.genres.replace('#n#', (d + 1).toString());
+                        break;
+                    case 'durée d’un épisode': {
+                        Show.selectorsCSS.duration = Show.selectorsCSS.duration.replace('#n#', (d + 1).toString());
+                        const $span = jQuery(Show.selectorsCSS.duration);
+                        const value = $span.text().trim();
+                        const minutes = value.substring(0, value.indexOf(' '));
+                        const text = value.substring(value.indexOf(' '));
+                        $span.empty().append(`<span class="time">${minutes}</span>${text}`);
+                        Show.selectorsCSS.duration += ' span.time';
+                        Media.selectorsCSS.duration = Show.selectorsCSS.duration;
+                        break;
+                    }
+                    case 'statut':
+                        Show.selectorsCSS.status = Show.selectorsCSS.status.replace('#n#', (d + 1).toString());
+                        break;
+                    case 'chaîne':
+                        Show.selectorsCSS.network = Show.selectorsCSS.network.replace('#n#', (d + 1).toString());
+                        break;
+                    case 'showrunner':
+                        Show.selectorsCSS.showrunner = Show.selectorsCSS.showrunner.replace('#n#', (d + 1).toString());
+                        break;
+                    default:
+                        break;
+                }
+            }
+        }
+        return this;
+    }
+    /**
+     * Met à jour le nombre de followers sur la page Web
+     */
+    updatePropRenderFollowers() {
+        const $followers = jQuery(Show.selectorsCSS.followers);
+        if ($followers.length > 0) {
+            let text = `${this.followers.toString()} membre${this.followers > 1 ? 's' : ''}`;
+            $followers.attr('title', text);
+            if (this.followers >= 1000) {
+                const thousand = Math.round(this.followers / 1000);
+                text = `${thousand.toString()}K membres`;
+            }
+            $followers.text(text);
+        }
+        delete this.__changes.followers;
+    }
+    /**
+     * Met à jour le nombre de saisons sur la page Web
+     */
+    updatePropRenderNbSeasons() {
+        const $seasons = jQuery(Show.selectorsCSS.nbSeasons);
+        if ($seasons.length > 0) {
+            $seasons.text(`${this.nbSeasons.toString()} saison${this.nbSeasons > 1 ? 's' : ''}`);
+        }
+        delete this.__changes.nbSeasons;
+    }
+    /**
+     * Met à jour le nombre d'épisodes sur la page Web
+     */
+    updatePropRenderNbEpisodes() {
+        const $episodes = jQuery(Show.selectorsCSS.nbEpisodes);
+        if ($episodes.length > 0) {
+            $episodes.text(`${this.nbEpisodes.toString()} épisode${this.nbEpisodes > 1 ? 's' : ''}`);
+        }
+        delete this.__changes.nbEpisodes;
+    }
+    /**
+     * Met à jour le statut de la série sur la page Web
+     */
+    updatePropRenderStatus() {
+        const $status = jQuery(Show.selectorsCSS.status);
+        if ($status.length > 0) {
+            let text = 'Terminée';
+            if (this.status.toLowerCase() === 'continuing') {
+                text = 'En cours';
+            }
+            $status.text(text);
+        }
+        delete this.__changes.status;
+    }
+    /**
+     * Met à jour la durée d'un épisode sur la page Web
+     */
+    updatePropRenderDuration() {
+        const $duration = jQuery(Show.selectorsCSS.duration);
+        if ($duration.length > 0) {
+            $duration.text(this.duration.toString());
+        }
+    }
+    /**
+     * Initialise l'objet après sa construction et son remplissage
      * @returns {Promise<Show>}
      */
     init() {
-        return this.fetchSeasons().then(() => {
-            // On gère l'ajout et la suppression de la série dans le compte utilisateur
-            if (this.in_account) {
-                this.deleteShowClick();
-            }
-            else {
-                this.addShowClick();
-            }
-            this._overrideProps();
-            return this;
-        });
+        if (this.elt) {
+            const promises = [];
+            promises.push(this.fetchSeasons().then(() => {
+                // On gère l'ajout et la suppression de la série dans le compte utilisateur
+                if (this.in_account) {
+                    this.deleteShowClick();
+                }
+                else {
+                    this.addShowClick();
+                }
+                return this;
+            }));
+            promises.push(super.init());
+            return Promise.all(promises).then(() => this);
+        }
+        return super.init();
     }
     /**
      * Récupère les données de la série sur l'API
@@ -4470,7 +5229,14 @@ class Show extends Media {
      * @return {Promise<*>}             Les données de la série
      */
     fetch(force = true) {
-        return Base.callApi('GET', 'shows', 'display', { id: this.id }, force);
+        const self = this;
+        if (this.__fetches.show)
+            return this.__fetches.show;
+        this.__fetches.show = Base.callApi('GET', 'shows', 'display', { id: this.id }, force)
+            .then((data) => {
+            return data;
+        }).finally(() => delete self.__fetches.show);
+        return this.__fetches.show;
     }
     /**
      * Récupère les saisons de la série
@@ -4478,6 +5244,8 @@ class Show extends Media {
      */
     fetchSeasons() {
         const self = this;
+        if (this.__fetches.seasons)
+            return this.__fetches.seasons;
         const params = { thetvdb_id: this.thetvdb_id };
         let force = false;
         if (this.thetvdb_id <= 0) {
@@ -4485,7 +5253,7 @@ class Show extends Media {
             params.id = this.id;
             force = true;
         }
-        return Base.callApi(HTTP_VERBS.GET, 'shows', 'seasons', params, force)
+        this.__fetches.seasons = Base.callApi(HTTP_VERBS.GET, 'shows', 'seasons', params, force)
             .then((data) => {
             self.seasons = [];
             if (data?.seasons?.length <= 0) {
@@ -4497,7 +5265,8 @@ class Show extends Media {
                 self.seasons[seasonNumber - 1] = new Season(data.seasons[s], this);
             }
             return self;
-        });
+        }).finally(() => delete self.__fetches.seasons);
+        return this.__fetches.seasons;
     }
     /**
      * Récupère les personnages de la série
@@ -4506,7 +5275,9 @@ class Show extends Media {
      */
     fetchCharacters() {
         const self = this;
-        return Base.callApi(HTTP_VERBS.GET, 'shows', 'characters', { thetvdb_id: this.thetvdb_id })
+        if (this.__fetches.characters)
+            return this.__fetches.characters;
+        this.__fetches.characters = Base.callApi(HTTP_VERBS.GET, 'shows', 'characters', { thetvdb_id: this.thetvdb_id })
             .then((data) => {
             self.characters = [];
             if (data?.characters?.length <= 0) {
@@ -4516,7 +5287,8 @@ class Show extends Media {
                 self.characters.push(new Character(data.characters[c]));
             }
             return self;
-        });
+        }).finally(() => delete self.__fetches.characters);
+        return this.__fetches.characters;
     }
     /**
      * Retourne le personnage associé au nom d'acteur de la série
@@ -4537,7 +5309,9 @@ class Show extends Media {
      */
     fetchPersons() {
         const self = this;
-        return Base.callApi(HTTP_VERBS.GET, 'persons', 'show', { id: this.id })
+        if (this.__fetches.persons)
+            return this.__fetches.persons;
+        this.__fetches.persons = Base.callApi(HTTP_VERBS.GET, 'persons', 'show', { id: this.id })
             .then(data => {
             this.persons = [];
             if (data.persons) {
@@ -4546,7 +5320,8 @@ class Show extends Media {
                 }
             }
             return self;
-        });
+        }).finally(() => delete self.__fetches.persons);
+        return this.__fetches.persons;
     }
     /**
      * Récupère les acteurs sur l'API BetaSeries à partir
@@ -4577,9 +5352,9 @@ class Show extends Media {
      * @returns {Person | null}
      */
     getPersonByName(name) {
-        const comp = name.toLocaleLowerCase();
+        const comp = name.toLowerCase();
         for (const actor of this.persons) {
-            if (actor.name.toLocaleLowerCase() === comp)
+            if (actor.name.toLowerCase() === comp)
                 return actor;
         }
         return null;
@@ -4622,10 +5397,11 @@ class Show extends Media {
     }
     /**
      * isMarkToSee - Indique si la série se trouve dans les séries à voir
+     * @async
      * @returns {boolean}
      */
-    isMarkedToSee() {
-        const toSee = Base.gm_funcs.getValue('toSee', {});
+    async isMarkedToSee() {
+        const toSee = await Base.gm_funcs.getValue('toSee', {});
         return toSee[this.id] !== undefined;
     }
     /**
@@ -4758,20 +5534,18 @@ class Show extends Media {
      */
     update(force = false, cb = Base.noop) {
         const self = this;
-        return new Promise((resolve, reject) => {
-            self.fetch(force).then(data => {
-                self.fill(data.show);
-                self.updateRender(() => {
-                    resolve(self);
-                    cb();
-                    self._callListeners(EventTypes.UPDATE);
-                });
-            })
-                .catch(err => {
-                Media.notification('Erreur de récupération de la ressource Show', 'Show update: ' + err);
-                reject(err);
+        return Base.callApi('GET', 'shows', 'display', { id: self.id }, force)
+            .then(data => {
+            self.fill(data.show).save();
+            self.updateRender(() => {
                 cb();
+                self._callListeners(EventTypes.UPDATE);
             });
+            return self;
+        })
+            .catch(err => {
+            Media.notification('Erreur de récupération de la ressource Show', 'Show update: ' + err);
+            cb();
         });
     }
     /**
@@ -4784,6 +5558,8 @@ class Show extends Media {
         const self = this;
         this.updateProgressBar();
         this.updateNextEpisode();
+        this.updateArchived();
+        this.updateNote();
         const note = this.objNote;
         if (Base.debug) {
             console.log('Next ID et status', {
@@ -4794,7 +5570,7 @@ class Show extends Media {
             });
         }
         // Si il n'y a plus d'épisodes à regarder
-        if (this.user.remaining === 0 && this.in_account && this.currentSeason.getNbEpisodesUnwatched() == 0) {
+        if (this.user.remaining === 0 && this.in_account && this.currentSeason.seen) {
             let promise = new Promise(resolve => { return resolve(void 0); });
             // On propose d'archiver si la série n'est plus en production
             if (this.isEnded() && !this.isArchived()) {
@@ -4806,7 +5582,7 @@ class Show extends Media {
                         title: 'Archivage de la série',
                         text: 'Voulez-vous archiver cette série terminée ?',
                         callback_yes: function () {
-                            jQuery('#reactjs-show-actions button.btn-archive').trigger('click');
+                            jQuery('#reactjs-show-actions button.btn-archive', this.elt).trigger('click');
                             resolve(void 0);
                         },
                         callback_no: function () {
@@ -4860,6 +5636,24 @@ class Show extends Media {
             console.log('updateProgressBar');
         // On met à jour la barre de progression
         jQuery('.progressBarShow').css('width', this.user.status.toFixed(1) + '%');
+    }
+    /**
+     * Simule un clic sur le bouton d'archivage de la série sur la page Web
+     */
+    updateArchived() {
+        if (Base.debug)
+            console.log('Show updateArchived');
+        const $btnArchive = jQuery('#reactjs-show-actions button.btn-archive');
+        if (this.isArchived() && $btnArchive.length > 0) {
+            $btnArchive.trigger('click');
+        }
+    }
+    updateNote() {
+        if (Base.debug)
+            console.log('Show updateNote');
+        if (this.objNote.user) {
+            this._callListeners(EventTypes.NOTE);
+        }
     }
     /**
      * Met à jour le bloc du prochain épisode à voir
@@ -5007,7 +5801,7 @@ class Show extends Media {
          * @param  {Show} show L'objet de type Show
          * @return {void}
          */
-        function changeBtnAdd(show) {
+        async function changeBtnAdd(show) {
             const $optionsLinks = jQuery('.blockInformations__action .dropdown-menu a.header-navigation-item');
             if ($optionsLinks.length <= 3) {
                 const react_id = jQuery('script[id^="/reactjs/"]').get(0).id.split('.')[1], urlShow = show.resource_url.substring(location.origin.length), title = show.title.replace(/"/g, '\\"').replace(/'/g, "\\'");
@@ -5104,11 +5898,11 @@ class Show extends Media {
                 >
                     ${Base.trans("popup.suggest_show.title", { '%title%': "une série" })}</button>`;
                 jQuery('#similars h2.blockTitle').after(btnAddSimilars);
-                self.addNumberVoters();
+                // self.addNumberVoters();
                 // On supprime le btn ToSeeLater
                 self.elt.find('.blockInformations__action .btnMarkToSee').parent().remove();
                 self.elt.find('.blockInformations__title .fa-clock-o').remove();
-                const toSee = Base.gm_funcs.getValue('toSee', {});
+                const toSee = await Base.gm_funcs.getValue('toSee', {});
                 if (toSee[self.id] !== undefined) {
                     delete toSee[self.id];
                     Base.gm_funcs.setValue('toSee', toSee);
@@ -5189,7 +5983,7 @@ class Show extends Media {
                                 ${$stars.html()}
                             </span>`);
                         self.elt = $('.blockInformations');
-                        self.addNumberVoters();
+                        // self.addNumberVoters();
                         self.addBtnToSee();
                         self.addShowClick();
                         self.updateProgressBar();
@@ -5231,8 +6025,9 @@ class Show extends Media {
     }
     /**
      * Ajoute le bouton toSee dans les actions de la série
+     * @sync
      */
-    addBtnToSee() {
+    async addBtnToSee() {
         if (this.elt.find('.btnMarkToSee').length > 0)
             return;
         const self = this;
@@ -5243,8 +6038,8 @@ class Show extends Media {
                 </button>
                 <div class="label">A voir</div>
             </div>`;
-        const toggleToSeeShow = (showId) => {
-            const storeToSee = Base.gm_funcs.getValue('toSee', {});
+        const toggleToSeeShow = async (showId) => {
+            const storeToSee = await Base.gm_funcs.getValue('toSee', {});
             let toSee;
             if (storeToSee[showId] === undefined) {
                 storeToSee[showId] = true;
@@ -5259,7 +6054,7 @@ class Show extends Media {
         };
         this.elt.find('.blockInformations__actions').last().append(btnHTML);
         const $btn = this.elt.find('.blockInformations__action .btnMarkToSee');
-        $btn.click((e) => {
+        $btn.on('click', (e) => {
             e.stopPropagation();
             e.preventDefault();
             const $btn = jQuery(e.currentTarget);
@@ -5276,7 +6071,7 @@ class Show extends Media {
             }
             $btn.blur();
         });
-        const toSee = Base.gm_funcs.getValue('toSee', {});
+        const toSee = await Base.gm_funcs.getValue('toSee', {});
         if (toSee[this.id] !== undefined) {
             $btn.find('i.fa').css('color', 'var(--body_background)');
             $btn.attr('title', 'Retirer la série des séries à voir');
@@ -5457,7 +6252,9 @@ class Show extends Media {
                             const parser = new DOMParser();
                             const doc = parser.parseFromString(html, 'text/html');
                             const link = doc.querySelector('.container .row a[rel="artwork_posters"]');
-                            res(link.href.replace('original', 'w500'));
+                            if (link)
+                                res(link.href.replace('original', 'w500'));
+                            rej('poster not found');
                         }).catch(err => rej(err));
                     });
                 }
@@ -5485,7 +6282,9 @@ class Show extends Media {
                             const parser = new DOMParser();
                             const doc = parser.parseFromString(html, 'text/html');
                             const link = doc.querySelector('.container .row a[rel="artwork_backgrounds"]');
-                            res(link.href.replace('original', 'w500'));
+                            if (link)
+                                res(link.href.replace('original', 'w500'));
+                            rej('image not found');
                         }).catch(err => rej(err));
                     });
                 }
@@ -5544,6 +6343,7 @@ class Show extends Media {
     }
 }
 
+/* eslint-disable @typescript-eslint/no-explicit-any */
 var MovieStatus;
 (function (MovieStatus) {
     MovieStatus[MovieStatus["TOSEE"] = 0] = "TOSEE";
@@ -5559,6 +6359,51 @@ class Movie extends Media {
         poster: { path: 'poster' }
     };
     static overrideType = 'movies';
+    static selectorsCSS = {
+        title: '.blockInformations h1.blockInformations__title',
+        description: '.blockInformations p.blockInformations__description',
+        tagline: '.blockInformations p.blockInformations__tagline',
+        release_date: '.blockInformations .blockInformations__metadatas time',
+        followers: '.blockInformations .blockInformations__metadatas span.u-colorWhiteOpacity05',
+        director: '.blockInformations .blockInformations__details li:nth-child(#n#) sapn',
+        duration: '.blockInformations .blockInformations__details li:nth-child(#n#) span',
+        genres: '.blockInformations .blockInformations__details li:nth-child(#n#) span',
+        language: '.blockInformations .blockInformations__details li:nth-child(#n#) span',
+        /*comments: '#comments',
+        characters: '#actors',
+        similars: '#similars'*/
+    };
+    static relatedProps = {
+        // data: Obj => object: Show
+        backdrop: { key: "backdrop", type: 'string', default: '' },
+        comments: { key: "nbComments", type: 'number', default: 0 },
+        director: { key: "director", type: 'string', default: '' },
+        followers: { key: "followers", type: 'number', default: 0 },
+        genres: { key: "genres", type: 'array', default: [] },
+        id: { key: "id", type: 'number' },
+        imdb_id: { key: "imdb_id", type: 'string', default: '' },
+        in_account: { key: "in_account", type: 'boolean', default: false },
+        language: { key: "language", type: 'string', default: '' },
+        length: { key: "duration", type: 'number', default: 0 },
+        notes: { key: "objNote", type: Note },
+        original_release_date: { key: "original_release_date", type: 'date' },
+        original_title: { key: "original_title", type: 'string', default: '' },
+        other_title: { key: "other_title", type: 'object', default: {} },
+        platform_links: { key: "platforms", type: 'array', default: [] },
+        poster: { key: "poster", type: 'string', default: '' },
+        production_year: { key: "production_year", type: 'number', default: 0 },
+        release_date: { key: "release_date", type: 'date' },
+        resource_url: { key: "resource_url", type: 'string', default: '' },
+        sale_date: { key: "sale_date", type: 'date' },
+        similars: { key: "nbSimilars", type: 'number', default: 0 },
+        synopsis: { key: "description", type: 'string', default: '' },
+        tagline: { key: "tagline", type: 'string', default: '' },
+        title: { key: "title", type: 'string', default: '' },
+        tmdb_id: { key: "tmdb_id", type: 'number', default: 0 },
+        trailer: { key: "trailer", type: 'string', default: '' },
+        url: { key: 'slug', type: 'string', default: '' },
+        user: { key: "user", type: User }
+    };
     /**
      * Méthode static servant à récupérer un film sur l'API BS
      * @param  {Obj} params - Critères de recherche du film
@@ -5627,41 +6472,96 @@ class Movie extends Media {
      * @returns {Media}
      */
     constructor(data, element) {
+        data.in_account = data.user?.in_account;
         super(data, element);
         this._local = { poster: null };
-        return this.fill(data);
-    }
-    /**
-     * Remplit l'objet avec les données fournit en paramètre
-     * @param  {any} data Les données provenant de l'API
-     * @returns {Movie}
-     * @override
-     */
-    fill(data) {
-        if (data.user?.in_account !== undefined) {
-            data.in_account = data.user.in_account;
-            delete data.user.in_account;
-        }
-        data.description = data.synopsis;
-        delete data.synopsis;
-        data.slug = data.url;
-        delete data.url;
-        this.backdrop = data.backdrop;
-        this.director = data.director;
-        this.original_release_date = new Date(data.original_release_date);
-        this.other_title = data.other_title;
-        this.platform_links = data.platform_links;
-        this.poster = data.poster;
-        this._local = { poster: this.poster };
-        this.production_year = parseInt(data.production_year);
-        this.release_date = new Date(data.release_date);
-        this.sale_date = new Date(data.sale_date);
-        this.tagline = data.tagline;
-        this.tmdb_id = parseInt(data.tmdb_id);
-        this.trailer = data.trailer;
+        this.platform_links = [];
         this.mediaType = { singular: MediaType.movie, plural: 'movies', className: Movie };
-        super.fill(data);
-        return this.save();
+        return this.fill(data)._initRender();
+    }
+    _initRender() {
+        if (!this.elt) {
+            return;
+        }
+        super._initRender();
+        // title
+        const $title = jQuery(Movie.selectorsCSS.title);
+        if ($title.length > 0) {
+            const title = $title.text();
+            $title.empty().append(`<span class="title">${title}</span>`);
+            Movie.selectorsCSS.title += ' span.title';
+        }
+        const $synopsis = jQuery('.blockInformations .blockInformations__synopsis');
+        if ($synopsis.length === 2) {
+            $synopsis.first().addClass('blockInformations__tagline');
+            $synopsis.last().addClass('blockInformations__description');
+        }
+        else {
+            $synopsis.first().addClass('blockInformations__description');
+        }
+        const $details = jQuery('.blockInformations__details li', this.elt);
+        for (let d = 0, _len = $details.length; d < _len; d++) {
+            const $li = jQuery($details.get(d));
+            if ($li.get(0).classList.length <= 0) {
+                const title = $li.find('strong').text().trim().toLowerCase();
+                switch (title) {
+                    case 'réalisateur':
+                        Movie.selectorsCSS.director = Movie.selectorsCSS.director.replace('#n#', (d + 1).toString());
+                        break;
+                    case 'genres':
+                        Media.selectorsCSS.genres = Media.selectorsCSS.genres.replace('#n#', (d + 1).toString());
+                        Movie.selectorsCSS.genres = Movie.selectorsCSS.genres.replace('#n#', (d + 1).toString());
+                        break;
+                    case 'durée': {
+                        Media.selectorsCSS.duration = Media.selectorsCSS.duration.replace('#n#', (d + 1).toString());
+                        Movie.selectorsCSS.duration = Movie.selectorsCSS.duration.replace('#n#', (d + 1).toString());
+                        break;
+                    }
+                    case 'langue':
+                        Movie.selectorsCSS.language = Movie.selectorsCSS.language.replace('#n#', (d + 1).toString());
+                        break;
+                    default:
+                        break;
+                }
+            }
+        }
+        return this;
+    }
+    updatePropRenderFollowers() {
+        const $followers = jQuery(Movie.selectorsCSS.followers);
+        if ($followers.length > 0) {
+            let text = `${this.followers.toString()} membre${this.followers > 1 ? 's' : ''}`;
+            $followers.attr('title', text);
+            if (this.followers >= 1000) {
+                const thousand = Math.round(this.followers / 1000);
+                text = `${thousand.toString()}K membres`;
+            }
+            $followers.text(text);
+        }
+        delete this.__changes.followers;
+    }
+    // release_date
+    updatePropRenderReleaseDate() {
+        const $releaseDate = jQuery(Movie.selectorsCSS.release_date);
+        if ($releaseDate.length > 0) {
+            $releaseDate.text(this.release_date.format('dd mmmm yyyy'));
+        }
+        delete this.__changes.release_date;
+    }
+    updatePropRenderDuration() {
+        const $duration = jQuery(Movie.selectorsCSS.duration);
+        if ($duration.length > 0) {
+            let minutes = this.duration / 60;
+            let hours = minutes / 60;
+            let text = '';
+            if (hours >= 1) {
+                hours = Math.floor(hours);
+                minutes = ((minutes / 60) - hours) * 60;
+                text += `${hours.toString()} heure${hours > 1 ? 's' : ''} `;
+            }
+            text += `${minutes.toFixed().padStart(2, '0')} minutes`;
+            $duration.text(text);
+        }
     }
     /**
      * Définit le film, sur le compte du membre connecté, comme "vu"
@@ -5752,7 +6652,9 @@ class Movie extends Media {
      */
     fetchCharacters() {
         const self = this;
-        return Base.callApi(HTTP_VERBS.GET, 'movies', 'characters', { id: this.id }, true)
+        if (this.__fetches.characters)
+            return this.__fetches.characters;
+        this.__fetches.characters = Base.callApi(HTTP_VERBS.GET, 'movies', 'characters', { id: this.id }, true)
             .then((data) => {
             self.characters = [];
             if (data?.characters?.length <= 0) {
@@ -5762,7 +6664,8 @@ class Movie extends Media {
                 self.characters.push(new Character(data.characters[c]));
             }
             return self;
-        });
+        }).finally(() => delete this.__fetches.characters);
+        return this.__fetches.characters;
     }
     getAllPosters() {
         if (this._posters) {
@@ -5954,7 +6857,12 @@ class Season {
     /**
      * @type {JQuery<HTMLElement>} Le DOMElement jQuery correspondant à la saison
      */
-    _elt;
+    __elt;
+    /**
+     * Objet contenant les promesses en attente des méthodes fetchXXX
+     * @type {Record<string, Promise<Season>>}
+     */
+    __fetches;
     /**
      * Constructeur de la classe Season
      * @param   {Obj}   data    Les données provenant de l'API
@@ -5962,6 +6870,7 @@ class Season {
      * @returns {Season}
      */
     constructor(data, show) {
+        this.__fetches = {};
         this.number = parseInt(data.number, 10);
         this._show = show;
         this.episodes = [];
@@ -5970,15 +6879,34 @@ class Season {
         this.seen = !!data.seen || false;
         this.image = data.image || null;
         // document.querySelector("#seasons > div > div.positionRelative > div > div:nth-child(2)")
-        this._elt = jQuery(`#seasons .slides_flex .slide_flex:nth-child(${this.number.toString()})`);
+        this.__elt = jQuery(`#seasons .slides_flex .slide_flex:nth-child(${this.number.toString()})`);
         if (data.episodes && data.episodes instanceof Array && data.episodes[0] instanceof Episode) {
             this.episodes = data.episodes;
         }
         else if (data.episodes && typeof data.episodes === 'number') {
             this.nbEpisodes = data.episodes;
         }
-        return this;
+        return this._initRender();
     }
+    /**
+     * Initialise le rendu HTML de la saison
+     * @returns {Seasons}
+     */
+    _initRender() {
+        if (!this.__elt) {
+            return this;
+        }
+        if (this.seen && jQuery('.checkSeen', this.__elt).length <= 0) {
+            jQuery('.slide__image img', this.__elt).before('<div class="checkSeen"></div>');
+        }
+        else if (this.hidden && jQuery('.hideIcon', this.__elt).length <= 0) {
+            jQuery('.slide__image img', this.__elt).before('<div class="hideIcon"></div>');
+        }
+    }
+    /**
+     * Retourne le nombre d'épisodes dans la saison
+     * @returns {number}
+     */
     get length() {
         return this.episodes.length;
     }
@@ -5997,6 +6925,7 @@ class Season {
     }
     /**
      * Getter pour l'attribut image
+     * @returns {string}
      */
     get image() {
         return this._image;
@@ -6009,20 +6938,56 @@ class Season {
         if (!this.number || this.number <= 0) {
             throw new Error('season number incorrect');
         }
+        if (this.__fetches.episodes)
+            return this.__fetches.episodes;
         const self = this;
-        return new Promise((resolve, reject) => {
-            Base.callApi('GET', 'shows', 'episodes', { id: self._show.id, season: self.number }, true)
-                .then(data => {
-                self.episodes = [];
-                for (let e = 0; e < data.episodes.length; e++) {
-                    self.episodes.push(new Episode(data.episodes[e], self));
-                }
-                resolve(self);
-            }, err => {
-                reject(err);
-            });
-        });
+        const params = {
+            id: self._show.id,
+            season: self.number
+        };
+        this.__fetches.episodes = Base.callApi('GET', 'shows', 'episodes', params, true)
+            .then((data) => {
+            self.episodes = [];
+            for (let e = 0; e < data.episodes.length; e++) {
+                const selector = `#episodes .slides_flex .slide_flex:nth-child(${e + 1})`;
+                self.episodes.push(new Episode(data.episodes[e], self, jQuery(selector)));
+            }
+            return self;
+        })
+            .finally(() => delete self.__fetches.episodes);
+        return this.__fetches.episodes;
     }
+    checkEpisodes() {
+        if (!this.number || this.number <= 0) {
+            throw new Error('season number incorrect');
+        }
+        if (this.__fetches.episodes)
+            return this.__fetches.episodes;
+        const self = this;
+        const params = {
+            id: self._show.id,
+            season: self.number
+        };
+        this.__fetches.episodes = Base.callApi('GET', 'shows', 'episodes', params, true)
+            .then((data) => {
+            for (let e = 0; e < data.episodes.length; e++) {
+                if (self.episodes.length <= e) {
+                    const selector = `#episodes .slides_flex .slide_flex:nth-child(${e + 1})`;
+                    self.episodes.push(new Episode(data.episodes[e], self, jQuery(selector)));
+                }
+                else {
+                    self.episodes[e].fill(data.episodes[e]);
+                }
+            }
+            return self;
+        })
+            .finally(() => delete self.__fetches.episodes);
+        return this.__fetches.episodes;
+    }
+    /**
+     * Cette méthode permet de passer tous les épisodes de la saison en statut **seen**
+     * @returns {Promise<Season>}
+     */
     watched() {
         const self = this;
         const params = { id: this.episodes[this.length - 1].id, bulk: true };
@@ -6038,6 +7003,10 @@ class Season {
             return self;
         });
     }
+    /**
+     * Cette méthode permet de passer tous les épisodes de la saison en statut **hidden**
+     * @returns {Promise<Season>}
+     */
     hide() {
         const self = this;
         const params = { id: this._show.id, season: this.number };
@@ -6135,17 +7104,17 @@ class Season {
          */
         const seasonViewed = function () {
             // On check la saison
-            self._elt.find('.slide__image').prepend('<div class="checkSeen"></div>');
+            self.__elt.find('.slide__image').prepend('<div class="checkSeen"></div>');
             if (Base.debug)
-                console.log('Tous les épisodes de la saison ont été vus', self._elt, self._elt.next());
+                console.log('Tous les épisodes de la saison ont été vus', self.__elt, self.__elt.next());
             // Si il y a une saison suivante, on la sélectionne
-            if (self._elt.next().length > 0) {
+            if (self.__elt.next('.slide_flex').length > 0) {
                 if (Base.debug)
                     console.log('Il y a une autre saison');
-                self._elt.removeClass('slide--current');
-                self._elt.next('.slide_flex').find('.slide__image').trigger('click');
+                self.__elt.removeClass('slide--current');
+                self.__elt.next('.slide_flex').find('.slide__image').trigger('click');
             }
-            self._elt
+            self.__elt
                 .removeClass('slide--notSeen')
                 .addClass('slide--seen');
             self.seen = true;
@@ -6169,14 +7138,19 @@ class Season {
             });
         }
         else {
-            const $checkSeen = this._elt.find('.checkSeen');
+            const $checkSeen = this.__elt.find('.checkSeen');
             if ($checkSeen.length > 0) {
                 $checkSeen.remove();
-                if (!self._elt.hasClass('slide--notSeen')) {
-                    self._elt
+                if (!self.__elt.hasClass('slide--notSeen')) {
+                    self.__elt
                         .addClass('slide--notSeen')
                         .removeClass('slide--seen');
                 }
+            }
+            // On scroll jusqu'au premier épisode non vu
+            const $epNotSeen = jQuery('#episodes .slide_flex.slide--notSeen');
+            if ($epNotSeen.length > 0) {
+                jQuery('#episodes .slides_flex').get(0).scrollLeft = $epNotSeen.get(0).offsetLeft - 69;
             }
         }
         return this;
@@ -6219,6 +7193,29 @@ class Season {
 }
 
 class Episode extends Base {
+    static selectorsCSS = {};
+    static relatedProps = {
+        // data: Obj => object: Show
+        characters: { key: "characters", type: 'array', default: [] },
+        code: { key: "code", type: 'string', default: '' },
+        comments: { key: "nbComments", type: 'number', default: 0 },
+        date: { key: "date", type: 'date', default: null },
+        description: { key: "description", type: 'string', default: '' },
+        episode: { key: "episode", type: 'number', default: 0 },
+        global: { key: "global", type: 'number', default: 0 },
+        id: { key: "id", type: 'number' },
+        note: { key: "objNote", type: Note },
+        platform_links: { key: "platform_links", type: 'array', default: [] },
+        resource_url: { key: "resource_url", type: 'string', default: '' },
+        season: { key: "numSeason", type: 'number', default: 0 },
+        seen_total: { key: "seen_total", type: 'number', default: 0 },
+        special: { key: "special", type: 'boolean', default: false },
+        subtitles: { key: "subtitles", type: 'array', default: [] },
+        thetvdb_id: { key: "thetvdb_id", type: 'number', default: 0 },
+        title: { key: "title", type: 'string', default: '' },
+        user: { key: "user", type: User },
+        youtube_id: { key: "youtube_id", type: 'string', default: '' }
+    };
     static fetch(epId) {
         return Base.callApi(HTTP_VERBS.GET, 'episodes', 'display', { id: epId })
             .then((data) => {
@@ -6289,6 +7286,7 @@ class Episode extends Base {
      * @type {string} Identifiant de la vidéo sur Youtube
      */
     youtube_id;
+    __fetches;
     /**
      * Constructeur de la classe Episode
      * @param   {Obj}       data    Les données provenant de l'API
@@ -6297,37 +7295,44 @@ class Episode extends Base {
      */
     constructor(data, season, elt) {
         super(data);
+        this.__fetches = {};
         this._season = season;
+        this.mediaType = { singular: MediaType.episode, plural: 'episodes', className: Episode };
         if (elt) {
             this.elt = elt;
         }
-        return this.fill(data);
+        return this.fill(data)._initRender();
+    }
+    _initRender() {
+        if (!this.elt) {
+            return this;
+        }
+        if (this._season) {
+            this.initCheckSeen(this.episode - 1);
+            this.addAttrTitle().addPopup();
+        }
+        else {
+            super._initRender();
+        }
     }
     /**
-     * Remplit l'objet avec les données fournit en paramètre
-     * @param  {Obj} data Les données provenant de l'API
-     * @returns {Episode}
-     * @override
+     * Mise à jour de l'information du statut de visionnage de l'épisode
+     * @returns {void}
      */
-    fill(data) {
-        this.code = data.code;
-        this.date = new Date(data.date);
-        this.director = data.director;
-        this.episode = parseInt(data.episode, 10);
-        this.global = parseInt(data.global, 10);
-        this.numSeason = parseInt(data.season, 10);
-        this.platform_links = data.platform_links;
-        this.releasesSvod = data.releasesSvod;
-        this.seen_total = (data.seen_total !== null) ? parseInt(data.seen_total, 10) : 0;
-        this.special = data.special === 1 ? true : false;
-        this.subtitles = new Subtitles(data.subtitles || []);
-        this.thetvdb_id = parseInt(data.thetvdb_id, 10);
-        this.watched_by = data.watched_by;
-        this.writers = data.writers;
-        this.youtube_id = data.youtube_id;
-        this.mediaType = { singular: MediaType.episode, plural: 'episodes', className: Episode };
-        super.fill(data);
-        return this.save();
+    updatePropRenderUser() {
+        if (!this.elt)
+            return;
+        const $elt = this.elt.find('.checkSeen');
+        if (this.user.seen && !$elt.hasClass('seen')) {
+            this.updateRender('seen');
+        }
+        else if (!this.user.seen && $elt.hasClass('seen')) {
+            this.updateRender('notSeen');
+        }
+        else if (this.user.hidden && jQuery('.hideIcon', this.elt).length <= 0) {
+            this.updateRender('hidden');
+        }
+        delete this.__changes.user;
     }
     /**
      * Ajoute le titre de l'épisode à l'attribut Title
@@ -6343,13 +7348,45 @@ class Episode extends Base {
         return this;
     }
     /**
+     * Ajoute la popup de description sur la vignette de l'épisode\
+     * Ne fonctionne que si l'épisode fait partit d'une saison, sur la page d'une série
+     * @returns {Episode}
+     */
+    addPopup() {
+        if (!this.elt || !this._season) {
+            return this;
+        }
+        const $vignette = jQuery('.slide__image', this.elt);
+        if ($vignette.length > 0) {
+            const funcPlacement = (_tip, elt) => {
+                //if (Base.debug) console.log('funcPlacement', tip, $(tip).width());
+                const rect = elt.getBoundingClientRect(), width = $(window).width(), sizePopover = 320;
+                return ((rect.left + rect.width + sizePopover) > width) ? 'left' : 'right';
+            };
+            const description = (this.description.length > 350) ?
+                this.description.substring(0, 350) + '…' :
+                (this.description.length <= 0) ? 'Aucune description' : this.description;
+            $vignette.popover({
+                container: $vignette.get(0),
+                delay: { "show": 500, "hide": 100 },
+                html: true,
+                content: `<p>${description}</p>`,
+                placement: funcPlacement,
+                title: `<div><span style="color: var(--link_color);">Episode ${this.code}</span><div class="stars-outer note"><div class="stars-inner" style="width:${this.objNote.getPercentage()}%;" title="${this.objNote.toString()}"></div></div></div>`,
+                trigger: 'hover',
+                boundary: 'window'
+            });
+        }
+        return this;
+    }
+    /**
      * Met à jour le DOMElement .checkSeen avec les
      * données de l'épisode (id, pos, special)
      * @param  {number} pos  La position de l'épisode dans la liste
      * @return {Episode}
      */
     initCheckSeen(pos) {
-        const $checkbox = this.elt.find('.checkSeen');
+        const $checkbox = jQuery('.checkSeen', this.elt);
         if ($checkbox.length > 0 && this.user.seen) {
             // On ajoute l'attribut ID et la classe 'seen' à la case 'checkSeen' de l'épisode déjà vu
             $checkbox.attr('id', 'episode-' + this.id);
@@ -6410,6 +7447,7 @@ class Episode extends Base {
         }
         else if (this.user.hidden && $checkSeen.length > 0) {
             $checkSeen.remove();
+            this.updateRender('hidden', false);
             changed = true;
         }
         this.updateTitle();
@@ -6424,14 +7462,6 @@ class Episode extends Base {
         if (`${this.code.toUpperCase()} - ${this.title}` !== $title.text().trim()) {
             $title.text(`${this.code.toUpperCase()} - ${this.title}`);
         }
-    }
-    /**
-     * Retourne le code HTML du titre de la popup
-     * pour l'affichage de la description
-     * @return {string}
-     */
-    getTitlePopup() {
-        return `<span style="color: var(--link_color);">Synopsis épisode ${this.code}</span>`;
     }
     /**
      * Définit le film, sur le compte du membre connecté, comme "vu"
@@ -6493,7 +7523,8 @@ class Episode extends Base {
             if (method === HTTP_VERBS.POST && !response) {
                 args.bulk = false; // Flag pour ne pas mettre les épisodes précédents comme vus automatiquement
             }
-            Base.callApi(method, 'episodes', 'watched', args).then((data) => {
+            Base.callApi(method, 'episodes', 'watched', args)
+                .then((data) => {
                 if (Base.debug)
                     console.log('updateStatus %s episodes/watched', method, data);
                 // Si un épisode est vu et que la série n'a pas été ajoutée
@@ -6520,15 +7551,16 @@ class Episode extends Base {
                 }
                 self
                     .fill(data.episode)
-                    .updateRender(status, true)
+                    // .updateRender(status, true)
                     ._callListeners(EventTypes.UPDATE)
                     ._season
                     .updateRender()
                     .updateShow(() => {
                     // Si il reste des épisodes à voir, on scroll
-                    if (jQuery('#episodes .slide_flex.slide--notSeen').length > 0) {
+                    const $notSeen = jQuery('#episodes .slide_flex.slide--notSeen');
+                    if ($notSeen.length > 0) {
                         jQuery('#episodes .slides_flex').get(0).scrollLeft =
-                            jQuery('#episodes .slide_flex.slide--notSeen').get(0).offsetLeft - 69;
+                            $notSeen.get(0).offsetLeft - 69;
                     }
                     self.toggleSpinner(false);
                 });
@@ -6556,7 +7588,7 @@ class Episode extends Base {
     }
     /**
      * Change le statut visuel de la vignette sur le site
-     * @param  {String} newStatus     Le nouveau statut de l'épisode
+     * @param  {String} newStatus     Le nouveau statut de l'épisode (seen, notSeen, hidden)
      * @param  {bool}   [update=true] Mise à jour de la ressource en cache et des éléments d'affichage
      * @return {Episode}
      */
@@ -6661,7 +7693,9 @@ class Episode extends Base {
      */
     fetchCharacters() {
         const self = this;
-        return Base.callApi(HTTP_VERBS.GET, 'episodes', 'characters', { id: this.id }, true)
+        if (this.__fetches.characters)
+            return this.__fetches.characters;
+        this.__fetches.characters = Base.callApi(HTTP_VERBS.GET, 'episodes', 'characters', { id: this.id }, true)
             .then((data) => {
             self.characters = [];
             if (data?.characters?.length <= 0) {
@@ -6671,11 +7705,13 @@ class Episode extends Base {
                 self.characters.push(new Character(data.characters[c]));
             }
             return self;
-        });
+        }).finally(() => delete self.__fetches.characters);
+        return this.__fetches.characters;
     }
 }
 
 class Similar extends Media {
+    static relatedProps = {};
     /* Interface implMovie */
     backdrop;
     director;
@@ -6728,59 +7764,13 @@ class Similar extends Media {
      */
     fill(data) {
         if (this.mediaType.singular === MediaType.show) {
-            this.aliases = data.aliases;
-            this.creation = data.creation;
-            this.country = data.country;
-            this.images = null;
-            if (data.images !== undefined && data.images !== null) {
-                this.images = new Images(data.images);
-            }
-            this.nbEpisodes = parseInt(data.episodes, 10);
-            this.network = data.network;
-            this.next_trailer = data.next_trailer;
-            this.next_trailer_host = data.next_trailer_host;
-            this.rating = data.rating;
-            this.platforms = null;
-            if (data.platforms !== undefined && data.platforms !== null) {
-                this.platforms = new Platforms(data.platforms);
-            }
+            Similar.relatedProps = Show.relatedProps;
             this.seasons = [];
-            this.nbSeasons = parseInt(data.seasons, 10);
-            this.showrunner = null;
-            if (data.showrunner !== undefined && data.showrunner !== null) {
-                this.showrunner = new Showrunner(data.showrunner);
-            }
-            this.social_links = data.social_links;
-            this.status = data.status;
-            this.thetvdb_id = parseInt(data.thetvdb_id, 10);
-            this.pictures = [];
             this.persons = [];
         }
         else if (this.mediaType.singular === MediaType.movie) {
-            if (data.user.in_account !== undefined) {
-                data.in_account = data.user.in_account;
-                delete data.user.in_account;
-            }
-            if (data.synopsis !== undefined) {
-                data.description = data.synopsis;
-                delete data.synopsis;
-            }
-            if (data.url !== undefined) {
-                data.slug = data.url;
-                delete data.url;
-            }
-            this.backdrop = data.backdrop;
-            this.director = data.director;
-            this.original_release_date = new Date(data.original_release_date);
-            this.other_title = data.other_title;
-            this.platform_links = data.platform_links;
-            this.poster = data.poster;
-            this.production_year = parseInt(data.production_year);
-            this.release_date = new Date(data.release_date);
-            this.sale_date = new Date(data.sale_date);
-            this.tagline = data.tagline;
-            this.tmdb_id = parseInt(data.tmdb_id);
-            this.trailer = data.trailer;
+            Similar.relatedProps = Movie.relatedProps;
+            this.platform_links = [];
         }
         super.fill(data);
         return this;
@@ -7203,7 +8193,10 @@ class UpdateAuto {
         }
         this._show = show;
         this._showId = show.id;
-        const objUpAuto = Base.gm_funcs.getValue('objUpAuto', {});
+        return this;
+    }
+    async _init() {
+        const objUpAuto = await Base.gm_funcs.getValue('objUpAuto', {});
         this._exist = false;
         this._lastUpdate = null;
         if (objUpAuto[this._showId] !== undefined) {
@@ -7223,14 +8216,18 @@ class UpdateAuto {
     /**
      * Retourne l'instance de l'objet de mise à jour auto des épisodes
      * @static
-     * @param   {Show} s - L'objet de la série
+     * @param   {Show} [s] - L'objet de la série
      * @returns {UpdateAuto}
      */
     static getInstance(s) {
-        if (!UpdateAuto.instance) {
+        if (!UpdateAuto.instance && s) {
             UpdateAuto.instance = new UpdateAuto(s);
+            return this.instance._init();
         }
-        return UpdateAuto.instance;
+        else if (!UpdateAuto.instance && !s) {
+            return Promise.reject('Parameter Show required');
+        }
+        return Promise.resolve(UpdateAuto.instance);
     }
     /**
      * _save - Sauvegarde les options de la tâche d'update
@@ -7239,8 +8236,8 @@ class UpdateAuto {
      * @private
      * @return {UpdateAuto} L'instance unique UpdateAuto
      */
-    _save() {
-        const objUpAuto = Base.gm_funcs.getValue('objUpAuto', {});
+    async _save() {
+        const objUpAuto = await Base.gm_funcs.getValue('objUpAuto', {});
         const obj = {
             status: this._status,
             auto: this._auto,
@@ -7295,7 +8292,6 @@ class UpdateAuto {
      */
     set auto(auto) {
         this._auto = auto;
-        this._save();
     }
     /**
      * get interval - Retourne l'intervalle de temps entre
@@ -7314,7 +8310,6 @@ class UpdateAuto {
      */
     set interval(val) {
         this._interval = val;
-        this._save();
     }
     /**
      * Retourne la date de la dernière mise à jour éffectuée
@@ -7365,6 +8360,7 @@ class UpdateAuto {
         clearInterval(this._timer);
         this._timer = null;
         this._lastUpdate = null;
+        this.changeColorBtn();
         return this;
     }
     /**
@@ -7373,9 +8369,9 @@ class UpdateAuto {
      *
      * @return {UpdateAuto} L'instance unique UpdateAuto
      */
-    delete() {
+    async delete() {
         this.stop();
-        const objUpAuto = Base.gm_funcs.getValue('objUpAuto', {});
+        const objUpAuto = await Base.gm_funcs.getValue('objUpAuto', {});
         if (objUpAuto[this._showId] !== undefined) {
             delete objUpAuto[this._showId];
             Base.gm_funcs.setValue('objUpAuto', objUpAuto);
@@ -7417,9 +8413,11 @@ class UpdateAuto {
                     console.log('close old interval timer');
                 clearInterval(this._timer);
             }
-            this.status = true;
+            if (!this.status)
+                this.status = true;
             this._tick();
             this._timer = setInterval(this._tick.bind(this), (this.interval * 60) * 1000);
+            this.changeColorBtn();
         }
         return this;
     }
@@ -7434,12 +8432,9 @@ class UpdateAuto {
         if (Base.debug) {
             console.log('%s update episode list', `[${now.format('datetime')}]`);
         }
-        const btnUpEpisodeList = jQuery('.updateEpisodes');
-        if (btnUpEpisodeList.length > 0) {
-            btnUpEpisodeList.trigger('click');
-            if (!this.status) {
-                this.status = true;
-            }
+        jQuery('#episodes .updateEpisodes').trigger('click');
+        if (!this.status) {
+            this.status = true;
         }
         // if (Base.debug) console.log('UpdateAuto setInterval objShow', Object.assign({}, this));
         if (!this.auto || this.show.user.remaining <= 0) {
@@ -7827,7 +8822,6 @@ class NotificationList {
      * Retourne les notifications du membre
      * @param   {number} [nb = 10] Nombre de notifications à récupérer
      * @returns {Promise<NotificationList>}
-     * @throws  {Error}
      */
     static fetch(nb = 20) {
         const params = {
@@ -7842,11 +8836,11 @@ class NotificationList {
                 notifications.add(new NotificationBS(data.notifications[n]));
             }
             return notifications;
-        })
-            .catch(err => {
+        }) /*
+        .catch(err => {
             console.warn('Erreur de récupération des notifications du membre', err);
-            throw new Error('Erreur de récupération des notifications');
-        });
+            return new NotificationList();
+        }) */;
     }
     old;
     new;
@@ -7992,58 +8986,309 @@ class NotificationBS {
     }
 }
 
-/**
- * Remplit l'objet avec les données fournit en paramètre
- * @param  {Obj} data Les données provenant de l'API
- * @returns {Show}
- * @override
- */
-Show.prototype.fill = function (data) {
-    this.aliases = data.aliases;
-    this.creation = data.creation;
-    this.country = data.country;
-    this.images = null;
-    if (data.images !== undefined && data.images != null) {
-        this.images = new Images(data.images);
+/* eslint-disable @typescript-eslint/no-explicit-any */
+class ParamsSearchAbstract {
+    static valuesAllowed = {};
+    static valuesDefault;
+    static separator = ',';
+    text;
+    _limit;
+    _offset;
+    genres;
+    _diffusions;
+    svods;
+    _tri;
+    _autres;
+    _fields;
+    constructor() {
+        this._diffusions = [];
+        this._fields = [];
+        this._limit = ParamsSearchAbstract.valuesDefault.limit;
+        this._offset = ParamsSearchAbstract.valuesDefault.offset;
+        this._tri = ParamsSearchAbstract.valuesDefault.tri;
+        this.genres = [];
+        this.svods = [];
     }
-    this.nbEpisodes = parseInt(data.episodes, 10);
-    this.network = data.network;
-    this.next_trailer = data.next_trailer;
-    this.next_trailer_host = data.next_trailer_host;
-    this.rating = data.rating;
-    this.platforms = null;
-    // if (data.platforms !== undefined && data.platforms != null) {
-    this.platforms = new Platforms(data.platforms);
-    // }
-    if (this.id == null && this.seasons == null) {
-        this.seasons = [];
-        if (data.seasons_details) {
-            for (let s = 0; s < data.seasons_details.length; s++) {
-                this.seasons.push(new Season(data.seasons_details[s], this));
-            }
+    get limit() {
+        return this._limit;
+    }
+    set limit(limit) {
+        if (limit <= 0 || limit > 100) {
+            throw new Error("Value of parameter 'limit' is out of range (1-100)");
         }
+        this._limit = limit;
     }
-    this.showrunner = null;
-    if (data.showrunner !== undefined && data.showrunner != null) {
-        this.showrunner = new Showrunner(data.showrunner);
+    get offset() {
+        return this._offset;
     }
-    this.social_links = data.social_links;
-    this.status = data.status;
-    this.thetvdb_id = parseInt(data.thetvdb_id, 10);
-    this.pictures = null;
-    this.mediaType = { singular: MediaType.show, plural: 'shows', className: Show };
-    this.persons = [];
-    Media.prototype.fill.call(this, data);
-    return this.save();
-};
+    set offset(offset) {
+        if (offset <= 0 || offset > 100) {
+            throw new Error("Value of parameter 'offset' is out of range (1-100)");
+        }
+        this._offset = offset;
+    }
+    get diffusions() {
+        return this._diffusions;
+    }
+    set diffusions(diff) {
+        const allowed = this.constructor.valuesAllowed.diffusions;
+        this._diffusions = diff.filter(val => {
+            if (!allowed.includes(val)) {
+                throw new Error(`Value(${val}) of parameter 'diffusions' is not allowed`);
+            }
+            return true;
+        });
+    }
+    get tri() {
+        return this._tri;
+    }
+    set tri(val) {
+        const allowed = this.constructor.valuesAllowed.tri;
+        let key = val;
+        let sort = null;
+        if (val.indexOf('-') > 0) {
+            key = val.split('-')[0];
+            sort = val.split('-')[1];
+        }
+        if (!allowed.includes(key)) {
+            throw new Error("Value of parameter 'tri' is not allowed");
+        }
+        if (sort && !['asc', 'desc'].includes(sort)) {
+            throw new Error("Value of parameter 'sort' is not allowed");
+        }
+        this._tri = (sort) ? key + '-' + sort : key;
+    }
+    get fields() {
+        return this._fields;
+    }
+    set fields(values) {
+        const allowed = this.constructor.valuesAllowed.fields;
+        this._fields = values.filter(val => {
+            if (!allowed.includes(val)) {
+                throw new Error(`Value(${val}) of parameter 'fields' is not allowed`);
+            }
+            return true;
+        });
+    }
+    get autres() {
+        return this._autres;
+    }
+    set autres(value) {
+        const allowed = this.constructor.valuesAllowed.autres;
+        if (!allowed.includes(value)) {
+            throw new Error("Value of parameter 'autres' is not allowed");
+        }
+        this._autres = value;
+    }
+}
+class ParamsSearchShows extends ParamsSearchAbstract {
+    static valuesAllowed = {
+        diffusions: ['semaine', 'fini', 'encours'],
+        duration: ['1-19', '20-30', '31-40', '41-50', '51-60', '61'],
+        tri: ['nom', 'suivis', 'id', 'note', 'popularite', 'release'],
+        autres: ['new', 'mine'],
+        fields: ['id', 'following', 'release_date', 'poster', 'svods', 'slug', 'title']
+    };
+    _duration;
+    _creations;
+    _pays;
+    chaines;
+    constructor() {
+        super();
+        this._creations = [];
+        this._pays = [];
+    }
+    get duration() {
+        return this._duration;
+    }
+    set duration(val) {
+        if (!ParamsSearchShows.valuesAllowed.duration.includes(val)) {
+            throw new Error("Value of parameter 'duration' is not allowed");
+        }
+        this._duration = val;
+    }
+    get creations() {
+        return this._creations;
+    }
+    set creations(values) {
+        this._creations = values.filter(val => {
+            if (val <= 1900 || val > 2100) {
+                throw new Error(`Value(${val.toString()}) of parameter 'creations' is out of range`);
+            }
+            return true;
+        });
+    }
+    get pays() {
+        return this._pays;
+    }
+    set pays(values) {
+        const reg = /^\w{2}$/;
+        this._pays = values
+            .map(val => val.toLowerCase())
+            .filter(val => {
+            if (!reg.test(val)) {
+                throw new Error(`Value(${val}) of parameter 'pays' is not allowed`);
+            }
+            return true;
+        });
+    }
+    toRequest() {
+        const params = {};
+        if (this.text && this.text.length > 0) {
+            params.text = this.text;
+        }
+        params.limit = this._limit;
+        params.offset = this._offset;
+        if (this.genres && this.genres.length > 0) {
+            params.genres = this.genres.join(ParamsSearchAbstract.separator);
+        }
+        if (this._diffusions && this._diffusions.length > 0) {
+            params.diffusions = this._diffusions.join(ParamsSearchAbstract.separator);
+        }
+        if (this._duration && this._duration.length > 0) {
+            params.duration = this._duration;
+        }
+        if (this.svods && this.svods.length > 0) {
+            params.svods = this.svods.join(ParamsSearchAbstract.separator);
+        }
+        if (this._creations && this._creations.length > 0) {
+            params.creations = this._creations.join(ParamsSearchAbstract.separator);
+        }
+        if (this._pays && this._pays.length > 0) {
+            params.pays = this._pays.join(ParamsSearchAbstract.separator);
+        }
+        if (this.chaines && this.chaines.length > 0) {
+            params.chaines = this.chaines.join(ParamsSearchAbstract.separator);
+        }
+        if (this._tri && this._tri.length > 0) {
+            params.tri = this._tri;
+        }
+        if (this._autres && this._autres.length > 0) {
+            params.autres = this._autres;
+        }
+        if (this._fields && this._fields.length > 0) {
+            params.fields = this._fields.join(ParamsSearchAbstract.separator);
+        }
+        return params;
+    }
+}
+class ParamsSearchMovies extends ParamsSearchAbstract {
+    static valuesAllowed = {
+        diffusions: ['none', 'salles', 'vente'],
+        tri: ['nom', 'ajout', 'id', 'note', 'popularite', 'release'],
+        autres: ['new', 'seen', 'unseen', 'wishlist'],
+        fields: ['id', 'release_date', 'poster', 'svods', 'slug', 'title']
+    };
+    _releases;
+    casting;
+    constructor() {
+        super();
+        this._releases = [];
+    }
+    get releases() {
+        return this._releases;
+    }
+    set releases(values) {
+        this._releases = values.filter(val => {
+            if (val <= 1900 || val > 2100) {
+                throw new Error(`Value(${val.toString()}) of parameter 'releases' is out of range`);
+            }
+            return true;
+        });
+    }
+    toRequest() {
+        const params = {};
+        if (this.text && this.text.length > 0) {
+            params.text = this.text;
+        }
+        params.limit = this._limit;
+        params.offset = this._offset;
+        if (this.genres && this.genres.length > 0) {
+            params.genres = this.genres.join(ParamsSearchAbstract.separator);
+        }
+        if (this._diffusions && this._diffusions.length > 0) {
+            params.diffusions = this._diffusions.join(ParamsSearchAbstract.separator);
+        }
+        if (this.casting && this.casting.length > 0) {
+            params.casting = this.casting;
+        }
+        if (this.svods && this.svods.length > 0) {
+            params.svods = this.svods.join(ParamsSearchAbstract.separator);
+        }
+        if (this._releases && this._releases.length > 0) {
+            params.releases = this._releases.join(ParamsSearchAbstract.separator);
+        }
+        if (this._tri && this._tri.length > 0) {
+            params.tri = this._tri;
+        }
+        if (this._autres && this._autres.length > 0) {
+            params.autres = this._autres;
+        }
+        if (this._fields && this._fields.length > 0) {
+            params.fields = this._fields.join(ParamsSearchAbstract.separator);
+        }
+        return params;
+    }
+}
+class Search {
+    static searchShows(params) {
+        const result = {
+            shows: [],
+            total: 0,
+            locale: 'fr',
+            limit: params.limit,
+            page: params.offset
+        };
+        return Base.callApi(HTTP_VERBS.GET, 'search', 'shows', params.toRequest())
+            .then((data) => {
+            const keys = Object.keys(result);
+            for (const key in data) {
+                if (keys.indexOf(key) >= 0)
+                    result[key] = data[key];
+            }
+            return result;
+        });
+    }
+    static getShowIds(params) {
+        params.fields = ['id'];
+        return this.searchShows(params).then((result) => {
+            const ids = [];
+            for (const show in result.shows) {
+                ids.push(result.shows[show].id);
+            }
+            return ids;
+        });
+    }
+    static searchMovies(params) {
+        const result = {
+            movies: [],
+            total: 0,
+            locale: 'fr',
+            limit: params.limit,
+            page: params.offset
+        };
+        return Base.callApi(HTTP_VERBS.GET, 'search', 'movies', params.toRequest())
+            .then((data) => {
+            const keys = Object.keys(result);
+            for (const key in data) {
+                if (keys.indexOf(key) >= 0)
+                    result[key] = data[key];
+            }
+            return result;
+        });
+    }
+}
+
 /**
  * Retourne les similars associés au media
  * @return {Promise<Media>}
  */
 Media.prototype.fetchSimilars = function () {
     const self = this;
+    if (this.__fetches.similars)
+        return this.__fetches.similars;
     this.similars = [];
-    return new Promise((resolve, reject) => {
+    this.__fetches.similars = new Promise((resolve, reject) => {
         Base.callApi('GET', this.mediaType.plural, 'similars', { id: this.id, details: true }, true)
             .then(data => {
             if (data.similars) {
@@ -8053,8 +9298,11 @@ Media.prototype.fetchSimilars = function () {
             }
             self.save();
             resolve(self);
+            delete self.__fetches.similars;
         }, err => {
             reject(err);
+            delete self.__fetches.similars;
         });
     });
+    return this.__fetches.similars;
 };
