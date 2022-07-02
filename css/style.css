@@ -14,6 +14,11 @@ body {
 
 nav#top {
   position: sticky;
+  background-color: rgba(0, 0, 0, 0);
+}
+nav#top.scrolled,
+nav#top.search {
+  background-color: rgba(13, 21, 28, 0.8);
 }
 nav#top.scrolled .mainlogo {
   margin-top: 0;
@@ -52,6 +57,11 @@ button.button.blue {
   display: inline-block;
   position: relative;
   font-family: FontAwesome;
+}
+.blockInformations__title .fa-clock-o {
+  margin-left: 10px;
+  vertical-align: middle;
+  font-size: 0.6em;
 }
 .blockInformations__synopsis {
   background-color: rgba(0, 0, 0, 0.3);
@@ -135,10 +145,11 @@ button.button.blue {
   font-weight: bold;
 }
 .userscript-notifications .fa-times {
-  position: relative;
+  position: absolute;
   display: inline-block;
-  /* float: right; */
   cursor: pointer;
+  top: 7px;
+  right: 7px;
 }
 
 /* -------------------------------------------------------------------------- *\
@@ -1179,6 +1190,20 @@ input[type="button"].btn-block {
 .blockInformations__action .btnMarkToSee i.fa {
   font-size: 1.5em;
   color: var(--default-color);
+}
+
+#annuaire-list .bottomActionMovie button.btnMarkToSee .fa {
+  font-size: 17px;
+  margin-right: 5px;
+  vertical-align: middle;
+  color: var(--green);
+}
+#annuaire-list .bottomActionMovie button.btnMarkToSee.marked .fa {
+  color: var(--red);
+}
+#annuaire-list .media-body .thumbnailSearchTitle .fa {
+  margin-left: 5px;
+  color: var(--default_color);
 }
 
 /*-------------------------------------------------*/
