@@ -39,7 +39,7 @@
     };
 
     function lazyLoad(images, options) {
-        this.domain = window.location.hostname;
+        this.domain = window.location.hostname.substring(window.location.hostname.indexOf('.')+1);
         this.regDomain = new RegExp(this.domain, 'i');
         this.settings = Object.assign({}, defaults, options || {});
         this.images = images || document.querySelectorAll(this.settings.selector);
