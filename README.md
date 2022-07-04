@@ -1,7 +1,7 @@
 # betaseries-oauth
 Site Web: https://azema.github.io/betaseries-oauth/
 
-Repository servant pour l'authentification OAuth avec l'API de BetaSeries, ainsi que pour servir les fichiers ressoruces statiques pour le fonctionnement du userScript.
+Repository servant pour l'authentification OAuth avec l'API de BetaSeries, ainsi que pour servir les ressources statiques pour le fonctionnement du [userscript](https://github.com/Azema/betaseries) du site Web de betaseries.
 
 ## Les SRI des ressources statiques minifiées
 
