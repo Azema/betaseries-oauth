@@ -14,7 +14,7 @@ Repository servant pour l'authentification OAuth avec l'API de BetaSeries, ainsi
 ### JS
 * renderjson.min.js: `sha384-/mHGJ/3gaDqVJCEeed/Uh1fJVO01E+CLBZrFqjv1REaFAZxEBvGMHQyBmwln/uhx`
 * jquery.textcomplete.min.js: `sha384-kf6mqav/ZhBkPgNGorOiE7+/0GmfN9NDz0ov5G3fy6PuV/wqAggrTaWkTVfPM79L`
-* app-bundle.js: `sha384-lKue41uy6RuzUjoj54RPBp6M0YV8Yxoz+6Vg+R2glRxjZOZhlDd1ezlPw2Z4iEEK`
+* app-bundle.js: `sha384-bLKMtbKs7DlB0OzPt7fpPJfT2N+kc0CXDfUNVtL7OEnlEiBYnTj1ttFdarBH0f28`
 * lazyload.min.js: `sha384-ZjtdUVt9uqIO0cVuZ4zQ5r/1QqXlGIct+PFRAMtAlSz3F4apy925Pn5Tm3hnczMg`
 
 ## Dossier Ext

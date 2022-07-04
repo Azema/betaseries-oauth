@@ -1,4 +1,4 @@
-/*! betaseries_userscript - v1.4.2 - 2022-07-02
+/*! betaseries_userscript - v1.4.3 - 2022-07-04
  * https://github.com/Azema/betaseries
  * Copyright (c) 2022 Azema;
  * Licensed Apache-2.0
@@ -2639,7 +2639,7 @@ class Note {
                     if (!self.__initial) {
                         self.__changes[propKey] = { oldValue, newValue };
                         if (self._parent)
-                            self._parent.updatePropRenderNote();
+                            self._parent.updatePropRenderObjNote();
                     }
                 }
             };
@@ -2815,21 +2815,40 @@ class Note {
     }
     /**
      * Met à jour l'affichage de la note
+     * @param   {JQuery<HTMLElement>} [$elt] - Element HTML contenant les étoiles représentant la note
+     * @returns {Note}
      */
-    updateStars(elt = null) {
-        elt = elt || jQuery('.blockInformations__metadatas .js-render-stars', this._parent.elt);
+    updateStars($elt) {
+        $elt = $elt || jQuery('.blockInformations__metadatas .js-render-stars', this._parent.elt);
+        if (!$elt || $elt.length <= 0)
+            return this;
         let color = '';
-        const $stars = elt.find('.star-svg use');
+        const $stars = jQuery('.star-svg use', $elt);
         const result = $($stars.get(0)).attr('xlink:href').match(/(grey|blue)/);
         if (result) {
             color = result[0];
         }
-        let className;
         for (let s = 0; s < 5; s++) {
-            className = Note.getTypeSvg(this.mean, s);
-            // className = (this.mean <= s) ? StarTypes.EMPTY : (this.mean < s + 1) ? (this.mean >= s + 0.5) ? StarTypes.HALF : StarTypes.EMPTY : StarTypes.FULL;
+            const className = Note.getTypeSvg(this.mean, s);
             $($stars.get(s)).attr('xlink:href', `#icon-star${color}-${className}`);
         }
+        return this;
+    }
+    /**
+     * Met à jour l'attribut title de l'élément HTML représentant la note
+     * @param   {JQuery<HTMLElement>} [$elt] - Element HTML contenant les étoiles représentant la note
+     * @returns {Note}
+     */
+    updateAttrTitle($elt) {
+        $elt = $elt || jQuery('.blockInformations__metadatas .js-render-stars', this._parent.elt);
+        if (!$elt || $elt.length <= 0)
+            return this;
+        if (this.mean <= 0 || this.total <= 0) {
+            $elt.attr('title', 'Aucun vote');
+            return this;
+        }
+        $elt.attr('title', this.toString());
+        return this;
     }
     /**
      * Retourne la template pour l'affichage d'une note sous forme d'étoiles
@@ -2952,6 +2971,7 @@ var HTTP_VERBS;
     HTTP_VERBS["PUT"] = "PUT";
     HTTP_VERBS["DELETE"] = "DELETE";
     HTTP_VERBS["OPTIONS"] = "OPTIONS";
+    HTTP_VERBS["HEAD"] = "HEAD";
 })(HTTP_VERBS = HTTP_VERBS || (HTTP_VERBS = {}));
 function objToArr(obj, data) {
     if (data instanceof Array)
@@ -2964,6 +2984,54 @@ function objToArr(obj, data) {
 }
 function isNull(val) {
     return val === null || val === undefined;
+}
+/**
+ * Fonction pour les requêtes fetch avec un timeout
+ * @param request - URL à appeler
+ * @param opts - Options de la requête
+ * @param timeout - Durée en secondes du timeout de la requête
+ * @returns {FetchTimeout}
+ */
+function fetchTimeout(request, opts = {}, timeout = 30) {
+    const controller = new AbortController();
+    opts.signal = controller.signal;
+    return {
+        abort: () => controller.abort(),
+        ready: () => {
+            const timer = setTimeout(() => controller.abort(), timeout * 1000);
+            return fetch(request, opts).then((resp) => {
+                if (timer)
+                    clearTimeout(timer);
+                return resp;
+            });
+        }
+    };
+}
+function checkNetwork() {
+    const request = `${Base.serverOauthUrl}/index.html`;
+    const init = {
+        method: HTTP_VERBS.HEAD,
+        mode: 'cors',
+        cache: 'no-cache',
+    };
+    fetchTimeout(request, init, 5).ready()
+        .then((response) => {
+        if (response.ok) {
+            Base.changeNetworkState(NetworkState.online);
+            console.log('Network is come back');
+        }
+    }).catch(err => {
+        if (err.name === 'AbortError') {
+            console.log('checkNetwork: Fetch aborted');
+        }
+        else if (err.message.toLowerCase() !== 'failed to fetch') {
+            console.error('checkNetwork catch: ', err);
+        }
+    }).finally(() => {
+        if (Base.networkState === NetworkState.offline) {
+            Base.networkTimeout = setTimeout(checkNetwork, 1000);
+        }
+    });
 }
 /**
  * FakePromise - Classe servant à simuler une promesse
@@ -3004,7 +3072,8 @@ class FakePromise {
      */
     finallyQueue;
     /**
-     * Fonction qui sera executée lors de l'appel à la méthode **launch** {@see FakePromise.launch}
+     * Fonction qui sera executée lors de l'appel à la méthode **launch**
+     * @see FakePromise.launch
      * @type {() => Promise<Obj>}
      */
     promiseFunc;
@@ -3096,7 +3165,7 @@ class FakePromise {
             for (let f = finallies.length; f >= 0; f--) {
                 if (typeof finallies[f] === 'function') {
                     finallies[f]();
-                    return;
+                    // return;
                 }
             }
         });
@@ -3361,6 +3430,22 @@ class Base {
         });
     }
     /**
+     * @type {boolean} Flag indiquant qu'une demande d'authentification est en cours
+     */
+    static checkAuthenticate = false;
+    /**
+     * Nombre de timeout consécutifs lors des appels à l'API
+     * @type {number}
+     * @private
+     * @static
+     */
+    static __nbNetTimeout = 0;
+    /**
+     * Durée du timeout des requêtes à l'API exprimé en secondes
+     * @type {number}
+     */
+    static timeoutRequests = 30;
+    /**
      * Fonction servant à appeler l'API de BetaSeries
      * @static
      * @param  {String}   type - Type de methode d'appel Ajax (GET, POST, PUT, DELETE)
@@ -3442,7 +3527,23 @@ class Base {
         if (Base.userIdentified() && checkKeys.indexOf(resource) !== -1 &&
             Base.api.check[resource].indexOf(action) !== -1) {
             check = true;
+            if (Base.checkAuthenticate) {
+                if (Base.debug)
+                    console.log('Base::callApi authenticate in progress');
+                return new Promise((res, rej) => {
+                    setTimeout(() => {
+                        Base.callApi(type, resource, action, args, force)
+                            .then(data => res(data))
+                            .catch(err => rej(err));
+                    }, 500);
+                });
+            }
         }
+        /**
+         * Appel à l'API
+         * @param {function} resolve - Fonction appelée en cas de succès
+         * @param {function} reject - Fonction appelée en cas d'échec
+         */
         function fetchUri(resolve, reject) {
             const initFetch = {
                 method: type,
@@ -3463,7 +3564,9 @@ class Base {
             else if (keys.length > 0) {
                 initFetch.body = new URLSearchParams(args);
             }
-            fetch(uri, initFetch).then(response => {
+            fetchTimeout(uri, initFetch, Base.timeoutRequests).ready()
+                .then(response => {
+                Base.__nbNetTimeout = 0;
                 Base.counter++; // Incrément du compteur de requêtes à l'API
                 if (Base.debug && (display || response.status !== 200))
                     console.log('fetch (%s %s) response status: %d', type, uri, response.status);
@@ -3505,40 +3608,77 @@ class Base {
                     Base.hideLoader();
                 });
             }).catch(error => {
-                if (Base.debug)
-                    console.log('Il y a eu un problème avec l\'opération fetch: ' + error.message);
+                console.warn('Base::callApi fetchUri catch (%s: %s/%s)', type, resource, action);
+                if (error.name === 'AbortError') {
+                    if (Base.debug)
+                        console.log('Base::callApi AbortError Timeout fetchUri');
+                    if (++Base.__nbNetTimeout > 5) {
+                        if (Base.debug)
+                            console.log('5 timeout consecutifs, Network state to offline');
+                        Base.changeNetworkState(NetworkState.offline, true);
+                    }
+                    return;
+                }
+                console.warn('Base::callApi fetchUri error: ' + error.message);
                 console.error(error);
-                reject(error.message);
+                reject(error);
+            }).finally(() => {
                 Base.hideLoader();
             });
         }
         return new Promise((resolve, reject) => {
             if (check) {
+                Base.checkAuthenticate = true;
                 const paramsFetch = {
-                    method: 'GET',
+                    method: HTTP_VERBS.GET,
                     headers: myHeaders,
                     mode: 'cors',
                     cache: 'no-cache'
                 };
                 if (Base.debug && display)
                     console.info('%ccall /members/is_active', 'color:#1d6fb2');
-                fetch(`${Base.api.url}/members/is_active`, paramsFetch).then(resp => {
+                fetchTimeout(`${Base.api.url}/members/is_active`, paramsFetch, Base.timeoutRequests).ready()
+                    .then((resp) => {
+                    Base.__nbNetTimeout = 0;
                     Base.counter++; // Incrément du compteur de requêtes à l'API
-                    if (!resp.ok) {
+                    if (!resp.ok && resp.status === 400) {
+                        if (Base.debug)
+                            console.log('authenticate for %s: %s/%s', type, resource, action);
                         // Appel de l'authentification pour obtenir un token valide
                         Base.authenticate().then(() => {
                             // On met à jour le token pour le prochain appel à l'API
                             myHeaders['X-BetaSeries-Token'] = Base.token;
+                            Base.checkAuthenticate = false;
                             fetchUri(resolve, reject);
                         }).catch(err => reject(err));
                         return;
                     }
+                    Base.checkAuthenticate = false;
                     fetchUri(resolve, reject);
                 }).catch(error => {
-                    if (Base.debug)
-                        console.log('Il y a eu un problème avec l\'opération fetch: ' + error.message);
+                    Base.checkAuthenticate = false;
+                    console.warn('Base::callApi fetch members/is_active catch');
+                    if (error.name === 'AbortError') {
+                        if (Base.debug)
+                            console.log('Base::callApi AbortError Timeout members/is_active');
+                        if (++Base.__nbNetTimeout > 5) {
+                            if (Base.debug)
+                                console.log('5 timeout consecutifs, Network state to offline');
+                            Base.changeNetworkState(NetworkState.offline, true);
+                        }
+                        return;
+                    }
+                    else if (error.message.toLowerCase() === 'failed to fetch') {
+                        if (Base.debug)
+                            console.log('Réseau hors ligne');
+                        Base.changeNetworkState(NetworkState.offline, true);
+                    }
+                    else {
+                        if (Base.debug)
+                            console.log('Il y a eu un problème avec l\'opération fetch: ' + error.message);
+                    }
                     console.error(error);
-                    reject(error.message);
+                    reject(error);
                 });
             }
             else {
@@ -3617,6 +3757,7 @@ class Base {
      * @type {NetworkState}
      */
     static networkState = NetworkState.online;
+    static networkTimeout;
     /**
      * Stockage des appels à l'API lorsque le réseau est offline
      * @type {Record<string, FakePromise>}
@@ -3626,8 +3767,9 @@ class Base {
      * Modifie la variable de l'état du réseau
      * Et gère les promesses d'appels à l'API lorsque le réseau est online
      * @param {NetworkState} state - Etat du réseau
+     * @param {boolean} testNetwork - Flag demandant de vérifier l'état du réseau régulièrement
      */
-    static changeNetworkState(state) {
+    static changeNetworkState(state, testNetwork = false) {
         this.networkState = state;
         if (state === NetworkState.online && Object.keys(this.__networkQueue).length > 0) {
             const keys = Reflect.ownKeys(this.__networkQueue);
@@ -3636,6 +3778,12 @@ class Base {
                 promise.finally(() => delete this.__networkQueue[key]);
             }
             this.__networkQueue = {};
+        }
+        else if (state === NetworkState.offline) {
+            this.__networkQueue = {};
+            if (testNetwork) {
+                Base.networkTimeout = setTimeout(checkNetwork, 1000);
+            }
         }
     }
     /*
@@ -3726,6 +3874,11 @@ class Base {
      */
     fill(data) {
         const self = this;
+        if (typeof data !== 'object') {
+            const err = new Error('Base.fill data is not an object: ' + typeof data);
+            console.error(err);
+            throw err;
+        }
         for (const propKey in this.constructor.relatedProps) {
             if (!Reflect.has(data, propKey))
                 continue;
@@ -3745,8 +3898,9 @@ class Base {
                             return;
                         }
                         const oldValue = self['_' + relatedProp.key];
-                        if (oldValue === newValue) {
-                            return;
+                        if (['string', 'number', 'boolean'].includes(relatedProp.type)) {
+                            if (oldValue === newValue)
+                                return;
                         }
                         else if (Array.isArray(oldValue) && oldValue.length === newValue.length) {
                             let diff = false;
@@ -3759,19 +3913,29 @@ class Base {
                             if (!diff)
                                 return;
                         }
+                        else if (newValue instanceof Date) {
+                            if (oldValue instanceof Date && newValue.getTime() === oldValue.getTime()) {
+                                return;
+                            }
+                        }
                         else if (typeof newValue === 'object') {
                             // console.log('fill setter[%s]', relatedProp.key, {oldValue, newValue});
                             let changed = false;
-                            const keysNew = Reflect.ownKeys(newValue)
-                                .filter((key) => !key.startsWith('_'));
-                            for (let k = 0, _len = keysNew.length; k < _len; k++) {
-                                if (oldValue[keysNew[k]] !== newValue[keysNew[k]]) {
-                                    changed = true;
-                                    break;
+                            try {
+                                const keysNew = Reflect.ownKeys(newValue)
+                                    .filter((key) => !key.startsWith('_'));
+                                for (let k = 0, _len = keysNew.length; k < _len; k++) {
+                                    if (oldValue[keysNew[k]] !== newValue[keysNew[k]]) {
+                                        changed = true;
+                                        break;
+                                    }
                                 }
+                                if (!changed)
+                                    return;
                             }
-                            if (!changed)
-                                return;
+                            catch (err) {
+                                console.warn('Base fill error setter[%s.%s]', this.constructor.name, relatedProp.key, { oldValue, newValue });
+                            }
                         }
                         self['_' + relatedProp.key] = newValue;
                         if (!self.__initial) {
@@ -3813,7 +3977,7 @@ class Base {
                     if (typeof relatedProp.type === 'function' && dataProp) {
                         // if (Base.debug) console.log('fill type function', {type: relatedProp.type, dataProp});
                         value = Reflect.construct(relatedProp.type, [dataProp]);
-                        if (value && Reflect.has(value, 'parent')) {
+                        if (typeof value === 'object' && Reflect.has(value, 'parent')) {
                             value.parent = self;
                         }
                         setValue = true;
@@ -3821,7 +3985,7 @@ class Base {
                     break;
                 }
             }
-            if (!setValue && value == undefined && Reflect.has(relatedProp, 'default')) {
+            if (!setValue && value == undefined && relatedProp.default) {
                 value = relatedProp.default;
                 setValue = true;
             }
@@ -3847,12 +4011,17 @@ class Base {
         }
         return this.save();
     }
+    /**
+     * Initialisation du rendu HTML
+     * @returns {void}
+     */
     _initRender() {
         if (!this.elt)
             return;
-        this.changeTitleNote(true);
+        this.objNote
+            .updateAttrTitle()
+            .updateStars();
         this.decodeTitle();
-        this.objNote.updateStars();
     }
     /**
      * Met à jour le rendu HTML des propriétés de l'objet
@@ -3871,19 +4040,74 @@ class Base {
             // if (Base.debug) console.log('updatePropRender Reflect has method');
             this[fnPropKey]();
         }
-        else if (Reflect.has(this.constructor.selectorsCSS, propKey)) {
+        else if (this.constructor.selectorsCSS &&
+            this.constructor.selectorsCSS[propKey]) {
             // if (Base.debug) console.log('updatePropRender default');
             const selectorCSS = this.constructor.selectorsCSS[propKey];
             jQuery(selectorCSS).text(this[propKey].toString());
             delete this.__changes[propKey];
         }
     }
-    updatePropRenderNote() {
+    /**
+     * Met à jour les informations de la note du média sur la page Web
+     */
+    updatePropRenderObjNote() {
         if (Base.debug)
-            console.log('updatePropRenderNote');
-        this.objNote.updateStars();
-        this.changeTitleNote(true);
+            console.log('updatePropRenderObjNote');
+        this.objNote
+            .updateStars()
+            .updateAttrTitle();
         this._callListeners(EventTypes.NOTE);
+        delete this.__changes.objNote;
+    }
+    /**
+     * Met à jour le titre du média sur la page Web
+     */
+    updatePropRenderTitle() {
+        const $title = jQuery(this.constructor.selectorsCSS.title);
+        if (/&#/.test(this.title)) {
+            $title.text($('<textarea />').html(this.title).text());
+        }
+        else {
+            $title.text(this.title);
+        }
+        delete this.__changes.title;
+    }
+    /**
+     * Indique si cet objet a été modifié
+     * @returns {boolean}
+     */
+    isModified() {
+        return Object.keys(this.__changes).length > 0;
+    }
+    /**
+     * Retourne les changements apportés à cet objet
+     * @returns {Record<string, Changes>}
+     */
+    getChanges() {
+        return this.__changes;
+    }
+    /**
+     * Indique si la propriété passée en paramètre a été modifiée
+     * @param   {string} key - La propriété ayant potentiellement été modifiée
+     * @returns {boolean}
+     */
+    hasChange(key) {
+        if (this.__props.includes(key)) {
+            throw new Error(`Property[${key}] not exists in this object(${this.constructor.name})`);
+        }
+        return Reflect.has(this.__changes, key);
+    }
+    /**
+     * Retourne l'objet Changes correspondant aux changements apportés à la propriété passée en paramètre
+     * @param   {string} key - La propriété ayant été modifiée
+     * @returns {Changes} L'objet Changes correspondant aux changement
+     */
+    getChange(key) {
+        if (this.__props.includes(key)) {
+            throw new Error(`Property[${key}] not exists in this object(${this.constructor.name})`);
+        }
+        return this.__changes[key];
     }
     /**
      * Initialize le tableau des écouteurs d'évènements
@@ -3914,8 +4138,8 @@ class Base {
         if (this.__listeners[name] === undefined) {
             this.__listeners[name] = [];
         }
-        for (const func in this.__listeners[name]) {
-            if (func.toString() == fn.toString())
+        for (const func of this.__listeners[name]) {
+            if (typeof func === 'function' && func.toString() == fn.toString())
                 return;
         }
         if (args.length > 0) {
@@ -3926,6 +4150,25 @@ class Base {
         }
         if (Base.debug)
             console.log('Base[%s] add Listener on event %s', this.constructor.name, name, this.__listeners[name]);
+        return this;
+    }
+    /**
+     * Permet d'ajouter un listener sur plusieurs types d'évenements
+     * @param  {EventTypes[]} names -   Le type d'évenement
+     * @param  {Function} fn -          La fonction à appeler
+     * @param  {any[]} [args] -         Paramètres optionnels
+     * @return {Base} L'instance du média
+     * @sealed
+     */
+    addListeners(names, fn, ...args) {
+        try {
+            for (const name of names) {
+                this.addListener(name, fn, args);
+            }
+        }
+        catch (err) {
+            console.warn('Base.addListeners error', err);
+        }
         return this;
     }
     /**
@@ -3957,13 +4200,14 @@ class Base {
         if (this.constructor.EventTypes.indexOf(name) >= 0 && this.__listeners[name].length > 0) {
             if (Base.debug)
                 console.log('Base[%s] call %d Listeners on event %s', this.constructor.name, this.__listeners[name].length, name, this.__listeners);
-            const event = new CustomEvent('betaseries', { detail: { name: name } });
+            const event = new CustomEvent('betaseries', { detail: { name } });
             for (let l = 0; l < this.__listeners[name].length; l++) {
                 if (typeof this.__listeners[name][l] === 'function') {
                     this.__listeners[name][l].call(this, event, this);
                 }
                 else {
-                    this.__listeners[name][l].fn.apply(this, this.__listeners[name][l].args);
+                    const args = this.__listeners[name][l].args;
+                    this.__listeners[name][l].fn.apply(this, [event, this].concat(args));
                 }
             }
         }
@@ -4018,7 +4262,13 @@ class Base {
      * @return {Base} L'instance du média
      */
     decodeTitle() {
-        const $elt = this.elt.find('.blockInformations__title'), title = $elt.text();
+        if (!this.elt)
+            return this;
+        let $elt = jQuery('.blockInformations__title', this.elt);
+        if (this.constructor.selectorsCSS.title) {
+            $elt = jQuery(this.constructor.selectorsCSS.title);
+        }
+        const title = $elt.text();
         if (/&#/.test(title)) {
             $elt.text($('<textarea />').html(title).text());
         }
@@ -4028,11 +4278,11 @@ class Base {
      * Ajoute le nombre de votes, à la note, dans l'attribut title de la balise
      * contenant la représentation de la note du média
      *
-     * @param  {boolean} [change=true] - Indique si on doit changer l'attribut title du DOMElement
+     * @param  {boolean} [change=true] - Indique si on doit changer l'attribut title du HTMLElement
      * @return {string} Le titre modifié de la note
      */
     changeTitleNote(change = true) {
-        const $elt = this.elt.find('.js-render-stars');
+        const $elt = jQuery('.js-render-stars', this.elt);
         if (this.objNote.mean <= 0 || this.objNote.total <= 0) {
             if (change)
                 $elt.attr('title', 'Aucun vote');
@@ -4051,17 +4301,17 @@ class Base {
      */
     addVote(note) {
         const self = this;
-        return new Promise((resolve, reject) => {
-            Base.callApi(HTTP_VERBS.POST, this.mediaType.plural, 'note', { id: this.id, note: note })
-                .then((data) => {
-                self.fill(data[this.mediaType.singular])._callListeners(EventTypes.NOTE);
-                resolve(true);
-            })
-                .catch(err => {
-                Base.notification('Erreur de vote', 'Une erreur s\'est produite lors de l\'envoi de la note: ' + err);
-                reject(err);
-            });
+        // return new Promise((resolve, reject) => {
+        return Base.callApi(HTTP_VERBS.POST, this.mediaType.plural, 'note', { id: this.id, note: note })
+            .then((data) => {
+            self.fill(data[this.mediaType.singular]);
+            return this.objNote.user == note;
+        })
+            .catch(err => {
+            Base.notification('Erreur de vote', 'Une erreur s\'est produite lors de l\'envoi de la note: ' + err);
+            return false;
         });
+        // });
     }
     /**
      * *fetchCharacters* - Récupère les acteurs du média
@@ -5422,7 +5672,7 @@ class Show extends Media {
             }, err => {
                 // Si la série est déjà sur le compte du membre
                 if (err.code !== undefined && err.code === 2003) {
-                    self.update(true).then((show) => {
+                    self.update().then((show) => {
                         return resolve(show);
                     });
                 }
@@ -5448,7 +5698,7 @@ class Show extends Media {
             }, err => {
                 // Si la série n'est plus sur le compte du membre
                 if (err.code !== undefined && err.code === 2004) {
-                    self.update(true).then((show) => {
+                    self.update().then((show) => {
                         return resolve(show);
                     });
                 }
@@ -5528,24 +5778,27 @@ class Show extends Media {
     }
     /**
      * Met à jour les données de la série
-     * @param  {Boolean}  [force=false]     Forcer la récupération des données sur l'API
      * @param  {Callback} [cb = Base.noop]  Fonction de callback
      * @return {Promise<Show>}              Promesse (Show)
      */
-    update(force = false, cb = Base.noop) {
+    update(cb = Base.noop) {
         const self = this;
-        return Base.callApi('GET', 'shows', 'display', { id: self.id }, force)
+        return Base.callApi('GET', 'shows', 'display', { id: self.id }, true)
             .then(data => {
-            self.fill(data.show).save();
-            self.updateRender(() => {
-                cb();
-                self._callListeners(EventTypes.UPDATE);
-            });
+            if (data.show) {
+                self.fill(data.show).save();
+                self.updateRender(() => {
+                    if (typeof cb === 'function')
+                        cb();
+                    self._callListeners(EventTypes.UPDATE);
+                });
+            }
             return self;
         })
             .catch(err => {
-            Media.notification('Erreur de récupération de la ressource Show', 'Show update: ' + err);
-            cb();
+            Base.notification('Erreur de récupération de la ressource Show', 'Show update: ' + err);
+            if (typeof cb === 'function')
+                cb();
         });
     }
     /**
@@ -5555,11 +5808,13 @@ class Show extends Media {
      * @return {void}
      */
     updateRender(cb = Base.noop) {
+        if (!this.elt)
+            return;
         const self = this;
         this.updateProgressBar();
         this.updateNextEpisode();
         this.updateArchived();
-        this.updateNote();
+        // this.updateNote();
         const note = this.objNote;
         if (Base.debug) {
             console.log('Next ID et status', {
@@ -5575,7 +5830,7 @@ class Show extends Media {
             // On propose d'archiver si la série n'est plus en production
             if (this.isEnded() && !this.isArchived()) {
                 if (Base.debug)
-                    console.log('Série terminée, popup confirmation archivage');
+                    console.log('Série terminée, popup proposition archivage');
                 promise = new Promise(resolve => {
                     // eslint-disable-next-line no-undef
                     new PopupAlert({
@@ -5641,18 +5896,13 @@ class Show extends Media {
      * Simule un clic sur le bouton d'archivage de la série sur la page Web
      */
     updateArchived() {
+        if (!this.elt)
+            return;
         if (Base.debug)
             console.log('Show updateArchived');
-        const $btnArchive = jQuery('#reactjs-show-actions button.btn-archive');
+        const $btnArchive = jQuery('#reactjs-show-actions button.btn-archive', this.elt);
         if (this.isArchived() && $btnArchive.length > 0) {
             $btnArchive.trigger('click');
-        }
-    }
-    updateNote() {
-        if (Base.debug)
-            console.log('Show updateNote');
-        if (this.objNote.user) {
-            this._callListeners(EventTypes.NOTE);
         }
     }
     /**
@@ -5661,10 +5911,12 @@ class Show extends Media {
      * @returns {void}
      */
     updateNextEpisode(cb = Base.noop) {
+        if (!this.elt)
+            return;
         if (Base.debug)
             console.log('updateNextEpisode');
         const self = this;
-        const $nextEpisode = jQuery('a.blockNextEpisode');
+        const $nextEpisode = jQuery('a.blockNextEpisode', this.elt);
         /**
          * Retourne le nombre total d'épisodes non vus dans la série
          * @return {string} le nombre total d'épisodes non vus
@@ -5912,7 +6164,7 @@ class Show extends Media {
             self.deleteShowClick();
         }
         if (trigEpisode) {
-            this.update(true).then(show => {
+            this.update().then(show => {
                 changeBtnAdd(show);
             });
         }
@@ -6039,26 +6291,24 @@ class Show extends Media {
                 <div class="label">A voir</div>
             </div>`;
         const toggleToSeeShow = async (showId) => {
-            const storeToSee = await Base.gm_funcs.getValue('toSee', {});
-            let toSee;
-            if (storeToSee[showId] === undefined) {
-                storeToSee[showId] = true;
-                toSee = true;
+            const storeToSee = await Base.gm_funcs.getValue('toSee', []);
+            const toSee = storeToSee.includes(showId);
+            if (!toSee) {
+                storeToSee.push(showId);
             }
             else {
-                delete storeToSee[showId];
-                toSee = false;
+                storeToSee.splice(storeToSee.indexOf(showId), 1);
             }
             Base.gm_funcs.setValue('toSee', storeToSee);
             return toSee;
         };
         this.elt.find('.blockInformations__actions').last().append(btnHTML);
         const $btn = this.elt.find('.blockInformations__action .btnMarkToSee');
-        $btn.on('click', (e) => {
+        $btn.on('click', async (e) => {
             e.stopPropagation();
             e.preventDefault();
             const $btn = jQuery(e.currentTarget);
-            const toSee = toggleToSeeShow(self.id);
+            const toSee = await toggleToSeeShow(self.id);
             if (toSee) {
                 $btn.find('i.fa').css('color', 'var(--body_background)');
                 $btn.attr('title', 'Retirer la série des séries à voir');
@@ -7079,12 +7329,32 @@ class Season {
     }
     /**
      * Met à jour l'objet Show
-     * @param {Function} cb Function de callback
-     * @returns {Season}
+     * @returns {Promise<Show>}
      */
-    updateShow(cb = Base.noop) {
-        this._show.update(true).then(cb);
-        return this;
+    updateShow() {
+        return this._show.update();
+    }
+    /**
+     * Vérifie la modification des épisodes et met à jour le rendu HTML, ainsi que la série
+     * @returns {Promise<Season>}
+     */
+    update() {
+        const self = this;
+        return this.checkEpisodes().then(() => {
+            for (const episode of self.episodes) {
+                if (episode.isModified()) {
+                    if (Base.debug)
+                        console.log('updateEpisodes changed true', self);
+                    return self.updateRender()
+                        .updateShow().then(() => self);
+                }
+            }
+            if (Base.debug)
+                console.log('updateEpisodes no changes');
+            return self;
+        }).catch(err => {
+            Base.notification('Erreur de mise à jour des épisodes', 'Seasons update: ' + err);
+        });
     }
     /**
      * Change le statut visuel de la saison sur le site
@@ -7335,6 +7605,20 @@ class Episode extends Base {
         delete this.__changes.user;
     }
     /**
+     * Retourne l'objet Season associé à l'épisode
+     * @returns {Season | null}
+     */
+    get season() {
+        return this._season;
+    }
+    /**
+     * Associe l'objet Season à l'épisode
+     * @param {Season} saison - L'objet Season à associer à l'objet épisode
+     */
+    set season(saison) {
+        this._season = this.season;
+    }
+    /**
      * Ajoute le titre de l'épisode à l'attribut Title
      * du DOMElement correspondant au titre de l'épisode
      * sur la page Web
@@ -7356,13 +7640,12 @@ class Episode extends Base {
         if (!this.elt || !this._season) {
             return this;
         }
+        const funcPlacement = (_tip, elt) => {
+            const rect = elt.getBoundingClientRect(), width = jQuery(window).width(), sizePopover = 320;
+            return ((rect.left + rect.width + sizePopover) > width) ? 'left' : 'right';
+        };
         const $vignette = jQuery('.slide__image', this.elt);
         if ($vignette.length > 0) {
-            const funcPlacement = (_tip, elt) => {
-                //if (Base.debug) console.log('funcPlacement', tip, $(tip).width());
-                const rect = elt.getBoundingClientRect(), width = $(window).width(), sizePopover = 320;
-                return ((rect.left + rect.width + sizePopover) > width) ? 'left' : 'right';
-            };
             const description = (this.description.length > 350) ?
                 this.description.substring(0, 350) + '…' :
                 (this.description.length <= 0) ? 'Aucune description' : this.description;
@@ -7529,11 +7812,11 @@ class Episode extends Base {
                     console.log('updateStatus %s episodes/watched', method, data);
                 // Si un épisode est vu et que la série n'a pas été ajoutée
                 // au compte du membre connecté
-                if (!self._season.showInAccount() && data.episode.show.in_account) {
+                if (self._season && !self._season.showInAccount() && data.episode.show.in_account) {
                     self._season.addShowToAccount();
                 }
                 // On met à jour l'objet Episode
-                if (method === HTTP_VERBS.POST && response && pos) {
+                if (self._season && method === HTTP_VERBS.POST && response && pos) {
                     const $vignettes = jQuery('#episodes .slide_flex');
                     let episode = null;
                     for (let e = 0; e < pos; e++) {
@@ -7551,19 +7834,25 @@ class Episode extends Base {
                 }
                 self
                     .fill(data.episode)
-                    // .updateRender(status, true)
-                    ._callListeners(EventTypes.UPDATE)
-                    ._season
-                    .updateRender()
-                    .updateShow(() => {
-                    // Si il reste des épisodes à voir, on scroll
-                    const $notSeen = jQuery('#episodes .slide_flex.slide--notSeen');
-                    if ($notSeen.length > 0) {
-                        jQuery('#episodes .slides_flex').get(0).scrollLeft =
-                            $notSeen.get(0).offsetLeft - 69;
-                    }
-                    self.toggleSpinner(false);
-                });
+                    /**
+                     * L'update du rendu HTML se fait automatiquement avec les setter
+                     * définient dans la méthode Base.fill, via les méthodes **updatePropRenderXXX**
+                     * @see Base.fill
+                     * @see Base.updatePropRender
+                     */
+                    ._callListeners(EventTypes.UPDATE);
+                if (self.season) {
+                    self.season.updateRender()
+                        .updateShow().then(() => {
+                        // Si il reste des épisodes à voir, on scroll
+                        const $notSeen = jQuery('#episodes .slide_flex.slide--notSeen');
+                        if ($notSeen.length > 0) {
+                            jQuery('#episodes .slides_flex').get(0).scrollLeft =
+                                $notSeen.get(0).offsetLeft - 69;
+                        }
+                        self.toggleSpinner(false);
+                    });
+                }
             })
                 .catch(err => {
                 if (Base.debug)
@@ -7572,12 +7861,14 @@ class Episode extends Base {
                     if (Base.debug)
                         console.log('updateStatus error %s changeStatus', method);
                     self.user.seen = (status === 'seen') ? true : false;
-                    self.updateRender(status)
-                        ._season
-                        .updateRender()
-                        .updateShow(() => {
-                        self.toggleSpinner(false);
-                    });
+                    self.updateRender(status);
+                    if (self.season) {
+                        self._season
+                            .updateRender()
+                            .updateShow().then(() => {
+                            self.toggleSpinner(false);
+                        });
+                    }
                 }
                 else {
                     self.toggleSpinner(false);
