@@ -124,7 +124,7 @@ module.exports = function(grunt) {
             }
         );
     });
-    grunt.registerMultiTask('version', 'Remplace le numéro de version du manifest par celui du package', function() {
+    grunt.registerMultiTask('version', 'Incrémente et remplace le numéro de version du manifest par celui du package', function() {
         const version = this.data;
         if (!version || version.length <= 0) {
             grunt.log.error('Le paramètre "v" est requis');
@@ -146,7 +146,7 @@ module.exports = function(grunt) {
                 continue;
             }
             let content = grunt.file.read(filepaths[p])
-                        .replace(/"version":(\s+)"[0-9.]*"/, `"version":$1"${numero}"`);
+                        .replace(/"version":(\s*)"[0-9.]*"/, `"version":$1"${numero}"`);
             grunt.file.write(filepaths[p], content);
         }
     });

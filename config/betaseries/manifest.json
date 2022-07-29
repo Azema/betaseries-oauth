@@ -1,20 +1,18 @@
 {
-    "version": "1.0.15",
-    "css": {
+    "version": "1.0.21",
+    "resources": {
         "popover": {
             "popover.min.css": "sha384-yebLb3hn+3mwaxg0KwLhE2YYLEKsMRsxRvUPyBOF6gzkzLEOWEeD9ELZeDACSwO7"
         },
         "stylehome": {
-            "style.min.css": "sha384-n3+hUwlGfuVvn6TI4Q7/qghbBjAajKmRn99x8jjHHUyYDNw463QGJWDanp6S9WlN"
+            "style.min.css": "sha384-NrxQbN4Dl5nG5IBhuFF+ZwbjH0+nBOxMtnxFdhpeRbh/ishqhKxEuWPD6g52J/jS"
         },
         "tablecss": {
             "table.min.css": "sha384-tRMvWzqbXtOp2OM+OPoYpWVxHw8eXcFKgzi4q9m6i0rvWTU33pdb8Bx33wBWjlo9"
         },
         "comments": {
             "comments.min.css": "sha384-37/ghsJZTBvNPxUAy6GMPGxa3BKjrZ2ykMb7gUpkkVvoZwAsm4WhigKhMyYCN+Ft"
-        }
-    },
-    "js": {
+        },
         "renderjson": {
             "renderjson.min.js": "sha384-/mHGJ/3gaDqVJCEeed/Uh1fJVO01E+CLBZrFqjv1REaFAZxEBvGMHQyBmwln/uhx"
         },
@@ -23,6 +21,9 @@
         },
         "lazyload": {
             "lazyload.min.js": "sha384-ZjtdUVt9uqIO0cVuZ4zQ5r/1QqXlGIct+PFRAMtAlSz3F4apy925Pn5Tm3hnczMg"
+        },
+        "awesome6": {
+            "font-awesome-6.1.min.js": "sha384-RRYsVjoikrI5QSLEcefbI8XvMN2J/m8V0n1AAg8T9Y6xICVEsdJdeN6OavRJFMgZ"
         }
     }
 }

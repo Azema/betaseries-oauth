@@ -1,4 +1,4 @@
-/*! betaseries_userscript - v1.4.3 - 2022-07-04
+/*! betaseries_userscript - v1.5.94 - 2022-07-15
  * https://github.com/Azema/betaseries
  * Copyright (c) 2022 Azema;
  * Licensed Apache-2.0
@@ -120,2850 +120,657 @@ class CacheUS {
     }
 }
 
-class Character {
-    /**
-     * @type {string} Nom de l'acteur/actrice
-     */
-    actor;
-    /**
-     * @type {string} Description du rôle
-     */
-    description;
-    /**
-     * @type {boolean} Invité ?
-     */
-    guest;
-    /**
-     * @type {number} Identifiant de l'acteur
-     */
-    id;
-    /**
-     * @type {string} Nom du personnage
-     */
-    name;
-    /**
-     * @type {string} URL de l'image du personnage
-     */
-    picture;
-    /**
-     * @type {string} Type de rôle du personnage dans le média
-     */
-    role;
-    /**
-     * @type {number} Identifiant de la série
-     */
-    show_id;
-    /**
-     * @type {number} Identifiant du film
-     */
-    movie_id;
-    /**
-     * @type {number} Identifiant de l'objet Person correspondant à l'acteur
-     */
-    person_id;
-    constructor(data) {
-        this.actor = data.actor || '';
-        this.picture = data.picture || '';
-        this.name = data.name || '';
-        this.guest = !!data.guest || false;
-        this.id = (data.id !== undefined) ? parseInt(data.id, 10) : 0;
-        this.description = data.description || '';
-        this.role = data.role || '';
-        this.show_id = (data.show_id !== undefined) ? parseInt(data.show_id, 10) : 0;
-        this.movie_id = (data.movie_id !== undefined) ? parseInt(data.movie_id, 10) : 0;
-        this.person_id = (data.person_id !== undefined) ? parseInt(data.person_id, 10) : 0;
+/**
+ * Code source original @link https://github.com/debug-js/debug
+ */
+/**
+ * Retourne le nombre de millisecondes sous forme de durée
+ * @param   {number} ms
+ * @returns {string}
+ */
+function humanize(ms) {
+    const s = 1000;
+    const m = s * 60;
+    const h = m * 60;
+    const d = h * 24;
+    const msAbs = Math.abs(ms);
+    if (msAbs >= d) {
+        return `${Math.round(ms / d)}d`;
     }
+    if (msAbs >= h) {
+        return `${Math.round(ms / h)}h`;
+    }
+    if (msAbs >= m) {
+        return `${Math.round(ms / m)}m`;
+    }
+    if (msAbs >= s) {
+        return `${Math.round(ms / s)}s`;
+    }
+    return `${ms}ms`;
 }
-class personMedia {
-    show;
-    movie;
-    role;
-    type;
-    constructor(data, type) {
-        if (type === MediaType.show) {
-            this.show = new Show(data.show);
-        }
-        else if (type === MediaType.movie) {
-            this.movie = new Movie(data.movie);
-        }
-        this.role = data.name;
-        this.type = type;
+/**
+ * Colorize log arguments if enabled.
+ *
+ * @api public
+ * @this {Debug}
+ */
+function formatArgs(args) {
+    /** @type {Debug} */
+    const self = this;
+    // console.log('formatArgs args[0]: ', args[0]);
+    if (!self.useColors) {
+        args[0] = `${self.namespace} ${args[0]}`;
+        if (self.time)
+            args[0] += ' +' + humanize(self.diff);
+        return;
     }
-    get media() {
-        if (this.type === MediaType.show) {
-            return this.show;
-        }
-        else if (this.type === MediaType.movie) {
-            return this.movie;
-        }
-    }
-}
-class Person {
-    /**
-     * Récupère les données d'un acteur à partir de son identifiant et retourne un objet Person
-     * @param   {number} personId - L'identifiant de l'acteur / actrice
-     * @returns {Promise<Person | null>}
-     */
-    static fetch(personId) {
-        return Base.callApi(HTTP_VERBS.GET, 'persons', 'person', { id: personId })
-            .then(data => { return data ? new Person(data.person) : null; });
-    }
-    /**
-     * @type {number} Identifiant de l'acteur / actrice
-     */
-    id;
-    /**
-     * @type {string} Nom de l'acteur
-     */
-    name;
-    /**
-     * @type {Date} Date de naissance
-     */
-    birthday;
-    /**
-     * @type {Date} Date de décès
-     */
-    deathday;
-    /**
-     * @type {string} Description
-     */
-    description;
-    /**
-     * @type {personMedia} Dernier média enregistré sur BetaSeries
-     */
-    last;
-    /**
-     * @type {Array<personMedia>} Tableau des séries dans lesquelles à joué l'acteur
-     */
-    shows;
-    /**
-     * @type {Array<personMedia>} Tableau des films dans lesquels a joué l'acteur
-     */
-    movies;
-    constructor(data) {
-        this.id = (data.id !== undefined) ? parseInt(data.id, 10) : 0;
-        this.name = data.name || '';
-        this.birthday = data.birthday ? new Date(data.birthday) : null;
-        this.deathday = data.deathday ? new Date(data.deathday) : null;
-        this.description = data.description || '';
-        this.shows = [];
-        for (let s = 0; s < data.shows.length; s++) {
-            this.shows.push(new personMedia(data.shows[s], MediaType.show));
-        }
-        this.movies = [];
-        for (let m = 0; m < data.movies.length; m++) {
-            this.movies.push(new personMedia(data.movies[m], MediaType.movie));
-        }
-        if (data.last?.show) {
-            this.last = new personMedia(data.last, MediaType.show);
-        }
-        else if (data.last?.movie) {
-            this.last = new personMedia(data.last, MediaType.movie);
-        }
-    }
-}
-
-/* interface JQuery<TElement = HTMLElement> extends Iterable<TElement> {
-    popover?(params: any): this;
-} */
-var OrderComments;
-(function (OrderComments) {
-    OrderComments["DESC"] = "desc";
-    OrderComments["ASC"] = "asc";
-})(OrderComments = OrderComments || (OrderComments = {}));
-var MediaStatusComments;
-(function (MediaStatusComments) {
-    MediaStatusComments["OPEN"] = "open";
-    MediaStatusComments["CLOSED"] = "close";
-})(MediaStatusComments = MediaStatusComments || (MediaStatusComments = {}));
-class CommentsBS {
-    /*************************************************/
-    /*                  STATIC                       */
-    /*************************************************/
-    /**
-     * Types d'évenements gérés par cette classe
-     * @type {Array}
-     */
-    static EventTypes = [
-        'update',
-        'save',
-        'add',
-        'added',
-        'delete',
-        'show'
-    ];
-    /**
-     * Envoie une réponse de ce commentaire à l'API
-     * @param   {Base} media - Le média correspondant à la collection
-     * @param   {string} text - Le texte de la réponse
-     * @returns {Promise<void | CommentBS>}
-     */
-    static sendComment(media, text) {
-        const params = {
-            type: media.mediaType.singular,
-            id: media.id,
-            text: text
-        };
-        return Base.callApi(HTTP_VERBS.POST, 'comments', 'comment', params)
-            .then((data) => {
-            const comment = new CommentBS(data.comment, media.comments);
-            media.comments.addComment(comment);
-            media.comments.is_subscribed = true;
-            return comment;
-        })
-            .catch(err => {
-            Base.notification('Commentaire', "Erreur durant l'ajout d'un commentaire");
-            console.error(err);
-        });
-    }
-    /*************************************************/
-    /*                  PROPERTIES                   */
-    /*************************************************/
-    /**
-     * @type {Array<CommentBS>} Tableau des commentaires
-     */
-    comments;
-    /**
-     * @type {number} Nombre total de commentaires du média
-     */
-    nbComments;
-    /**
-     * @type {boolean} Indique si le membre à souscrit aux alertes commentaires du média
-     */
-    is_subscribed;
-    /**
-     * @type {string} Indique si les commentaires sont ouverts ou fermés
-     */
-    status;
-    /**
-     * @type {Base} Le média auquel sont associés les commentaires
-     * @private
-     */
-    _parent;
-    /**
-     * @type {Array<CustomEvent>} Tableau des events déclarés par la fonction loadEvents
-     * @private
-     */
-    _events;
-    /**
-     * @type {object} Objet contenant les fonctions à l'écoute des changements
-     * @private
-     */
-    _listeners;
-    /**
-     * @type {OrderComments} Ordre de tri des commentaires et des réponses
-     */
-    _order;
-    /*************************************************/
-    /*                  METHODS                      */
-    /*************************************************/
-    constructor(nbComments, media) {
-        this.comments = [];
-        this._parent = media;
-        this.is_subscribed = false;
-        this.status = MediaStatusComments.OPEN;
-        this.nbComments = nbComments;
-        this._order = OrderComments.DESC;
-        this._initListeners();
-    }
-    /**
-     * Initialise la collection de commentaires
-     */
-    init() {
-        const self = this;
-        const addCommentId = function () {
-            const $vignettes = jQuery('#comments .slides_flex .slide_flex .slide__comment');
-            let vignette;
-            for (let v = 0; v < $vignettes.length; v++) {
-                vignette = jQuery($vignettes.get(v));
-                vignette.attr('data-comment-id', self.comments[v].id);
-            }
-        };
-        if (this.comments.length <= 0 && this.nbComments > 0) {
-            const $vignettes = jQuery('#comments .slides_flex .slide_flex');
-            this.fetchComments($vignettes.length)
-                .then(addCommentId);
-        }
-        else {
-            addCommentId();
-        }
-    }
-    /**
-     * Initialize le tableau des écouteurs d'évènements
-     * @returns {Base}
-     * @private
-     */
-    _initListeners() {
-        this._listeners = {};
-        const EvtTypes = CommentsBS.EventTypes;
-        for (let e = 0; e < EvtTypes.length; e++) {
-            this._listeners[EvtTypes[e]] = [];
-        }
-        return this;
-    }
-    /**
-     * Permet d'ajouter un listener sur un type d'évenement
-     * @param  {EventTypes} name - Le type d'évenement
-     * @param  {Function}   fn   - La fonction à appeler
-     * @return {Base} L'instance du média
-     */
-    addListener(name, fn, ...args) {
-        // On vérifie que le type d'event est pris en charge
-        if (CommentsBS.EventTypes.indexOf(name) < 0) {
-            throw new Error(`${name} ne fait pas partit des events gérés par cette classe`);
-        }
-        if (this._listeners[name] === undefined) {
-            this._listeners[name] = [];
-        }
-        for (const func in this._listeners[name]) {
-            if (func.toString() == fn.toString()) {
-                if (Base.debug)
-                    console.warn('Cette fonction est déjà présente pour event[%s]', name);
+    const c = 'color: ' + self.color, cInherit = 'color:inherit', indexesColor = []; // Stocke les index de position des flags de style du message original
+    let flagColor = false;
+    // On vérifie la présence de flag style dans le message original
+    if (/%c/.test(args[0])) {
+        flagColor = true;
+        let index = 0;
+        args[0].replace(/%[a-zA-Z%]/g, (match) => {
+            if (match === '%%') {
                 return;
             }
-        }
-        if (args.length > 0) {
-            this._listeners[name].push({ fn: fn, args: args });
-        }
-        else {
-            this._listeners[name].push(fn);
-        }
-        if (Base.debug)
-            console.log('Base[%s] add Listener on event %s', this.constructor.name, name, this._listeners[name]);
-        return this;
-    }
-    /**
-     * Permet de supprimer un listener sur un type d'évenement
-     * @param  {string}   name - Le type d'évenement
-     * @param  {Function} fn   - La fonction qui était appelée
-     * @return {Base} L'instance du média
-     */
-    removeListener(name, fn) {
-        if (this._listeners[name] !== undefined) {
-            for (let l = 0; l < this._listeners[name].length; l++) {
-                if ((typeof this._listeners[name][l] === 'function' && this._listeners[name][l].toString() === fn.toString()) ||
-                    this._listeners[name][l].fn.toString() == fn.toString()) {
-                    this._listeners[name].splice(l, 1);
-                }
-            }
-        }
-        return this;
-    }
-    /**
-     * Appel les listeners pour un type d'évenement
-     * @param  {EventTypes} name - Le type d'évenement
-     * @return {Base} L'instance du média
-     */
-    _callListeners(name) {
-        if (this._listeners[name] !== undefined && this._listeners[name].length > 0) {
-            const event = new CustomEvent('betaseries', { detail: { name: name } });
-            if (Base.debug)
-                console.log('Comments call %d Listeners on event %s', this._listeners[name].length, name);
-            for (let l = 0; l < this._listeners[name].length; l++) {
-                if (typeof this._listeners[name][l] === 'function') {
-                    this._listeners[name][l].call(this, event, this);
-                }
-                else {
-                    this._listeners[name][l].fn.apply(this, this._listeners[name][l].args);
-                }
-            }
-        }
-        return this;
-    }
-    /**
-     * Retourne la taille de la collection
-     * @readonly
-     */
-    get length() {
-        return this.comments.length;
-    }
-    /**
-     * Retourne le média auxquels sont associés les commentaires
-     * @readonly
-     */
-    get media() {
-        return this._parent;
-    }
-    /**
-     * Retourne l'ordre de tri des commentaires
-     * @returns {OrderComments}
-     */
-    get order() {
-        return this._order;
-    }
-    /**
-     * Définit l'ordre de tri des commentaires
-     * @param {OrderComments} o - Ordre de tri
-     */
-    set order(o) {
-        this._order = o;
-    }
-    /**
-     * Récupère les commentaires du média sur l'API
-     * @param   {number} [nbpp=50] - Le nombre de commentaires à récupérer
-     * @param   {number} [since=0] - L'identifiant du dernier commentaire reçu
-     * @param   {OrderComments} [order='desc'] - Ordre de tri des commentaires
-     * @returns {Promise<CommentsBS>}
-     */
-    fetchComments(nbpp = 50, since = 0, order = OrderComments.DESC) {
-        if (order !== this._order) {
-            this.order = order;
-        }
-        const self = this;
-        return new Promise((resolve, reject) => {
-            const params = {
-                type: self._parent.mediaType.singular,
-                id: self._parent.id,
-                nbpp: nbpp,
-                replies: 0,
-                order: self.order
-            };
-            if (since > 0) {
-                params.since_id = since;
-            }
-            Base.callApi(HTTP_VERBS.GET, 'comments', 'comments', params)
-                .then((data) => {
-                if (data.comments !== undefined) {
-                    if (since <= 0) {
-                        self.comments = [];
-                    }
-                    for (let c = 0; c < data.comments.length; c++) {
-                        self.comments.push(new CommentBS(data.comments[c], self));
-                        // self.addComment(data.comments[c]);
-                    }
-                }
-                self.nbComments = parseInt(data.total, 10);
-                self.is_subscribed = !!data.is_subscribed;
-                self.status = data.status;
-                resolve(self);
-            })
-                .catch(err => {
-                console.warn('fetchComments', err);
-                Base.notification('Récupération des commentaires', "Une erreur est apparue durant la récupération des commentaires");
-                reject(err);
-            });
-        });
-    }
-    /**
-     * Ajoute un commentaire à la collection
-     * /!\ (Ne l'ajoute pas sur l'API) /!\
-     * @param   {Obj} data - Les données du commentaire provenant de l'API
-     * @returns {CommentsBS}
-     */
-    addComment(data) {
-        const method = this.order == OrderComments.DESC ? Array.prototype.unshift : Array.prototype.push;
-        if (Base.debug)
-            console.log('addComment order: %s - method: %s', this.order, method.name);
-        if (data instanceof CommentBS) {
-            method.call(this.comments, data);
-        }
-        else {
-            method.call(this.comments, new CommentBS(data, this));
-        }
-        this.nbComments++;
-        this.media.nbComments++;
-        if (Base.debug)
-            console.log('addComment listeners', this._listeners);
-        this._callListeners(EventTypes.ADD);
-        return this;
-    }
-    /**
-     * Retire un commentaire de la collection
-     * /!\ (Ne le supprime pas sur l'API) /!\
-     * @param   {number} cmtId - L'identifiant du commentaire à retirer
-     * @returns {CommentsBS}
-     */
-    removeComment(cmtId) {
-        for (let c = 0; c < this.comments.length; c++) {
-            if (this.comments[c].id === cmtId) {
-                this.comments.splice(c, 1);
-                // retire le commentaire de la liste des commentaires
-                this.removeFromPage(cmtId);
-                this.nbComments--;
-                this.media.nbComments--;
-                this._callListeners('delete');
-                break;
-            }
-        }
-        return this;
-    }
-    /**
-     * Indique si il s'agit du premier commentaire
-     * @param cmtId - L'identifiant du commentaire
-     * @returns {boolean}
-     */
-    isFirst(cmtId) {
-        return this.comments[0].id === cmtId;
-    }
-    /**
-     * Indique si il s'agit du dernier commentaire
-     * @param cmtId - L'identifiant du commentaire
-     * @returns {boolean}
-     */
-    isLast(cmtId) {
-        return this.comments[this.comments.length - 1].id === cmtId;
-    }
-    /**
-     * Indique si on peut écrire des commentaires sur ce média
-     * @returns {boolean}
-     */
-    isOpen() {
-        return this.status === MediaStatusComments.OPEN;
-    }
-    /**
-     * Retourne le commentaire correspondant à l'ID fournit en paramètre
-     * @param   {number} cId - L'identifiant du commentaire
-     * @returns {CommentBS|void}
-     */
-    getComment(cId) {
-        for (let c = 0; c < this.comments.length; c++) {
-            if (this.comments[c].id === cId) {
-                return this.comments[c];
-            }
-        }
-        return null;
-    }
-    /**
-     * Retourne le commentaire précédent celui fournit en paramètre
-     * @param   {number} cId - L'identifiant du commentaire
-     * @returns {CommentBS|null}
-     */
-    getPrevComment(cId) {
-        for (let c = 0; c < this.comments.length; c++) {
-            if (this.comments[c].id === cId && c > 0) {
-                return this.comments[c - 1];
-            }
-        }
-        return null;
-    }
-    /**
-     * Retourne le commentaire suivant celui fournit en paramètre
-     * @param   {number} cId - L'identifiant du commentaire
-     * @returns {CommentBS|null}
-     */
-    getNextComment(cId) {
-        const len = this.comments.length;
-        for (let c = 0; c < this.comments.length; c++) {
-            // TODO: Vérifier que tous les commentaires ont été récupérer
-            if (this.comments[c].id === cId && c < len - 1) {
-                return this.comments[c + 1];
-            }
-        }
-        return null;
-    }
-    /**
-     * Retourne les réponses d'un commentaire
-     * @param   {number} commentId - Identifiant du commentaire original
-     * @param   {OrderComments} [order='desc'] - Ordre de tri des réponses
-     * @returns {Promise<Array<CommentBS>>} Tableau des réponses
-     */
-    async fetchReplies(commentId, order = OrderComments.ASC) {
-        const data = await Base.callApi(HTTP_VERBS.GET, 'comments', 'replies', { id: commentId, order });
-        const replies = [];
-        if (data.comments) {
-            for (let c = 0; c < data.comments.length; c++) {
-                replies.push(new CommentBS(data.comments[c], this));
-            }
-        }
-        return replies;
-    }
-    /**
-     * Modifie le nombre de votes et le vote du membre pour un commentaire
-     * @param   {number} commentId - Identifiant du commentaire
-     * @param   {number} thumbs - Nombre de votes
-     * @param   {number} thumbed - Le vote du membre connecté
-     * @returns {boolean}
-     */
-    changeThumbs(commentId, thumbs, thumbed) {
-        for (let c = 0; c < this.comments.length; c++) {
-            if (this.comments[c].id === commentId) {
-                this.comments[c].thumbs = thumbs;
-                this.comments[c].thumbed = thumbed;
-                return true;
-            }
-        }
-        return false;
-    }
-    /**
-     * Retourne la template pour l'affichage de l'ensemble des commentaires
-     * @param   {number} nbpp - Le nombre de commentaires à récupérer
-     * @returns {Promise<string>} La template
-     */
-    async getTemplate(nbpp) {
-        const self = this;
-        return new Promise((resolve, reject) => {
-            let promise = Promise.resolve(self);
-            if (Base.debug)
-                console.log('Base ', { length: self.comments.length, nbComments: self.nbComments });
-            if (self.comments.length <= 0 && self.nbComments > 0) {
-                if (Base.debug)
-                    console.log('Base fetchComments call');
-                promise = self.fetchComments(nbpp);
-            }
-            promise.then(async () => {
-                let comment, template = `
-                        <div data-media-type="${self._parent.mediaType.singular}"
-                            data-media-id="${self._parent.id}"
-                            class="displayFlex flexDirectionColumn"
-                            style="margin-top: 2px; min-height: 0">`;
-                if (Base.userIdentified()) {
-                    template += `
-                    <button type="button" class="btn-reset btnSubscribe" style="position: absolute; top: 3px; right: 31px; padding: 8px;">
-                        <span class="svgContainer">
-                            <svg></svg>
-                        </span>
-                    </button>`;
-                }
-                template += '<div class="comments overflowYScroll">';
-                for (let c = 0; c < self.comments.length; c++) {
-                    comment = self.comments[c];
-                    template += CommentBS.getTemplateComment(comment);
-                    // Si le commentaires à des réponses et qu'elles ne sont pas chargées
-                    if (comment.nbReplies > 0 && comment.replies.length <= 0) {
-                        // On récupère les réponses
-                        if (Base.debug)
-                            console.log('Comments render getTemplate fetchReplies');
-                        await comment.fetchReplies();
-                        // On ajoute un boutton pour afficher/masquer les réponses
-                    }
-                    for (let r = 0; r < comment.replies.length; r++) {
-                        template += CommentBS.getTemplateComment(comment.replies[r]);
-                    }
-                }
-                // On ajoute le bouton pour voir plus de commentaires
-                if (self.comments.length < self.nbComments) {
-                    template += `
-                        <button type="button" class="btn-reset btn-greyBorder moreComments" style="margin-top: 10px; width: 100%;">
-                            ${Base.trans("timeline.comments.display_more")}
-                            <i class="fa fa-cog fa-spin fa-2x fa-fw" style="display:none;margin-left:15px;vertical-align:middle;"></i>
-                            <span class="sr-only">Loading...</span>
-                        </button>`;
-                }
-                template += '</div>'; // Close div.comments
-                if (self.isOpen() && Base.userIdentified()) {
-                    template += CommentBS.getTemplateWriting();
-                }
-                resolve(template + '</div>');
-            })
-                .catch(err => {
-                reject(err);
-            });
-        });
-    }
-    /**
-     * Retourne un tableau contenant les logins des commentaires
-     * @returns {Array<string>}
-     */
-    getLogins() {
-        const users = [];
-        for (let c = 0; c < this.comments.length; c++) {
-            if (!users.includes(this.comments[c].login)) {
-                users.push(this.comments[c].login);
-            }
-        }
-        return users;
-    }
-    /**
-     * Met à jour le nombre de commentaires sur la page
-     */
-    updateCounter() {
-        const $counter = jQuery('#comments .blockTitle');
-        $counter.text($counter.text().replace(/\d+/, this.nbComments.toString()));
-    }
-    /**
-     * Ajoute les évènements sur les commentaires lors du rendu
-     * @param   {JQuery<HTMLElement>} $container - Le conteneur des éléments d'affichage
-     * @param   {number} nbpp - Le nombre de commentaires à récupérer sur l'API
-     * @param   {Obj} funcPopup - Objet des fonctions d'affichage/ de masquage de la popup
-     * @returns {void}
-     */
-    loadEvents($container, nbpp, funcPopup) {
-        // Tableau servant à contenir les events créer pour pouvoir les supprimer plus tard
-        this._events = [];
-        const self = this;
-        const $popup = jQuery('#popin-dialog');
-        const $btnClose = jQuery("#popin-showClose");
-        /**
-         * Retourne l'objet CommentBS associé au DOMElement fournit en paramètre
-         * @param   {JQuery<HTMLElement>} $comment - Le DOMElement contenant le commentaire
-         * @returns {Promise<CommentBS>}
-         */
-        const getObjComment = async function ($comment) {
-            const commentId = parseInt($comment.data('commentId'), 10);
-            let comment;
-            // Si il s'agit d'une réponse, il nous faut le commentaire parent
-            if ($comment.hasClass('reply')) {
-                let $parent = $comment.prev();
-                while ($parent.hasClass('reply')) {
-                    $parent = $parent.prev();
-                }
-                const parentId = parseInt($parent.data('commentId'), 10);
-                if (commentId == parentId) {
-                    comment = self.getComment(commentId);
-                }
-                else {
-                    const cmtParent = self.getComment(parentId);
-                    comment = await cmtParent.getReply(commentId);
-                }
-            }
-            else {
-                comment = self.getComment(commentId);
-            }
-            return comment;
-        };
-        // On ajoute les templates HTML du commentaire,
-        // des réponses et du formulaire de d'écriture
-        // On active le bouton de fermeture de la popup
-        $btnClose.click(() => {
-            funcPopup.hidePopup();
-            $popup.removeAttr('data-popin-type');
-        });
-        this._events.push({ elt: $btnClose, event: 'click' });
-        const $btnAllReplies = $container.find('.toggleAllReplies');
-        $btnAllReplies.click((e) => {
-            const $btn = jQuery(e.currentTarget);
-            const stateReplies = $btn.attr('data-toggle'); // 0: Etat masqué, 1: Etat affiché
-            const $btnReplies = $container.find(`.toggleReplies[data-toggle="${stateReplies}"]`);
-            if (stateReplies == '1') {
-                $btnReplies.trigger('click');
-                $btn.attr('data-toggle', '0');
-                $btn.text('Afficher toutes les réponses');
-            }
-            else {
-                $btnReplies.trigger('click');
-                $btn.attr('data-toggle', '1');
-                $btn.text('Masquer toutes les réponses');
+            index++;
+            if (match === '%c') {
+                indexesColor.push(index + 2); // On tient compte des ajouts
             }
         });
-        this._events.push({ elt: $btnAllReplies, event: 'click' });
-        const $btnSubscribe = $container.find('.btnSubscribe');
-        /**
-         * Met à jour l'affichage du bouton de souscription
-         * des alertes de nouveaux commentaires
-         * @param   {JQuery<HTMLElement>} $btn - L'élément jQuery correspondant au bouton de souscription
-         * @returns {void}
-         */
-        function displaySubscription($btn) {
-            if (!self.is_subscribed) {
-                $btn.removeClass('active');
-                $btn.attr('title', "Recevoir les commentaires par e-mail");
-                $btn.find('svg').replaceWith(`
-                    <svg fill="${Base.theme == 'dark' ? 'rgba(255, 255, 255, .5)' : '#333'}" width="14" height="16" style="position: relative; top: 1px; left: -1px;">
-                        <path fill-rule="nonzero" d="M13.176 13.284L3.162 2.987 1.046.812 0 1.854l2.306 2.298v.008c-.428.812-.659 1.772-.659 2.806v4.103L0 12.709v.821h11.307l1.647 1.641L14 14.13l-.824-.845zM6.588 16c.914 0 1.647-.73 1.647-1.641H4.941c0 .91.733 1.641 1.647 1.641zm4.941-6.006v-3.02c0-2.527-1.35-4.627-3.705-5.185V1.23C7.824.55 7.272 0 6.588 0c-.683 0-1.235.55-1.235 1.23v.559c-.124.024-.239.065-.346.098a2.994 2.994 0 0 0-.247.09h-.008c-.008 0-.008 0-.017.009-.19.073-.379.164-.56.254 0 0-.008 0-.008.008l7.362 7.746z"></path>
-                    </svg>
-                `);
-            }
-            else if (self.is_subscribed) {
-                $btn.addClass('active');
-                $btn.attr('title', "Ne plus recevoir les commentaires par e-mail");
-                $btn.find('svg').replaceWith(`
-                    <svg width="20" height="22" viewBox="0 0 20 22" style="width: 17px;">
-                        <g transform="translate(-4)" fill="none">
-                            <path d="M0 0h24v24h-24z"></path>
-                            <path fill="${Base.theme == 'dark' ? 'rgba(255, 255, 255, .5)' : '#333'}" d="M12 22c1.1 0 2-.9 2-2h-4c0 1.1.89 2 2 2zm6-6v-5c0-3.07-1.64-5.64-4.5-6.32v-.68c0-.83-.67-1.5-1.5-1.5s-1.5.67-1.5 1.5v.68c-2.87.68-4.5 3.24-4.5 6.32v5l-2 2v1h16v-1l-2-2z"></path>
-                        </g>
-                    </svg>
-                `);
-            }
+        if ((indexesColor.length % 2) !== 0) {
+            // Il n'y a pas de flagColor de fermeture
+            args[0] += '%c';
+            indexesColor.push(++index + 2);
+            args.splice(index, 0, cInherit);
         }
-        $btnSubscribe.click((e) => {
-            e.stopPropagation();
-            e.preventDefault();
-            if (!Base.userIdentified()) {
-                faceboxDisplay('inscription', {}, () => { });
-                return;
-            }
-            const $btn = $(e.currentTarget);
-            const params = { type: self._parent.mediaType.singular, id: self._parent.id };
-            if ($btn.hasClass('active')) {
-                Base.callApi(HTTP_VERBS.DELETE, 'comments', 'subscription', params)
-                    .then(() => {
-                    self.is_subscribed = false;
-                    displaySubscription($btn);
-                });
-            }
-            else {
-                Base.callApi(HTTP_VERBS.POST, 'comments', 'subscription', params)
-                    .then(() => {
-                    self.is_subscribed = true;
-                    displaySubscription($btn);
-                });
-            }
-        });
-        displaySubscription($btnSubscribe);
-        this._events.push({ elt: $btnSubscribe, event: 'click' });
-        // On active le lien pour afficher le spoiler
-        const $btnSpoiler = $container.find('.view-spoiler');
-        if ($btnSpoiler.length > 0) {
-            $btnSpoiler.click((e) => {
-                e.stopPropagation();
-                e.preventDefault();
-                const $btn = jQuery(e.currentTarget);
-                const $spoiler = $btn.next('.comment-text').find('.spoiler');
-                if ($spoiler.is(':visible')) {
-                    $spoiler.fadeOut('fast');
-                    $btn.text('Voir le spoiler');
-                }
-                else {
-                    $spoiler.fadeIn('fast');
-                    $btn.text('Cacher le spoiler');
-                }
-            });
-        }
-        this._events.push({ elt: $btnSpoiler, event: 'click' });
-        /**
-         * Ajoutons les events pour:
-         *  - btnUpVote: Voter pour ce commentaire
-         *  - btnDownVote: Voter contre ce commentaire
-         */
-        const $btnThumb = $container.find('.comments .comment .btnThumb');
-        $btnThumb.click(async (e) => {
-            e.stopPropagation();
-            e.preventDefault();
-            if (!Base.userIdentified()) {
-                faceboxDisplay('inscription', {}, () => { });
-                return;
-            }
-            const $btn = jQuery(e.currentTarget);
-            const $comment = $btn.parents('.comment');
-            const commentId = parseInt($comment.data('commentId'), 10);
-            let comment;
-            // Si il s'agit d'une réponse, il nous faut le commentaire parent
-            if ($comment.hasClass('reply')) {
-                let $parent = $comment.prev();
-                while ($parent.hasClass('reply')) {
-                    $parent = $parent.prev();
-                }
-                const parentId = parseInt($parent.data('commentId'), 10);
-                if (commentId == parentId) {
-                    comment = this.getComment(commentId);
-                }
-                else {
-                    const cmtParent = this.getComment(parentId);
-                    comment = await cmtParent.getReply(commentId);
-                }
-            }
-            else {
-                comment = this.getComment(commentId);
-            }
-            let verb = HTTP_VERBS.POST;
-            const vote = $btn.hasClass('btnUpVote') ? 1 : -1;
-            let params = { id: commentId, type: vote, switch: false };
-            // On a déjà voté
-            if (comment.thumbed == vote) {
-                verb = HTTP_VERBS.DELETE;
-                params = { id: commentId };
-            }
-            else if (comment.thumbed != 0) {
-                console.warn("Le vote est impossible. Annuler votre vote et recommencer");
-                return;
-            }
-            Base.callApi(verb, 'comments', 'thumb', params)
-                .then((data) => {
-                comment.thumbs = parseInt(data.comment.thumbs, 10);
-                comment.thumbed = data.comment.thumbed ? parseInt(data.comment.thumbed, 10) : 0;
-                comment.updateRenderThumbs(vote);
-            })
-                .catch(err => {
-                const msg = err.text !== undefined ? err.text : err;
-                Base.notification('Thumb commentaire', "Une erreur est apparue durant le vote: " + msg);
-            });
-        });
-        this._events.push({ elt: $btnThumb, event: 'click' });
-        /**
-         * On affiche/masque les options du commentaire
-         */
-        const $btnOptions = $container.find('.btnToggleOptions');
-        $btnOptions.click((e) => {
-            e.stopPropagation();
-            e.preventDefault();
-            jQuery(e.currentTarget).parents('.actionsCmt').first()
-                .find('.options-comment').each((_index, elt) => {
-                const $elt = jQuery(elt);
-                if ($elt.is(':visible')) {
-                    $elt.hide();
-                }
-                else {
-                    $elt.show();
-                }
-            });
-        });
-        this._events.push({ elt: $btnOptions, event: 'click' });
-        /**
-         * On envoie la réponse à ce commentaire à l'API
-         */
-        const $btnSend = $container.find('.sendComment');
-        $btnSend.click(async (e) => {
-            e.stopPropagation();
-            e.preventDefault();
-            if (!Base.userIdentified()) {
-                faceboxDisplay('inscription', {}, () => { });
-                return;
-            }
-            const getNodeCmt = function (cmtId) {
-                return jQuery(e.currentTarget).parents('.writing').prev('.comments').find(`.comment[data-comment-id="${cmtId.toString()}"]`);
-            };
-            const $textarea = $(e.currentTarget).siblings('textarea');
-            if ($textarea.val().length > 0) {
-                const action = $textarea.data('action');
-                const msg = $textarea.val();
-                let comment;
-                let promise;
-                if ($textarea.data('replyTo')) {
-                    const cmtId = parseInt($textarea.data('replyTo'), 10);
-                    comment = self.getComment(cmtId);
-                    const $comment = getNodeCmt(cmtId);
-                    promise = comment.sendReply($textarea.val()).then((reply) => {
-                        if (reply instanceof CommentBS) {
-                            $textarea.val('');
-                            $textarea.siblings('button').attr('disabled', 'true');
-                            $textarea.removeAttr('data-reply-to');
-                            const template = CommentBS.getTemplateComment(reply);
-                            if ($comment.next('.comment').hasClass('reply')) {
-                                let $next = $comment.next('.comment');
-                                let $prev;
-                                while ($next.hasClass('reply')) {
-                                    $prev = $next;
-                                    $next = $next.next('.comment');
-                                }
-                                $prev.after(template);
-                            }
-                            else {
-                                $comment.after(template);
-                            }
-                        }
-                    });
-                }
-                else if (action && action === 'edit') {
-                    const cmtId = parseInt($textarea.data('commentId'), 10);
-                    let $comment = getNodeCmt(cmtId);
-                    const comment = await getObjComment($comment);
-                    promise = comment.edit(msg).then((comment) => {
-                        $comment.find('.comment-text').text(comment.text);
-                        $comment = jQuery(`#comments .slide_flex .slide__comment[data-comment-id="${cmtId}"]`);
-                        $comment.find('p').text(comment.text);
-                        $textarea.removeAttr('data-action');
-                        $textarea.removeAttr('data-comment-id');
-                        $textarea.val('');
-                        $textarea.siblings('button').attr('disabled', 'true');
-                    });
-                }
-                else {
-                    promise = CommentsBS.sendComment(self._parent, $textarea.val())
-                        .then((comment) => {
-                        if (comment) {
-                            $textarea.val('');
-                            $textarea.siblings('button').attr('disabled', 'true');
-                            const $comments = $textarea.parents('.writing').prev('.comments');
-                            if (this.order === OrderComments.DESC) {
-                                $comments.prepend(CommentBS.getTemplateComment(comment));
-                            }
-                            else {
-                                $comments.append(CommentBS.getTemplateComment(comment));
-                            }
-                            $comments.find(`.comment[data-comment-id="${comment.id}"]`).get(0).scrollIntoView();
-                            self.addToPage(comment.id);
-                        }
-                    });
-                }
-                promise.then(() => {
-                    self.cleanEvents(() => {
-                        self.loadEvents($container, nbpp, funcPopup);
-                    });
-                });
-            }
-        });
-        this._events.push({ elt: $btnSend, event: 'click' });
-        /**
-         * On active / desactive le bouton d'envoi du commentaire
-         * en fonction du contenu du textarea
-         */
-        const $textarea = $container.find('textarea');
-        $textarea.keypress((e) => {
-            const $textarea = $(e.currentTarget);
-            if ($textarea.val().length > 0) {
-                $textarea.siblings('button').removeAttr('disabled');
-            }
-            else {
-                $textarea.siblings('button').attr('disabled', 'true');
-            }
-        });
-        this._events.push({ elt: $textarea, event: 'keypress' });
-        /**
-         * On ajoute les balises SPOILER au message dans le textarea
-         */
-        const $baliseSpoiler = $container.find('.baliseSpoiler');
-        /**
-         * Permet d'englober le texte du commentaire en écriture
-         * avec les balises [spoiler]...[/spoiler]
-         */
-        $baliseSpoiler.click(() => {
-            const $textarea = $popup.find('textarea');
-            if (/\[spoiler\]/.test($textarea.val())) {
-                return;
-            }
-            // TODO: Gérer la balise spoiler sur une zone de texte sélectionnée
-            const text = '[spoiler]' + $textarea.val() + '[/spoiler]';
-            $textarea.val(text);
-        });
-        this._events.push({ elt: $baliseSpoiler, event: 'click' });
-        const $btnReplies = $container.find('.comments .toggleReplies');
-        /**
-         * Affiche/masque les réponses d'un commentaire
-         */
-        $btnReplies.click((e) => {
-            e.stopPropagation();
-            e.preventDefault();
-            const $btn = jQuery(e.currentTarget);
-            const state = $btn.attr('data-toggle'); // 0: Etat masqué, 1: Etat affiché
-            const $comment = $btn.parents('.comment');
-            const inner = $comment.data('commentInner');
-            const $replies = $comment.parents('.comments').find(`.comment[data-comment-reply="${inner}"]`);
-            if (state == '0') {
-                // On affiche
-                $replies.fadeIn('fast');
-                $btn.find('.btnText').text(Base.trans("comment.hide_answers"));
-                $btn.find('svg').attr('style', 'transition: transform 200ms ease 0s; transform: rotate(180deg);');
-                $btn.attr('data-toggle', '1');
-            }
-            else {
-                // On masque
-                $replies.fadeOut('fast');
-                $btn.find('.btnText').text(Base.trans("comment.button.reply", { "%count%": $replies.length.toString() }, $replies.length));
-                $btn.find('svg').attr('style', 'transition: transform 200ms ease 0s;');
-                $btn.attr('data-toggle', '0');
-            }
-        });
-        this._events.push({ elt: $btnReplies, event: 'click' });
-        const $btnResponse = $container.find('.btnResponse');
-        /**
-         * Permet de créer une réponse à un commentaire
-         */
-        $btnResponse.click(async (e) => {
-            e.stopPropagation();
-            e.preventDefault();
-            if (!Base.userIdentified()) {
-                faceboxDisplay('inscription', {}, () => { });
-                return;
-            }
-            const $btn = $(e.currentTarget);
-            const $comment = $btn.parents('.comment');
-            const comment = await getObjComment($comment);
-            $container.find('textarea')
-                .val('@' + comment.login)
-                .attr('data-reply-to', comment.id);
-        });
-        this._events.push({ elt: $btnResponse, event: 'click' });
-        const $btnMore = $container.find('.moreComments');
-        /**
-         * Permet d'afficher plus de commentaires
-         */
-        $btnMore.click((e) => {
-            e.stopPropagation();
-            e.preventDefault();
-            const $btn = jQuery(e.currentTarget);
-            if (self.comments.length >= self.nbComments) {
-                $btn.hide();
-                return;
-            }
-            const $loader = $btn.find('.fa-spin');
-            $loader.show();
-            const lastCmtId = self.comments[self.comments.length - 1].id;
-            const oldLastCmtIndex = self.comments.length - 1;
-            self.fetchComments(nbpp, lastCmtId).then(async () => {
-                let template = '', comment;
-                const firstCmtId = self.comments[oldLastCmtIndex + 1].id;
-                for (let c = oldLastCmtIndex + 1; c < self.comments.length; c++) {
-                    comment = self.comments[c];
-                    template += CommentBS.getTemplateComment(comment);
-                    // Si le commentaires à des réponses et qu'elles ne sont pas chargées
-                    if (comment.nbReplies > 0 && comment.replies.length <= 0) {
-                        // On récupère les réponses
-                        comment.replies = await self.fetchReplies(comment.id);
-                        // On ajoute un boutton pour afficher/masquer les réponses
-                    }
-                    for (let r = 0; r < comment.replies.length; r++) {
-                        template += CommentBS.getTemplateComment(comment.replies[r]);
-                    }
-                }
-                $btn.before(template);
-                jQuery(`.comment[data-comment-id="${firstCmtId.toString()}"]`).get(0).scrollIntoView();
-                self.cleanEvents(() => {
-                    self.loadEvents($container, nbpp, funcPopup);
-                });
-                if (self.comments.length >= self.nbComments) {
-                    $btn.hide();
-                }
-            }).finally(() => {
-                $loader.hide();
-            });
-        });
-        this._events.push({ elt: $btnMore, event: 'click' });
-        const $btnEdit = $container.find('.btnEditComment');
-        $btnEdit.click(async (e) => {
-            e.stopPropagation();
-            e.preventDefault();
-            const $comment = jQuery(e.currentTarget).parents('.comment');
-            const commentId = parseInt($comment.data('commentId'), 10);
-            const comment = await getObjComment($comment);
-            $textarea.val(comment.text);
-            $textarea.attr('data-action', 'edit');
-            $textarea.attr('data-comment-id', commentId);
-        });
-        this._events.push({ elt: $btnEdit, event: 'click' });
-        const $btnDelete = $container.find('.btnDeleteComment');
-        $btnDelete.click(async (e) => {
-            e.stopPropagation();
-            e.preventDefault();
-            const $comment = jQuery(e.currentTarget).parents('.comment');
-            const $options = jQuery(e.currentTarget).parents('.options-options');
-            const template = `
-                <div class="options-delete">
-                    <span class="mainTime">Supprimer mon commentaire :</span>
-                    <button type="button" class="btn-reset fontWeight700 btnYes" style="vertical-align: 0px; padding-left: 10px; padding-right: 10px; color: rgb(208, 2, 27);">Oui</button>
-                    <button type="button" class="btn-reset mainLink btnNo" style="vertical-align: 0px;">Non</button>
-                </div>
-            `;
-            $options.hide().after(template);
-            const $btnYes = $comment.find('.options-delete .btnYes');
-            const $btnNo = $comment.find('.options-delete .btnNo');
-            const comment = await getObjComment($comment);
-            $btnYes.click((e) => {
-                e.stopPropagation();
-                e.preventDefault();
-                comment.delete();
-                let $next = $comment.next('.comment');
-                let $prev;
-                while ($next.hasClass('reply')) {
-                    $prev = $next;
-                    $next = $next.next('.comment');
-                    $prev.remove();
-                }
-                $comment.remove();
-                self.updateCounter();
-            });
-            $btnNo.click((e) => {
-                e.stopPropagation();
-                e.preventDefault();
-                $comment.find('.options-delete').remove();
-                $options.show();
-                $btnYes.off('click');
-                $btnNo.off('click');
-            });
-        });
-        this._events.push({ elt: $btnDelete, event: 'click' });
-        this._callListeners(EventTypes.SHOW);
+        // console.log('formatArgs: flagColor found', {indexesColor});
     }
-    /**
-     * Nettoie les events créer par la fonction loadEvents
-     * @param   {Function} onComplete - Fonction de callback
-     * @returns {void}
-     */
-    cleanEvents(onComplete = Base.noop) {
-        if (this._events && this._events.length > 0) {
-            let data;
-            for (let e = 0; e < this._events.length; e++) {
-                data = this._events[e];
-                if (data.elt.length > 0)
-                    data.elt.off(data.event);
-            }
-        }
-        this._events = [];
-        onComplete();
-    }
-    /**
-     * Gère l'affichage de l'ensemble des commentaires
-     * @returns {void}
-     */
-    render() {
-        if (Base.debug)
-            console.log('CommentsBS render');
-        // La popup et ses éléments
-        const self = this, $popup = jQuery('#popin-dialog'), $contentHtmlElement = $popup.find(".popin-content-html"), $contentReact = $popup.find('.popin-content-reactmodule'), $closeButtons = $popup.find("#popin-showClose"), hidePopup = () => {
-            document.body.style.overflow = "visible";
-            document.body.style.paddingRight = "";
-            $popup.attr('aria-hidden', 'true');
-            $popup.find("#popupalertyes").show();
-            $popup.find("#popupalertno").show();
-            $contentHtmlElement.hide();
-            $contentReact.empty();
-            self.cleanEvents();
-        }, showPopup = () => {
-            document.body.style.overflow = "hidden";
-            document.body.style.paddingRight = getScrollbarWidth() + "px";
-            $popup.find("#popupalertyes").hide();
-            $popup.find("#popupalertno").hide();
-            $contentHtmlElement.hide();
-            $contentReact.show();
-            $closeButtons.show();
-            $popup.attr('aria-hidden', 'false');
-        };
-        // On ajoute le loader dans la popup et on l'affiche
-        $contentReact.empty().append(`<div class="title" id="dialog-title" tabindex="0">${Base.trans("blog.title.comments")}</div>`);
-        const $title = $contentReact.find('.title');
-        $title.append(`<button type="button" class="btn-primary toggleAllReplies" data-toggle="1" style="border-radius:4px;margin-left:10px;">Cacher toutes les réponses</button>`);
-        let templateLoader = `
-            <div class="loaderCmt">
-                <svg class="sr-only">
-                    <defs>
-                        <clipPath id="placeholder">
-                            <path d="M50 25h160v8H50v-8zm0-18h420v8H50V7zM20 40C8.954 40 0 31.046 0 20S8.954 0 20 0s20 8.954 20 20-8.954 20-20 20z"></path>
-                        </clipPath>
-                    </defs>
-                </svg>
-        `;
-        for (let l = 0; l < 4; l++) {
-            templateLoader += `
-                <div class="er_ex null"><div class="ComponentPlaceholder er_et " style="height: 40px;"></div></div>`;
-        }
-        $contentReact.append(templateLoader + '</div>');
-        showPopup();
-        const nbCmts = 20; // Nombre de commentaires à récupérer sur l'API
-        self.getTemplate(nbCmts).then((template) => {
-            // On définit le type d'affichage de la popup
-            $popup.attr('data-popin-type', 'comments');
-            // On masque le loader pour ajouter les données à afficher
-            $contentReact.fadeOut('fast', () => {
-                $contentReact.find('.loaderCmt').remove();
-                $contentReact.append(template);
-                $contentReact.fadeIn();
-                self.cleanEvents();
-                self.loadEvents($contentReact, nbCmts, { hidePopup, showPopup });
-            });
-        });
-    }
-    /**
-     * Ajoute un commentaire dans la liste des commentaires de la page
-     * @param {number} cmtId - L'identifiant du commentaire
-     */
-    addToPage(cmtId) {
-        const comment = this.getComment(cmtId);
-        const headMsg = comment.text.substring(0, 210);
-        let hideMsg = '';
-        if (comment.text.length > 210)
-            hideMsg = '<span class="u-colorWhiteOpacity05 u-show-fulltext positionRelative zIndex1"></span><span class="sr-only">' + comment.text.substring(210) + '</span>';
-        const avatar = comment.avatar || 'https://img.betaseries.com/NkUiybcFbxbsT_EnzkGza980XP0=/42x42/smart/https%3A%2F%2Fwww.betaseries.com%2Fimages%2Fsite%2Favatar-default.png';
-        const template = `
-            <div class="slide_flex">
-                <div class="slide__comment positionRelative u-insideBorderOpacity u-insideBorderOpacity--01" data-comment-id="${comment.id}">
-                    <p>${headMsg} ${hideMsg}</p>
-                    <button type="button" class="btn-reset js-popup-comments zIndex10" data-comment-id="${comment.id}"></button>
-                </div>
-                <div class="slide__author">
-                    <div class="media">
-                        <span class="media-left avatar">
-                            <a href="https://www.betaseries.com/membre/${comment.login}">
-                                <img class="u-opacityBackground" src="${avatar}" width="42" height="42" alt="avatar de ${comment.login}" />
-                            </a>
-                        </span>
-                        <div class="media-body">
-                            <div class="displayFlex alignItemsCenter">
-                                ${comment.login}
-                                <span class="stars">${Note.renderStars(comment.user_note, comment.user_id === Base.userId ? 'blue' : '')}</span>
-                            </div>
-                            <div>
-                                <time class="u-colorWhiteOpacity05" style="font-size: 14px;">
-                                    ${comment.date.format('dd mmmm yyyy')}
-                                </time>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-            </div>`;
-        jQuery('#comments .slides_flex').prepend(template);
-        // On met à jour le nombre de commentaires
-        jQuery('#comments .blockTitle').text(jQuery('#comments .blockTitle').text().replace(/\d+/, this._parent.nbComments.toString()));
-        this._callListeners(EventTypes.ADDED);
-    }
-    /**
-     * Supprime un commentaire dans la liste des commentaires de la page
-     * @param {number} cmtId - L'identifiant du commentaire
-     */
-    removeFromPage(cmtId) {
-        const $vignette = jQuery(`#comments .slides_flex .slide__comment[data-comment-id="${cmtId}"]`);
-        $vignette.parents('.slide_flex').remove();
-    }
-    /**
-     * Retourne la template affichant les notes associés aux commentaires
-     * @returns {string} La template affichant les évaluations des commentaires
-     */
-    showEvaluations() {
-        const self = this;
-        const params = {
-            type: this.media.mediaType.singular,
-            id: this.media.id,
-            replies: 1,
-            nbpp: this.media.nbComments
-        };
-        return Base.callApi(HTTP_VERBS.GET, 'comments', 'comments', params)
-            .then((data) => {
-            let comments = data.comments || [];
-            comments = comments.filter((comment) => { return comment.user_note > 0; });
-            const notes = { 1: 0, 2: 0, 3: 0, 4: 0, 5: 0 };
-            const userIds = [];
-            let nbEvaluations = 0;
-            for (let c = 0; c < comments.length; c++) {
-                // Pour éviter les doublons
-                if (!userIds.includes(comments[c].user_id)) {
-                    userIds.push(comments[c].user_id);
-                    nbEvaluations++;
-                    notes[comments[c].user_note]++;
-                }
-            }
-            const buildline = function (index, notes) {
-                const percent = nbEvaluations > 0 ? (notes[index] * 100) / nbEvaluations : 0;
-                return `<tr class="histogram-row">
-                    <td class="nowrap">${index} étoile${index > 1 ? 's' : ''}</td>
-                    <td class="span10">
-                        <div class="meter" role="progressbar" aria-valuenow="${percent.toFixed(1)}%">
-                            <div class="meter-filled" style="width: ${percent.toFixed(1)}%"></div>
-                        </div>
-                    </td>
-                    <td class="nowrap">${percent.toFixed(1)}%</td>
-                </tr>`;
-            };
-            /*
-             * Construction de la template
-             *  - Le nombre de notes
-             *  - La note moyenne
-             *  - Les barres de progression par note
-             */
-            let template = `
-                <div class="evaluations">
-                    <div class="size-base">${this.media.objNote.total} évaluation${this.media.objNote.total > 1 ? 's' : ''} dont ${nbEvaluations} parmis les commentaires</div>
-                    <div class="size-base average">Note globale: <strong>${self._parent.objNote.mean.toFixed(2)}</strong></div>
-                    <div><table><tbody>`;
-            for (let i = 5; i > 0; i--) {
-                template += buildline(i, notes);
-            }
-            return template + '</tbody></table><p class="alert alert-info"><small>Les pourcentages sont calculés uniquement sur les évaluations dans les commentaires.</small></p></div>';
-        });
-    }
-}
-
-class CommentBS {
-    /*************************************************/
-    /*                  STATIC                       */
-    /*************************************************/
-    /**
-     * Types d'évenements gérés par cette classe
-     * @type {Array}
-     */
-    static EventTypes = [
-        'update',
-        'save',
-        'add',
-        'delete',
-        'show',
-        'hide'
-    ];
-    /**
-     * Contient le nom des classes CSS utilisées pour le rendu du commentaire
-     * @type Obj
-     */
-    static classNamesCSS = { reply: 'it_i3', actions: 'it_i1', comment: 'it_ix' };
-    /*************************************************/
-    /*                  PROPERTIES                   */
-    /*************************************************/
-    id;
-    /**
-     * Référence du média, pour créer l'URL (type.titleUrl)
-     */
-    reference;
-    /**
-     * Type de média
-     */
-    type;
-    /**
-     * Identifiant du média
-     */
-    ref_id;
-    /**
-     * Identifiant du membre du commentaire
-     */
-    user_id;
-    /**
-     * Login du membre du commentaire
-     */
-    login;
-    /**
-     * URL de l'avatar du membre du commentaire
-     */
-    avatar;
-    /**
-     * Date de création du commentaire
-     */
-    date;
-    /**
-     * Contenu du commentaire
-     */
-    text;
-    /**
-     * Index du commentaire dans la liste des commentaires du média
-     */
-    inner_id;
-    /**
-     * Index du commentaire dont celui-ci est une réponse
-     */
-    in_reply_to;
-    /**
-     * Identifiant du commentaire dont celui-ci est une réponse
-     */
-    in_reply_id;
-    /**
-     * Informations sur le membre du commentaire original
-     */
-    in_reply_user;
-    /**
-     * Note du membre pour le média
-     */
-    user_note;
-    /**
-     * Votes pour ce commentaire
-     */
-    thumbs;
-    /**
-     * Vote du membre connecté
-     */
-    thumbed;
-    /**
-     * Nombre de réponse à ce commentaires
-     */
-    nbReplies;
-    /**
-     * Les réponses au commentaire
-     * @type {Array<CommentBS>}
-     */
-    replies;
-    /**
-     * Message de l'administration
-     */
-    from_admin;
-    /**
-     * ???
-     */
-    user_rank;
-    /**
-     * @type {CommentsBS} La collection de commentaires
-     */
-    _parent;
-    /**
-     * @type {Array<CustomEvent>} Liste des events déclarés par la fonction loadEvents
-     */
-    _events;
-    /**
-     * @type {object} Objet contenant les fonctions à l'écoute des changements
-     * @private
-     */
-    _listeners;
-    constructor(data, parent) {
-        this._parent = parent;
-        return this.fill(data)._initListeners();
-    }
-    /**
-     * Remplit l'objet CommentBS avec les données provenant de l'API
-     * @param   {Obj} data - Les données provenant de l'API
-     * @returns {CommentBS}
-     */
-    fill(data) {
-        this.id = parseInt(data.id, 10);
-        this.reference = data.reference;
-        this.type = data.type;
-        this.ref_id = parseInt(data.ref_id, 10);
-        this.user_id = parseInt(data.user_id, 10);
-        this.login = data.login;
-        this.avatar = data.avatar;
-        this.date = new Date(data.date);
-        this.text = data.text;
-        this.inner_id = parseInt(data.inner_id, 10);
-        this.in_reply_to = parseInt(data.in_reply_to, 10);
-        this.in_reply_id = parseInt(data.in_reply_id, 10);
-        this.in_reply_user = data.in_reply_user;
-        this.user_note = data.user_note ? parseInt(data.user_note, 10) : 0;
-        this.thumbs = parseInt(data.thumbs, 10);
-        this.thumbed = data.thumbed ? parseInt(data.thumbed, 10) : 0;
-        this.nbReplies = parseInt(data.replies, 10);
-        this.replies = [];
-        this.from_admin = data.from_admin;
-        this.user_rank = data.user_rank;
-        return this;
-    }
-    /**
-     * Initialize le tableau des écouteurs d'évènements
-     * @returns {Base}
-     * @private
-     */
-    _initListeners() {
-        this._listeners = {};
-        const EvtTypes = CommentBS.EventTypes;
-        for (let e = 0; e < EvtTypes.length; e++) {
-            this._listeners[EvtTypes[e]] = [];
-        }
-        return this;
-    }
-    /**
-     * Permet d'ajouter un listener sur un type d'évenement
-     * @param  {EventTypes} name - Le type d'évenement
-     * @param  {Function}   fn   - La fonction à appeler
-     * @return {Base} L'instance du média
-     */
-    addListener(name, fn, ...args) {
-        // On vérifie que le type d'event est pris en charge
-        if (!CommentBS.EventTypes.includes(name)) {
-            throw new Error(`${name} ne fait pas partit des events gérés par cette classe`);
-        }
-        if (this._listeners[name] === undefined) {
-            this._listeners[name] = [];
-        }
-        for (const func in this._listeners[name]) {
-            if (func.toString() == fn.toString()) {
-                if (Base.debug)
-                    console.warn('Cette fonction est déjà présente pour event[%s]', name);
-                return;
-            }
-        }
-        if (args.length > 0) {
-            this._listeners[name].push({ fn: fn, args: args });
-        }
-        else {
-            this._listeners[name].push(fn);
-        }
-        if (Base.debug)
-            console.log('Base[%s] add Listener on event %s', this.constructor.name, name, this._listeners[name]);
-        return this;
-    }
-    /**
-     * Permet de supprimer un listener sur un type d'évenement
-     * @param  {string}   name - Le type d'évenement
-     * @param  {Function} fn   - La fonction qui était appelée
-     * @return {Base} L'instance du média
-     */
-    removeListener(name, fn) {
-        if (this._listeners[name] !== undefined) {
-            for (let l = 0; l < this._listeners[name].length; l++) {
-                if ((typeof this._listeners[name][l] === 'function' && this._listeners[name][l].toString() === fn.toString()) ||
-                    this._listeners[name][l].fn.toString() == fn.toString()) {
-                    this._listeners[name].splice(l, 1);
-                }
-            }
-        }
-        return this;
-    }
-    /**
-     * Appel les listeners pour un type d'évenement
-     * @param  {EventTypes} name - Le type d'évenement
-     * @return {Base} L'instance du média
-     */
-    _callListeners(name) {
-        if (this._listeners[name] !== undefined && this._listeners[name].length > 0) {
-            const event = new CustomEvent('betaseries', { detail: { name: name } });
-            if (Base.debug)
-                console.log('Comment call %d Listeners on event %s', this._listeners[name].length, name);
-            for (let l = 0; l < this._listeners[name].length; l++) {
-                if (typeof this._listeners[name][l] === 'function') {
-                    this._listeners[name][l].call(this, event, this);
-                }
-                else {
-                    this._listeners[name][l].fn.apply(this, this._listeners[name][l].args);
-                }
-            }
-        }
-        return this;
-    }
-    /**
-     * Récupère les réponses du commentaire
-     * @param   {OrderComments} order - Ordre de tri des réponses
-     * @returns {Promise<CommentBS>}
-     */
-    async fetchReplies(order = OrderComments.ASC) {
-        if (this.nbReplies <= 0)
-            return this;
-        const data = await Base.callApi(HTTP_VERBS.GET, 'comments', 'replies', { id: this.id, order });
-        this.replies = [];
-        if (data.comments) {
-            for (let c = 0; c < data.comments.length; c++) {
-                this.replies.push(new CommentBS(data.comments[c], this));
-            }
-        }
-        return this;
-    }
-    /**
-     * Modifie le texte du commentaire
-     * @param   {string} msg - Le nouveau message du commentaire
-     * @returns {CommentBS}
-     */
-    edit(msg) {
-        const self = this;
-        this.text = msg;
-        const params = {
-            edit_id: this.id,
-            text: msg
-        };
-        return Base.callApi(HTTP_VERBS.POST, 'comments', 'comment', params)
-            .then((data) => {
-            return self.fill(data.comment);
-        });
-    }
-    /**
-     * Supprime le commentaire sur l'API
-     * @returns
-     */
-    delete() {
-        const self = this;
-        const promises = [];
-        if (this.nbReplies > 0) {
-            for (let r = 0; r < this.replies.length; r++) {
-                promises.push(Base.callApi(HTTP_VERBS.DELETE, 'comments', 'comment', { id: this.replies[r].id }));
-            }
-        }
-        Promise.all(promises).then(() => {
-            Base.callApi(HTTP_VERBS.DELETE, 'comments', 'comment', { id: this.id })
-                .then(() => {
-                if (self._parent instanceof CommentsBS) {
-                    self._parent.removeComment(self.id);
-                }
-                else if (self._parent instanceof CommentBS) {
-                    self._parent.removeReply(self.id);
-                }
-                self.getCollectionComments().nbComments = self.getCollectionComments().nbComments - (promises.length + 1);
-            });
-        });
-    }
-    /**
-     * Indique si le commentaire est le premier de la liste
-     * @returns {boolean}
-     */
-    isFirst() {
-        return this._parent.isFirst(this.id);
-    }
-    /**
-     * Indique si le commentaire est le dernier de la liste
-     * @returns {boolean}
-     */
-    isLast() {
-        return this._parent.isLast(this.id);
-    }
-    /**
-     * Renvoie la template HTML pour l'affichage d'un commentaire
-     * @param   {CommentBS} comment Le commentaire à afficher
-     * @returns {string}
-     */
-    static getTemplateComment(comment) {
-        let text = new Option(comment.text).innerHTML;
-        if (/@\w+/.test(text)) {
-            text = text.replace(/@(\w+)/g, '<a href="/membre/$1" class="mainLink mainLink--regular">@$1</a>');
-        }
-        const spoiler = /\[spoiler\]/.test(text);
-        const btnSpoiler = spoiler ? `<button type="button" class="btn-reset mainLink view-spoiler">${Base.trans("comment.button.display_spoiler")}</button>` : '';
-        text = text.replace(/\[spoiler\](.*)\[\/spoiler\]/g, '<span class="spoiler" style="display:none">$1</span>');
-        // let classNames = {reply: 'iv_i5', actions: 'iv_i3', comment: 'iv_iz'};
-        // const classNames = {reply: 'it_i3', actions: 'it_i1', comment: 'it_ix'};
-        const isReply = comment.in_reply_to > 0 ? true : false;
-        const className = isReply ? CommentBS.classNamesCSS.reply + ' reply ' : '';
-        const btnToggleReplies = comment.nbReplies > 0 ? `
-            <button type="button" class="btn-reset mainLink mainLink--regular toggleReplies" data-toggle="1">
-                <span class="svgContainer">
-                    <svg width="8" height="6" xmlns="http://www.w3.org/2000/svg" style="transition: transform 200ms ease 0s; transform: rotate(180deg);">
-                        <path d="M4 5.667l4-4-.94-.94L4 3.78.94.727l-.94.94z" fill="#54709D" fill-rule="nonzero"></path>
-                    </svg>
-                </span>&nbsp;<span class="btnText">${Base.trans("comment.hide_answers")}</span>
-            </button>` : '';
-        let templateOptions = `
-            <a href="/messages/nouveau?login=${comment.login}" class="mainLink">Envoyer un message</a>
-            <span class="mainLink">∙</span>
-            <button type="button" class="btn-reset mainLink btnSignal">Signaler</button>
-        `;
-        if (comment.user_id === Base.userId) {
-            templateOptions = `
-                <button type="button" class="btn-reset mainLink btnEditComment">Éditer</button>
-                <span class="mainLink">∙</span>
-                <button type="button" class="btn-reset mainLink btnDeleteComment">Supprimer</button>
-            `;
-        }
-        let btnResponse = `<span class="mainLink">&nbsp;∙&nbsp;</span><button type="button" class="btn-reset mainLink mainLink--regular btnResponse" ${!Base.userIdentified() ? 'style="display:none;"' : ''}>${Base.trans("timeline.comment.reply")}</button>`;
-        if (isReply)
-            btnResponse = '';
-        return `
-            <div class="comment ${className}positionRelative ${CommentBS.classNamesCSS.comment}" data-comment-id="${comment.id}" ${comment.in_reply_to > 0 ? 'data-comment-reply="' + comment.in_reply_to + '"' : ''} data-comment-inner="${comment.inner_id}">
-                <div class="media">
-                    <div class="media-left">
-                        <a href="/membre/${comment.login}" class="avatar">
-                            <img src="https://api.betaseries.com/pictures/members?key=${Base.userKey}&amp;id=${comment.user_id}&amp;width=64&amp;height=64&amp;placeholder=png" width="32" height="32" alt="Profil de ${comment.login}">
-                        </a>
-                    </div>
-                    <div class="media-body">
-                        <a href="/membre/${comment.login}">
-                            <span class="mainLink">${comment.login}</span>
-                        </a>
-                        ${btnSpoiler}
-                        <span class="comment-text">${text}</span>
-                        <div class="${CommentBS.classNamesCSS.actions} actionsCmt">
-                            <div class="options-main options-comment">
-                                <button type="button" class="btn-reset btnUpVote btnThumb" title="+1 pour ce commentaire">
-                                    <svg data-disabled="false" class="SvgLike" fill="#fff" width="16" height="14" viewBox="0 0 16 14" xmlns="http://www.w3.org/2000/svg">
-                                        <g fill="${comment.thumbed > 0 ? '#FFAC3B' : 'inherit'}" fill-rule="nonzero">
-                                            <path fill="#fff" fill-rule="evenodd" d="M.67 6h2.73v8h-2.73v-8zm14.909.67c0-.733-.614-1.333-1.364-1.333h-4.302l.648-3.047.02-.213c0-.273-.116-.527-.3-.707l-.723-.7-4.486 4.393c-.252.24-.402.573-.402.94v6.667c0 .733.614 1.333 1.364 1.333h6.136c.566 0 1.05-.333 1.255-.813l2.059-4.7c.061-.153.095-.313.095-.487v-1.273l-.007-.007.007-.053z"></path>
-                                            <path class="SvgLikeStroke" stroke="#54709D" d="M1.17 6.5v7h1.73v-7h-1.73zm13.909.142c-.016-.442-.397-.805-.863-.805h-4.92l.128-.604.639-2.99.018-.166c0-.13-.055-.257-.148-.348l-.373-.361-4.144 4.058c-.158.151-.247.355-.247.578v6.667c0 .455.387.833.864.833h6.136c.355 0 .664-.204.797-.514l2.053-4.685c.04-.1.06-.198.06-.301v-1.063l-.034-.034.034-.265z"></path>
-                                        </g>
-                                    </svg>
-                                </button>
-                                <button type="button" class="btn-reset btnDownVote btnThumb" title="-1 pour ce commentaire">
-                                    <svg data-disabled="false" class="SvgLike" fill="#fff" width="16" height="14" viewBox="0 0 16 14" xmlns="http://www.w3.org/2000/svg" style="transform: rotate(180deg) scaleX(-1); margin-left: 4px; vertical-align: -4px;">
-                                        <g fill="${comment.thumbed < 0 ? '#FFAC3B' : 'inherit'}" fill-rule="nonzero">
-                                            <path fill="#fff" fill-rule="evenodd" d="M.67 6h2.73v8h-2.73v-8zm14.909.67c0-.733-.614-1.333-1.364-1.333h-4.302l.648-3.047.02-.213c0-.273-.116-.527-.3-.707l-.723-.7-4.486 4.393c-.252.24-.402.573-.402.94v6.667c0 .733.614 1.333 1.364 1.333h6.136c.566 0 1.05-.333 1.255-.813l2.059-4.7c.061-.153.095-.313.095-.487v-1.273l-.007-.007.007-.053z"></path>
-                                            <path class="SvgLikeStroke" stroke="#54709D" d="M1.17 6.5v7h1.73v-7h-1.73zm13.909.142c-.016-.442-.397-.805-.863-.805h-4.92l.128-.604.639-2.99.018-.166c0-.13-.055-.257-.148-.348l-.373-.361-4.144 4.058c-.158.151-.247.355-.247.578v6.667c0 .455.387.833.864.833h6.136c.355 0 .664-.204.797-.514l2.053-4.685c.04-.1.06-.198.06-.301v-1.063l-.034-.034.034-.265z"></path>
-                                        </g>
-                                    </svg>
-                                </button>
-                                <strong class="mainLink thumbs${comment.thumbs < 0 ? ' negative' : comment.thumbs > 0 ? ' positive' : ''}">${comment.thumbs > 0 ? '+' + comment.thumbs : comment.thumbs}</strong>
-                                ${btnResponse}
-                                <span class="mainLink">∙</span>
-                                <span class="mainTime">Le ${comment.date.format('dd/mm/yyyy HH:MM')}</span>
-                                <span class="stars" title="${comment.user_note} / 5">
-                                    ${Note.renderStars(comment.user_note, comment.user_id === Base.userId ? 'blue' : '')}
-                                </span>
-                                <div class="it_iv">
-                                    <button type="button" class="btn-reset btnToggleOptions">
-                                        <span class="svgContainer">
-                                            <svg width="4" height="16" xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" style="transform: rotate(90deg);">
-                                                <defs>
-                                                    <path d="M12 8c1.1 0 2-.9 2-2s-.9-2-2-2-2 .9-2 2 .9 2 2 2zm0 2c-1.1 0-2 .9-2 2s.9 2 2 2 2-.9 2-2-.9-2-2-2zm0 6c-1.1 0-2 .9-2 2s.9 2 2 2 2-.9 2-2-.9-2-2-2z" id="svgthreedots"></path>
-                                                </defs>
-                                                <use fill="${Base.theme === 'dark' ? "rgba(255, 255, 255, .5)" : "#333"}" fill-rule="nonzero" xlink:href="#svgthreedots" transform="translate(-10 -4)"></use>
-                                            </svg>
-                                        </span>
-                                    </button>
-                                </div>
-                            </div>
-                            <div class="options-options options-comment" style="display:none;">
-                                ${templateOptions}
-                                <button type="button" class="btn-reset btnToggleOptions">
-                                    <span class="svgContainer">
-                                        <svg fill="${Base.theme === 'dark' ? "rgba(255, 255, 255, .5)" : "#333"}" width="9" height="9" viewBox="0 0 14 14" xmlns="http://www.w3.org/2000/svg">
-                                            <path d="M14 1.41l-1.41-1.41-5.59 5.59-5.59-5.59-1.41 1.41 5.59 5.59-5.59 5.59 1.41 1.41 5.59-5.59 5.59 5.59 1.41-1.41-5.59-5.59z"></path>
-                                        </svg>
-                                    </span>
-                                </button>
-                            </div>
-                        </div>
-                        ${btnToggleReplies}
-                    </div>
-                </div>
-            </div>
-        `;
-    }
-    /**
-     * Renvoie la template HTML pour l'écriture d'un commentaire
-     * @param   {CommentBS} [comment?] - L'objet commentaire sur lequel envoyé les réponses
-     * @returns {string}
-     */
-    static getTemplateWriting(comment) {
-        const login = Base.userIdentified() ? currentLogin : '';
-        let replyTo = '', placeholder = Base.trans("timeline.comment.write");
-        if (comment) {
-            replyTo = ` data-reply-to="${comment.id}"`;
-            placeholder = "Ecrivez une réponse à ce commentaire";
-        }
-        return `
-            <div class="writing">
-                <div class="media">
-                    <div class="media-left">
-                        <div class="avatar">
-                            <img src="https://api.betaseries.com/pictures/members?key=${Base.userKey}&amp;id=${Base.userId}&amp;width=32&amp;height=32&amp;placeholder=png" width="32" height="32" alt="Profil de ${login}">
-                        </div>
-                    </div>
-                    <div class="media-body">
-                        <form class="gz_g1">
-                            <textarea rows="2" placeholder="${placeholder}" class="form-control"${replyTo}></textarea>
-                            <button class="btn-reset sendComment" disabled="" aria-label="${Base.trans("comment.send.label")}" title="${Base.trans("comment.send.label")}">
-                                <span class="svgContainer" style="width: 16px; height: 16px;">
-                                    <svg fill="${Base.theme === 'dark' ? "#fff" : "#333"}" width="15" height="12" xmlns="http://www.w3.org/2000/svg">
-                                        <path d="M.34 12l13.993-6L.34 0 .333 4.667l10 1.333-10 1.333z"></path>
-                                    </svg>
-                                </span>
-                            </button>
-                        </form>
-                        <p class="mainTime">Utilisez la balise <span class="baliseSpoiler" title="Ajouter la balise spoiler à votre commentaire">[spoiler]…[/spoiler]</span> pour masquer le contenu pouvant spoiler les lecteurs.</p>
-                    </div>
-                </div>
-            </div>
-        `;
-    }
-    /**
-     * Renvoie la template HTML pour l'écriture d'un signalement de commentaire
-     * @param   {CommentBS} [comment] - L'objet commentaire à signaler
-     * @returns {string}
-     */
-    static getTemplateReport(comment) {
-        return `
-            <form class="form-middle" method="POST" action="/apps/report.php">
-                <fieldset>
-                    <div class="title" id="dialog-title" tabindex="0">Signaler un commentaire</div>
-                    <p>Vous êtes sur le point de signaler un commentaire, veuillez indiquer ci-dessous la raison de ce signalement.</p>
-                    <div>
-                        <textarea class="form-control" name="texte"></textarea>
-                    </div>
-                    <div class="button-set">
-                        <button class="js-close-popupalert btn-reset btn-btn btn-blue2" type="submit" id="popupalertyes">Signaler le contenu</button>
-                    </div>
-                </fieldset>
-                <input type="hidden" name="id" value="${comment.id}">
-                <input type="hidden" name="type" value="comment">
-            </form>`;
-    }
-    getLogins() {
-        const users = [];
-        users.push(this.login);
-        for (let r = 0; r < this.replies.length; r++) {
-            if (!users.includes(this.replies[r].login)) {
-                users.push(this.replies[r].login);
-            }
-        }
-        return users;
-    }
-    /**
-     * Met à jour le rendu des votes de ce commentaire
-     * @param   {number} vote Le vote
-     * @returns {void}
-     */
-    updateRenderThumbs(vote = 0) {
-        const $thumbs = jQuery(`.comments .comment[data-comment-id="${this.id}"] .thumbs`);
-        const val = parseInt($thumbs.text(), 10);
-        const result = (vote == this.thumbed) ? val + vote : val - vote;
-        const text = result > 0 ? `+${result}` : result.toString();
-        // if (Base.debug) console.log('renderThumbs: ', {val, vote, result, text});
-        $thumbs.text(text);
-        if (this.thumbed == 0) {
-            // On supprime la couleur de remplissage des icones de vote
-            $thumbs.siblings('.btnThumb').find('g').attr('fill', 'inherited');
+    args[0] = `%c${self.namespace}%c ${args[0]}`;
+    if (Debug.displayTime)
+        args[0] += '%c +' + humanize(self.diff) + '%c';
+    // On ajoute les styles dans les le tableaux des arguments
+    let index = 0, indexColor = 0;
+    args[0].replace(/%[a-zA-Z%]/g, (match) => {
+        if (match === '%%') {
             return;
         }
-        // On affiche le vote en remplissant l'icone correspondant d'une couleur jaune
-        const $btnVote = this.thumbed > 0 ? $thumbs.siblings('.btnThumb.btnUpVote') : $thumbs.siblings('.btnThumb.btnDownVote');
-        $btnVote.find('g').attr('fill', '#FFAC3B');
+        index++;
+        if (match === '%c' && (!flagColor || (flagColor && !indexesColor.includes(index)))) {
+            indexColor++;
+            args.splice(index, 0, (indexColor % 2 === 1) ? c : cInherit);
+        }
+    });
+    // return args;
+}
+/**
+ * Currently only WebKit-based Web Inspectors, Firefox >= v31,
+ * and the Firebug extension (any Firefox version) are known
+ * to support "%c" CSS customizations.
+ *
+ * TODO: add a `localStorage` variable to explicitly enable/disable colors
+ */
+const useColors = () => {
+    // NB: In an Electron preload script, document will be defined but not fully
+    // initialized. Since we know we're in Chrome, we'll just detect this case
+    // explicitly
+    if (typeof window !== 'undefined' && window.process &&
+        (window.process['type'] === 'renderer' || window.process['__nwjs'])) {
+        return true;
     }
-    /**
-     * Indique si le comment fournit en paramètre fait parti des réponses
-     * @param   {number} commentId L'identifiant de la réponse
-     * @returns {boolean}
-     */
-    async isReply(commentId) {
-        if (this.replies.length <= 0 && this.nbReplies <= 0)
-            return false;
-        else if (this.replies.length <= 0) {
-            await this.fetchReplies();
-        }
-        for (let r = 0; r < this.replies.length; r++) {
-            if (this.replies[r].id == commentId) {
-                return true;
-            }
-        }
+    const ua = navigator?.userAgent;
+    // Internet Explorer and Edge do not support colors.
+    if (typeof navigator !== 'undefined' && ua &&
+        /(edge|trident)\/(\d+)/.test(ua.toLowerCase())) {
         return false;
     }
+    // Is webkit? http://stackoverflow.com/a/16459606/376773
+    // document is undefined in react-native: https://github.com/facebook/react-native/pull/1632
+    return ((typeof document !== 'undefined' && document.documentElement && document.documentElement.style &&
+        document.documentElement.style['WebkitAppearance']) ||
+        // Is firebug? http://stackoverflow.com/a/398120/376773
+        (typeof window !== 'undefined' && window.console && (window.console['firebug'] ||
+            (window.console['exception'] && window.console.table))) ||
+        // Is firefox >= v31?
+        // https://developer.mozilla.org/en-US/docs/Tools/Web_Console#Styling_messages
+        (typeof navigator !== 'undefined' && ua &&
+            /firefox\/(\d+)/.test(ua.toLowerCase()) && parseInt(RegExp.$1, 10) >= 31) ||
+        // Double check webkit in userAgent just in case we are in a worker
+        (typeof navigator !== 'undefined' && ua && /applewebkit\/(\d+)/.test(ua.toLowerCase())));
+};
+/**
+ * Classe de log pour l'affichage dans le browser
+ * @class
+ */
+class Debug {
     /**
-     * Retourne la réponse correspondant à l'identifiant fournit
-     * @param   {number} commentId L'identifiant de la réponse
-     * @returns {CommentBS | void} La réponse
+     * Tableau des codes couleurs pour le Web
+     * @type {string[]}
      */
-    async getReply(commentId) {
-        if (this.replies.length <= 0 && this.nbReplies <= 0)
-            return null;
-        else if (this.replies.length <= 0) {
-            await this.fetchReplies();
-        }
-        for (let r = 0; r < this.replies.length; r++) {
-            if (this.replies[r].id == commentId) {
-                return this.replies[r];
-            }
-        }
-        return null;
-    }
+    static colors = [
+        '#0000CC',
+        '#0000FF',
+        '#0033CC',
+        '#0033FF',
+        '#0066CC',
+        '#0066FF',
+        '#0099CC',
+        '#0099FF',
+        '#00CC00',
+        '#00CC33',
+        '#00CC66',
+        '#00CC99',
+        '#00CCCC',
+        '#00CCFF',
+        '#3300CC',
+        '#3300FF',
+        '#3333CC',
+        '#3333FF',
+        '#3366CC',
+        '#3366FF',
+        '#3399CC',
+        '#3399FF',
+        '#33CC00',
+        '#33CC33',
+        '#33CC66',
+        '#33CC99',
+        '#33CCCC',
+        '#33CCFF',
+        '#6600CC',
+        '#6600FF',
+        '#6633CC',
+        '#6633FF',
+        '#66CC00',
+        '#66CC33',
+        '#9900CC',
+        '#9900FF',
+        '#9933CC',
+        '#9933FF',
+        '#99CC00',
+        '#99CC33',
+        '#CC0000',
+        '#CC0033',
+        '#CC0066',
+        '#CC0099',
+        '#CC00CC',
+        '#CC00FF',
+        '#CC3300',
+        '#CC3333',
+        '#CC3366',
+        '#CC3399',
+        '#CC33CC',
+        '#CC33FF',
+        '#CC6600',
+        '#CC6633',
+        '#CC9900',
+        '#CC9933',
+        '#CCCC00',
+        '#CCCC33',
+        '#FF0000',
+        '#FF0033',
+        '#FF0066',
+        '#FF0099',
+        '#FF00CC',
+        '#FF00FF',
+        '#FF3300',
+        '#FF3333',
+        '#FF3366',
+        '#FF3399',
+        '#FF33CC',
+        '#FF33FF',
+        '#FF6600',
+        '#FF6633',
+        '#FF9900',
+        '#FF9933',
+        '#FFCC00',
+        '#FFCC33'
+    ];
+    /************************************/
+    /*              Static              */
+    /************************************/
     /**
-     * Supprime une réponse
-     * @param   {number} cmtId - L'identifiant de la réponse
-     * @returns {boolean}
+     * Tableau des namespaces qui seront affichés
+     * @type {RegExp[]}
      */
-    removeReply(cmtId) {
-        for (let r = 0; r < this.replies.length; r++) {
-            if (this.replies[r].id == cmtId) {
-                this.replies.splice(r, 1);
-                return true;
-            }
-        }
-        return false;
-    }
+    static names;
     /**
-     * Retourne l'objet CommentsBS
-     * @returns {CommentsBS}
+     * Tableau des namespaces qui ne seront pas affichés
+     * @type {RegExp[]}
      */
-    getCollectionComments() {
-        if (this._parent instanceof CommentsBS) {
-            return this._parent;
-        }
-        else if (this._parent instanceof CommentBS) {
-            return this._parent._parent;
-        }
-        return null;
-    }
+    static skips;
     /**
-     * Ajoute les évènements sur les commentaires lors du rendu
-     * @param   {JQuery<HTMLElement>} $container - Le conteneur des éléments d'affichage
-     * @param   {Obj} funcPopup - Objet des fonctions d'affichage/ de masquage de la popup
+     * @type {Storage}
+     */
+    static storage = localStorage;
+    /**
+     * Chaine contenant les namespaces à afficher ou pas
+     * @type {string}
+     */
+    static namespaces;
+    /**
+     * Delimiter des sous namespaces
+     * @type {string}
+     */
+    static delimiter = ':';
+    /**
+     * Flag qui indique si on doit afficher ou non la durée entre 2 logs
+     * @type {boolean}
+     */
+    static displayTime = false;
+    /**
+     * Invokes `console.debug()` when available.
+     * No-op when `console.debug` is not a "function".
+     * If `console.debug` is not available, falls back
+     * to `console.log`.
+     *
+     * @api public
+     * @type {Function}
+     */
+    static _debug = console.debug || console.log;
+    static _log = console.log;
+    static _info = console.info;
+    /**
+     * Save `namespaces`.
+     *
+     * @param {String} namespaces
      * @returns {void}
+     * @api private
+     * @static
      */
-    loadEvents($container, funcPopup) {
-        this._events = [];
-        const self = this;
-        const $popup = jQuery('#popin-dialog');
-        const $btnClose = jQuery("#popin-showClose");
-        const $title = $container.find('.title');
-        /**
-         * Retourne l'objet CommentBS associé au DOMElement fournit en paramètre
-         * @param   {JQuery<HTMLElement>} $comment - Le DOMElement contenant le commentaire
-         * @returns {Promise<CommentBS>}
-         */
-        const getObjComment = async function ($comment) {
-            const commentId = parseInt($comment.data('commentId'), 10);
-            if (commentId === self.id)
-                return self;
-            else if (self.isReply(commentId))
-                return await self.getReply(commentId);
-            else
-                return self.getCollectionComments().getComment(commentId);
-        };
-        $btnClose.click(() => {
-            funcPopup.hidePopup();
-            $popup.removeAttr('data-popin-type');
-        });
-        this._events.push({ elt: $btnClose, event: 'click' });
-        const $btnReport = $container.find('.btnSignal');
-        $btnReport.click(async (e) => {
-            e.stopPropagation();
-            e.preventDefault();
-            const $comment = $(e.currentTarget).parents('.comment');
-            const comment = await getObjComment($comment);
-            const $contentHtml = $container.parents('.popin-content').find('.popin-content-html');
-            $contentHtml.empty().append(CommentBS.getTemplateReport(comment));
-            $contentHtml.find('button.js-close-popupalert.btn-blue2').click((e) => {
-                e.stopPropagation();
-                e.preventDefault();
-                const $form = $contentHtml.find('form');
-                const paramsFetch = {
-                    method: 'POST',
-                    cache: 'no-cache',
-                    body: new URLSearchParams($form.serialize())
-                };
-                fetch('/apps/report.php', paramsFetch)
-                    .then(() => {
-                    $contentHtml.hide();
-                    $container.show();
-                })
-                    .catch(() => {
-                    $contentHtml.hide();
-                    $container.show();
-                });
-            });
-            $container.hide();
-            $contentHtml.show();
-        });
-        this._events.push({ elt: $btnReport, event: 'click' });
-        const $btnSubscribe = $container.find('.btnSubscribe');
-        /**
-         * Met à jour l'affichage du bouton de souscription
-         * des alertes de nouveaux commentaires
-         * @param   {JQuery<HTMLElement>} $btn - L'élément jQuery correspondant au bouton de souscription
-         * @returns {void}
-         */
-        function displaySubscription($btn) {
-            const collection = self.getCollectionComments();
-            if (!collection.is_subscribed) {
-                $btn.removeClass('active');
-                $btn.attr('title', "Recevoir les commentaires par e-mail");
-                $btn.find('svg').replaceWith(`
-                    <svg fill="${Base.theme == 'dark' ? 'rgba(255, 255, 255, .5)' : '#333'}" width="14" height="16" style="position: relative; top: 1px; left: -1px;">
-                        <path fill-rule="nonzero" d="M13.176 13.284L3.162 2.987 1.046.812 0 1.854l2.306 2.298v.008c-.428.812-.659 1.772-.659 2.806v4.103L0 12.709v.821h11.307l1.647 1.641L14 14.13l-.824-.845zM6.588 16c.914 0 1.647-.73 1.647-1.641H4.941c0 .91.733 1.641 1.647 1.641zm4.941-6.006v-3.02c0-2.527-1.35-4.627-3.705-5.185V1.23C7.824.55 7.272 0 6.588 0c-.683 0-1.235.55-1.235 1.23v.559c-.124.024-.239.065-.346.098a2.994 2.994 0 0 0-.247.09h-.008c-.008 0-.008 0-.017.009-.19.073-.379.164-.56.254 0 0-.008 0-.008.008l7.362 7.746z"></path>
-                    </svg>
-                `);
-            }
-            else if (collection.is_subscribed) {
-                $btn.addClass('active');
-                $btn.attr('title', "Ne plus recevoir les commentaires par e-mail");
-                $btn.find('svg').replaceWith(`
-                    <svg width="20" height="22" viewBox="0 0 20 22" style="width: 17px;">
-                        <g transform="translate(-4)" fill="none">
-                            <path d="M0 0h24v24h-24z"></path>
-                            <path fill="${Base.theme == 'dark' ? 'rgba(255, 255, 255, .5)' : '#333'}" d="M12 22c1.1 0 2-.9 2-2h-4c0 1.1.89 2 2 2zm6-6v-5c0-3.07-1.64-5.64-4.5-6.32v-.68c0-.83-.67-1.5-1.5-1.5s-1.5.67-1.5 1.5v.68c-2.87.68-4.5 3.24-4.5 6.32v5l-2 2v1h16v-1l-2-2z"></path>
-                        </g>
-                    </svg>
-                `);
-            }
-        }
-        $btnSubscribe.click((e) => {
-            e.stopPropagation();
-            e.preventDefault();
-            if (!Base.userIdentified()) {
-                faceboxDisplay('inscription', {}, () => { });
-                return;
-            }
-            const $btn = $(e.currentTarget);
-            const params = { type: self.getCollectionComments().media.mediaType.singular, id: self.getCollectionComments().media.id };
-            if ($btn.hasClass('active')) {
-                Base.callApi(HTTP_VERBS.DELETE, 'comments', 'subscription', params)
-                    .then(() => {
-                    self.getCollectionComments().is_subscribed = false;
-                    displaySubscription($btn);
-                });
+    static save(namespaces) {
+        try {
+            if (namespaces) {
+                Debug.storage.setItem('debug', namespaces);
             }
             else {
-                Base.callApi(HTTP_VERBS.POST, 'comments', 'subscription', params)
-                    .then(() => {
-                    self.getCollectionComments().is_subscribed = true;
-                    displaySubscription($btn);
-                });
+                Debug.storage.removeItem('debug');
             }
-        });
-        displaySubscription($btnSubscribe);
-        this._events.push({ elt: $btnSubscribe, event: 'click' });
-        // On récupère le bouton de navigation 'précédent'
-        const $prevCmt = $title.find('.prev-comment');
-        // Si le commentaire est le premier de la liste
-        // on ne l'active pas
-        if (this.isFirst()) {
-            $prevCmt.css('color', 'grey').css('cursor', 'initial');
         }
-        else {
-            // On active le btn précédent
-            $prevCmt.click((e) => {
-                e.stopPropagation();
-                e.preventDefault();
-                // Il faut tout nettoyer, comme pour la fermeture
-                self.cleanEvents();
-                // Il faut demander au parent d'afficher le commentaire précédent
-                self.getCollectionComments().getPrevComment(self.id).render();
-            });
-            this._events.push({ elt: $prevCmt, event: 'click' });
+        catch (error) {
+            // Swallow
+            // XXX (@Qix-) should we be logging these?
         }
-        const $nextCmt = $title.find('.next-comment');
-        // Si le commentaire est le dernier de la liste
-        // on ne l'active pas
-        if (this.isLast()) {
-            $nextCmt.css('color', 'grey').css('cursor', 'initial');
-        }
-        else {
-            // On active le btn suivant
-            $nextCmt.click((e) => {
-                e.stopPropagation();
-                e.preventDefault();
-                // Il faut tout nettoyer, comme pour la fermeture
-                self.cleanEvents();
-                // Il faut demander au parent d'afficher le commentaire suivant
-                self.getCollectionComments().getNextComment(self.id).render();
-            });
-            this._events.push({ elt: $nextCmt, event: 'click' });
-        }
-        // On active le lien pour afficher le spoiler
-        const $btnSpoiler = $container.find('.view-spoiler');
-        if ($btnSpoiler.length > 0) {
-            $btnSpoiler.click((e) => {
-                e.stopPropagation();
-                e.preventDefault();
-                const $btn = jQuery(e.currentTarget);
-                const $spoiler = $btn.next('.comment-text').find('.spoiler');
-                if ($spoiler.is(':visible')) {
-                    $spoiler.fadeOut('fast');
-                    $btn.text('Voir le spoiler');
-                }
-                else {
-                    $spoiler.fadeIn('fast');
-                    $btn.text('Cacher le spoiler');
-                }
-            });
-            this._events.push({ elt: $btnSpoiler, event: 'click' });
-        }
-        /**
-         * Ajoutons les events pour:
-         *  - btnUpVote: Voter pour ce commentaire
-         *  - btnDownVote: Voter contre ce commentaire
-         */
-        const $btnThumb = $container.find('.comments .comment .btnThumb');
-        $btnThumb.click((e) => {
-            e.stopPropagation();
-            e.preventDefault();
-            if (!Base.userIdentified()) {
-                faceboxDisplay('inscription', {}, () => { });
-                return;
-            }
-            const $btn = jQuery(e.currentTarget);
-            const commentId = parseInt($btn.parents('.comment').data('commentId'), 10);
-            let verb = HTTP_VERBS.POST;
-            const vote = $btn.hasClass('btnUpVote') ? 1 : -1;
-            let params = { id: commentId, type: vote, switch: false };
-            // On a déjà voté
-            if (self.thumbed == vote) {
-                verb = HTTP_VERBS.DELETE;
-                params = { id: commentId };
-            }
-            else if (self.thumbed != 0) {
-                console.warn("Le vote est impossible. Annuler votre vote et recommencer");
-                return;
-            }
-            Base.callApi(verb, 'comments', 'thumb', params)
-                .then(async (data) => {
-                if (commentId == self.id) {
-                    self.thumbs = parseInt(data.comment.thumbs, 10);
-                    self.thumbed = data.comment.thumbed ? parseInt(data.comment.thumbed, 10) : 0;
-                    self.updateRenderThumbs(vote);
-                }
-                else if (await self.isReply(commentId)) {
-                    const reply = await self.getReply(commentId);
-                    reply.thumbs = parseInt(data.comment.thumbs, 10);
-                    reply.thumbed = data.comment.thumbed ? parseInt(data.comment.thumbed, 10) : 0;
-                    reply.updateRenderThumbs(vote);
-                }
-                else {
-                    // Demander au parent d'incrémenter les thumbs du commentaire
-                    const thumbed = data.comment.thumbed ? parseInt(data.comment.thumbed, 10) : 0;
-                    self.getCollectionComments().changeThumbs(commentId, data.comment.thumbs, thumbed);
-                }
-                // Petite animation pour le nombre de votes
-                $btn.siblings('strong.thumbs')
-                    .css('animation', '1s ease 0s 1 normal forwards running backgroundFadeOut');
-            })
-                .catch(err => {
-                const msg = err.text !== undefined ? err.text : err;
-                Base.notification('Vote commentaire', "Une erreur est apparue durant le vote: " + msg);
-            });
-        });
-        this._events.push({ elt: $btnThumb, event: 'click' });
-        /**
-         * On affiche/masque les options du commentaire
-         */
-        const $btnOptions = $container.find('.btnToggleOptions');
-        // if (Base.debug) console.log('Comment loadEvents toggleOptions.length', $btnOptions.length);
-        $btnOptions.click((e) => {
-            e.stopPropagation();
-            e.preventDefault();
-            jQuery(e.currentTarget).parents(`.${CommentBS.classNamesCSS.actions}`).first()
-                .find('.options-comment').each((_index, elt) => {
-                const $elt = jQuery(elt);
-                if ($elt.is(':visible')) {
-                    $elt.hide();
-                }
-                else {
-                    $elt.show();
-                }
-            });
-        });
-        this._events.push({ elt: $btnOptions, event: 'click' });
-        /**
-         * On envoie la réponse à ce commentaire à l'API
-         */
-        const $btnSend = $container.find('.sendComment');
-        $btnSend.click(async (e) => {
-            e.stopPropagation();
-            e.preventDefault();
-            if (!Base.userIdentified()) {
-                faceboxDisplay('inscription', {}, () => { });
-                return;
-            }
-            const $textarea = $(e.currentTarget).siblings('textarea');
-            if ($textarea.val().length > 0) {
-                const replyId = parseInt($textarea.data('replyTo'), 10);
-                const action = $textarea.data('action');
-                const msg = $textarea.val();
-                if (replyId && replyId == self.id) {
-                    self.sendReply(msg).then(comment => {
-                        if (comment) {
-                            const template = CommentBS.getTemplateComment(comment);
-                            $container.find('.comments').append(template);
-                            $textarea.removeAttr('data-reply-to');
-                            self.cleanEvents(() => {
-                                self.loadEvents($container, funcPopup);
-                            });
-                        }
-                    });
-                }
-                else if (replyId) {
-                    const reply = await self.getReply(replyId);
-                    if (reply) {
-                        reply.sendReply(msg).then(comment => {
-                            if (comment) {
-                                const template = CommentBS.getTemplateComment(comment);
-                                $container.find(`.comments .comment[data-comment-id="${reply.id}"]`)
-                                    .after(template);
-                                $textarea.removeAttr('data-reply-to');
-                                self.cleanEvents(() => {
-                                    self.loadEvents($container, funcPopup);
-                                });
-                            }
-                        });
-                    }
-                    else {
-                        // Allo Houston, on a un problème
-                    }
-                }
-                else if (action === 'edit') {
-                    self.edit(msg).then(() => {
-                        const cmtId = parseInt($textarea.data('commentId'), 10);
-                        let $comment = $(e.currentTarget).parents('.writing').siblings('.comments').children(`.comment[data-comment-id="${cmtId.toString()}"]`);
-                        $comment.find('.comment-text').text(self.text);
-                        $comment = jQuery(`#comments .slide_flex .slide__comment[data-comment-id="${cmtId}"]`);
-                        $comment.find('p').text(msg);
-                        $textarea.removeAttr('data-action').removeAttr('data-comment-id');
-                    });
-                }
-                else {
-                    CommentsBS.sendComment(self.getCollectionComments().media, msg).then((comment) => {
-                        self.getCollectionComments().addToPage(comment.id);
-                        self.cleanEvents(() => {
-                            self.loadEvents($container, funcPopup);
-                        });
-                    });
-                }
-                $textarea.val('');
-                $textarea.siblings('button').attr('disabled', 'true');
-            }
-        });
-        this._events.push({ elt: $btnSend, event: 'click' });
-        /**
-         * On active / desactive le bouton d'envoi du commentaire
-         * en fonction du contenu du textarea
-         */
-        const $textarea = $container.find('textarea');
-        $textarea.keypress((e) => {
-            const $textarea = $(e.currentTarget);
-            if ($textarea.val().length > 0) {
-                $textarea.siblings('button').removeAttr('disabled');
-            }
-            else {
-                $textarea.siblings('button').attr('disabled', 'true');
-            }
-        });
-        this._events.push({ elt: $textarea, event: 'keypress' });
-        /**
-         * On ajoute les balises SPOILER au message dans le textarea
-         */
-        const $baliseSpoiler = $container.find('.baliseSpoiler');
-        $baliseSpoiler.click(() => {
-            const $textarea = $popup.find('textarea');
-            if (/\[spoiler\]/.test($textarea.val())) {
-                return;
-            }
-            const text = '[spoiler]' + $textarea.val() + '[/spoiler]';
-            $textarea.val(text);
-        });
-        this._events.push({ elt: $baliseSpoiler, event: 'click' });
-        const $btnReplies = $container.find('.comments .toggleReplies');
-        $btnReplies.click((e) => {
-            e.stopPropagation();
-            e.preventDefault();
-            const $btn = $(e.currentTarget);
-            const state = $btn.data('toggle'); // 0: Etat masqué, 1: Etat affiché
-            const $comment = $btn.parents('.comment');
-            const inner = $comment.data('commentInner');
-            const $replies = $comment.parents('.comments').find(`.comment[data-comment-reply="${inner}"]`);
-            if (state == '0') {
-                // On affiche
-                $replies.nextAll('.sub').fadeIn('fast');
-                $replies.fadeIn('fast');
-                $btn.find('.btnText').text(Base.trans("comment.hide_answers"));
-                $btn.find('svg').attr('style', 'transition: transform 200ms ease 0s; transform: rotate(180deg);');
-                $btn.data('toggle', '1');
-            }
-            else {
-                // On masque
-                $replies.nextAll('.sub').fadeOut('fast');
-                $replies.fadeOut('fast');
-                $btn.find('.btnText').text(Base.trans("comment.button.reply", { "%count%": $replies.length.toString() }, $replies.length));
-                $btn.find('svg').attr('style', 'transition: transform 200ms ease 0s;');
-                $btn.data('toggle', '0');
-            }
-        });
-        this._events.push({ elt: $btnReplies, event: 'click' });
-        const $btnResponse = $container.find('.btnResponse');
-        $btnResponse.click(async (e) => {
-            e.stopPropagation();
-            e.preventDefault();
-            if (!Base.userIdentified()) {
-                faceboxDisplay('inscription', {}, () => { });
-                return;
-            }
-            const $btn = $(e.currentTarget);
-            const $comment = $btn.parents('.comment');
-            const comment = await getObjComment($comment);
-            $container.find('textarea')
-                .val('@' + comment.login)
-                .attr('data-reply-to', comment.id);
-        });
-        this._events.push({ elt: $btnResponse, event: 'click' });
-        const $btnEdit = $container.find('.btnEditComment');
-        $btnEdit.click((e) => {
-            e.stopPropagation();
-            e.preventDefault();
-            const $parent = $(e.currentTarget).parents('.comment');
-            const commentId = parseInt($parent.data('commentId'), 10);
-            $textarea.val(self.text);
-            $textarea.attr('data-action', 'edit');
-            $textarea.attr('data-comment-id', commentId);
-        });
-        this._events.push({ elt: $btnEdit, event: 'click' });
-        const $btnDelete = $container.find('.btnDeleteComment');
-        $btnDelete.click((e) => {
-            e.stopPropagation();
-            e.preventDefault();
-            const $parent = $(e.currentTarget).parents('.comment');
-            const $options = $(e.currentTarget).parents('.options-options');
-            const template = `
-                <div class="options-delete">
-                    <span class="mainTime">Supprimer mon commentaire :</span>
-                    <button type="button" class="btn-reset fontWeight700 btnYes" style="vertical-align: 0px; padding-left: 10px; padding-right: 10px; color: rgb(208, 2, 27);">Oui</button>
-                    <button type="button" class="btn-reset mainLink btnNo" style="vertical-align: 0px;">Non</button>
-                </div>
-            `;
-            $options.hide().after(template);
-            const $btnYes = $parent.find('.options-delete .btnYes');
-            const $btnNo = $parent.find('.options-delete .btnNo');
-            $btnYes.click((e) => {
-                e.stopPropagation();
-                e.preventDefault();
-                self.delete();
-                $btnClose.trigger('click');
-            });
-            $btnNo.click((e) => {
-                e.stopPropagation();
-                e.preventDefault();
-                $parent.find('.options-delete').remove();
-                $options.show();
-                $btnYes.off('click');
-                $btnNo.off('click');
-            });
-        });
-        this._events.push({ elt: $btnDelete, event: 'click' });
     }
     /**
-     * Nettoie les events créer par la fonction loadEvents
-     * @param   {Function} onComplete - Fonction de callback
+     * Load `namespaces`.
+     *
+     * @return {String} returns the previously persisted debug modes
+     * @api private
+     * @static
+     */
+    static load() {
+        let r;
+        try {
+            r = Debug.storage.getItem('debug');
+        }
+        catch (error) {
+            // Swallow
+            // XXX (@Qix-) should we be logging these?
+            r = '';
+        }
+        return r;
+    }
+    /**
+     * Enables a debug mode by namespaces. This can include modes
+     * separated by a colon and wildcards.
+     *
+     * @param {String} namespaces
      * @returns {void}
+     * @api public
      */
-    cleanEvents(onComplete = Base.noop) {
-        if (this._events && this._events.length > 0) {
-            let data;
-            for (let e = 0; e < this._events.length; e++) {
-                data = this._events[e];
-                data.elt.off(data.event);
+    static enable(namespaces) {
+        Debug.save(namespaces);
+        Debug.namespaces = namespaces;
+        Debug.names = [];
+        Debug.skips = [];
+        const split = (typeof namespaces === 'string' ? namespaces : '').split(/[\s,]+/);
+        const len = split.length;
+        for (let i = 0; i < len; i++) {
+            if (!split[i]) {
+                // ignore empty strings
+                continue;
+            }
+            namespaces = split[i].replace(/\*/g, '.*?');
+            if (namespaces[0] === '-') {
+                Debug.skips.push(new RegExp('^' + namespaces.slice(1) + '$'));
+            }
+            else {
+                Debug.names.push(new RegExp('^' + namespaces + '$'));
             }
         }
-        onComplete();
     }
     /**
-     * Affiche le commentaire dans une dialogbox
+     * Disable debug output.
+     *
+     * @return {String} namespaces
+     * @api public
      */
-    async render() {
-        // La popup et ses éléments
-        const self = this, $popup = jQuery('#popin-dialog'), $contentHtml = $popup.find(".popin-content-html"), $contentReact = $popup.find('.popin-content-reactmodule'), $closeButtons = $popup.find("#popin-showClose"), hidePopup = () => {
-            document.body.style.overflow = "visible";
-            document.body.style.paddingRight = "";
-            $popup.attr('aria-hidden', 'true');
-            $popup.find("#popupalertyes").show();
-            $popup.find("#popupalertno").show();
-            $contentReact.empty();
-            $contentHtml.hide();
-            self.cleanEvents();
-            self._callListeners(EventTypes.HIDE);
-        }, showPopup = () => {
-            document.body.style.overflow = "hidden";
-            document.body.style.paddingRight = getScrollbarWidth() + "px";
-            $popup.find("#popupalertyes").hide();
-            $popup.find("#popupalertno").hide();
-            $contentHtml.hide();
-            $contentReact.show();
-            $closeButtons.show();
-            $popup.attr('aria-hidden', 'false');
-        };
-        // On ajoute le loader dans la popup et on l'affiche
-        $contentReact.empty().append(`<div class="title" id="dialog-title" tabindex="0">${Base.trans("blog.title.comments")}</div>`);
-        let $title = $contentReact.find('.title');
-        let templateLoader = `
-            <div class="loaderCmt">
-                <svg class="sr-only">
-                    <defs>
-                        <clipPath id="placeholder">
-                            <path d="M50 25h160v8H50v-8zm0-18h420v8H50V7zM20 40C8.954 40 0 31.046 0 20S8.954 0 20 0s20 8.954 20 20-8.954 20-20 20z"></path>
-                        </clipPath>
-                    </defs>
-                </svg>
-        `;
-        for (let l = 0; l < 4; l++) {
-            templateLoader += `
-                <div class="er_ex null">
-                    <div class="ComponentPlaceholder er_et" style="height: 40px;"></div>
-                </div>`;
-        }
-        $contentReact.append(templateLoader + '</div>');
-        showPopup();
-        let template = `
-            <div data-media-type="${self.getCollectionComments().media.mediaType.singular}"
-                            data-media-id="${self.getCollectionComments().media.id}"
-                            class="displayFlex flexDirectionColumn"
-                            style="margin-top: 2px; min-height: 0">`;
-        if (Base.userIdentified()) {
-            template += `<button type="button" class="btn-reset btnSubscribe" style="position: absolute; top: 3px; right: 31px; padding: 8px;">
-                <span class="svgContainer">
-                    <svg></svg>
-                </span>
-            </button>`;
-        }
-        template += '<div class="comments overflowYScroll">' + CommentBS.getTemplateComment(this);
-        // Récupération des réponses sur l'API
-        // On ajoute les réponses, par ordre décroissant à la template
-        if (this.nbReplies > 0 && this.replies.length <= 0) {
-            await this.fetchReplies();
-        }
-        for (let r = 0; r < this.replies.length; r++) {
-            template += CommentBS.getTemplateComment(this.replies[r]);
-        }
-        template += '</div>';
-        if (this.getCollectionComments().isOpen() && Base.userIdentified()) {
-            template += CommentBS.getTemplateWriting(self);
-        }
-        template += '</div>';
-        // On définit le type d'affichage de la popup
-        $popup.attr('data-popin-type', 'comments');
-        $contentReact.fadeOut('fast', () => {
-            $contentReact.find('.loaderCmt').remove();
-            // On affiche le titre de la popup
-            // avec des boutons pour naviguer
-            $contentReact.empty().append(`<div class="title" id="dialog-title" tabindex="0"></div>`);
-            $title = $contentReact.find('.title');
-            let nav = '';
-            if (!self._parent.isFirst(self.id)) {
-                nav += ' <i class="fa fa-chevron-circle-left prev-comment" aria-hidden="true" title="Commentaire précédent"></i>';
-            }
-            if (!self._parent.isLast(self.id)) {
-                nav += '  <i class="fa fa-chevron-circle-right next-comment" aria-hidden="true" title="Commentaire suivant"></i>';
-            }
-            $title.append(Base.trans("blog.title.comments") + nav);
-            // On ajoute les templates HTML du commentaire,
-            // des réponses et du formulaire de d'écriture
-            $contentReact.append(template);
-            $contentReact.fadeIn();
-            // On active les boutons de l'affichage du commentaire
-            self.loadEvents($contentReact, { hidePopup, showPopup });
-            self._callListeners(EventTypes.SHOW);
-        });
+    static disable() {
+        const namespaces = [
+            ...Debug.names.map(Debug.toNamespace),
+            ...Debug.skips.map(Debug.toNamespace).map(namespace => '-' + namespace)
+        ].join(',');
+        Debug.enable('');
+        return namespaces;
     }
     /**
-     * Envoie une réponse de ce commentaire à l'API
-     * @param   {string} text        Le texte de la réponse
-     * @returns {Promise<void | CommentBS>}
+     * Convert regexp to namespace
+     *
+     * @param {RegExp} regxep
+     * @return {String} namespace
+     * @api private
      */
-    sendReply(text) {
-        const self = this;
-        const params = {
-            type: this.getCollectionComments().media.mediaType.singular,
-            id: this.getCollectionComments().media.id,
-            in_reply_to: this.inner_id,
-            text: text
-        };
-        return Base.callApi(HTTP_VERBS.POST, 'comments', 'comment', params)
-            .then((data) => {
-            const comment = new CommentBS(data.comment, self);
-            const method = self.getCollectionComments().order === OrderComments.DESC ? Array.prototype.unshift : Array.prototype.push;
-            method.call(self.replies, comment);
-            self.nbReplies++;
-            self.getCollectionComments().nbComments++;
-            self.getCollectionComments().is_subscribed = true;
-            return comment;
-        })
-            .catch(err => {
-            Base.notification('Commentaire', "Erreur durant l'ajout d'un commentaire");
-            console.error(err);
-        });
+    static toNamespace(regexp) {
+        return regexp.toString()
+            .substring(2, regexp.toString().length - 2)
+            .replace(/\.\*\?$/, '*');
     }
-}
-
-var StarTypes;
-(function (StarTypes) {
-    StarTypes["EMPTY"] = "empty";
-    StarTypes["HALF"] = "half";
-    StarTypes["FULL"] = "full";
-    StarTypes["DISABLE"] = "disable";
-})(StarTypes || (StarTypes = {}));
-class Note {
     /**
-     * Nombre de votes
-     * @type {number}
+     * Returns true if the given mode name is enabled, false otherwise.
+     *
+     * @param {String} name
+     * @return {Boolean}
+     * @api public
+     * @static
      */
-    total;
-    /**
-     * Note moyenne du média
-     * @type {number}
-     */
-    mean;
-    /**
-     * Note du membre connecté
-     * @type {number}
-     */
-    user;
-    /**
-     * Media de référence
-     * @type {Base}
-     */
-    _parent;
-    __initial;
-    __changes = {};
-    constructor(data, parent) {
-        this.__initial = true;
-        this._parent = parent ? parent : null;
-        return this.fill(data);
-    }
-    fill(data) {
-        const self = this;
-        const fnTransform = {
-            total: parseInt,
-            user: parseInt,
-            mean: parseFloat
-        };
-        for (const propKey of Object.keys(fnTransform)) {
-            const descriptor = {
-                configurable: true,
-                enumerable: true,
-                get: () => {
-                    return self['_' + propKey];
-                },
-                set: (newValue) => {
-                    const oldValue = self['_' + propKey];
-                    if (oldValue === newValue)
-                        return;
-                    self['_' + propKey] = newValue;
-                    if (!self.__initial) {
-                        self.__changes[propKey] = { oldValue, newValue };
-                        if (self._parent)
-                            self._parent.updatePropRenderObjNote();
-                    }
-                }
-            };
-            Object.defineProperty(this, propKey, descriptor);
-            const value = fnTransform[propKey](data[propKey]);
-            Reflect.set(this, propKey, value);
+    static ns_enabled(name) {
+        if (name[name.length - 1] === '*') {
+            return true;
         }
-        this.__initial = false;
-        return this;
-    }
-    get parent() {
-        return this._parent;
-    }
-    set parent(parent) {
-        this._parent = parent;
-    }
-    /**
-     * Retourne la note moyenne sous forme de pourcentage
-     * @returns {number} La note sous forme de pourcentage
-     */
-    getPercentage() {
-        return Math.round(((this.mean / 5) * 100) / 10) * 10;
-    }
-    /**
-     * Retourne l'objet Note sous forme de chaine
-     * @returns {string}
-     */
-    toString() {
-        const votes = 'vote' + (this.total > 1 ? 's' : ''), 
-        // On met en forme le nombre de votes
-        total = new Intl.NumberFormat('fr-FR', { style: 'decimal', useGrouping: true }).format(this.total), 
-        // On limite le nombre de chiffre après la virgule
-        note = this.mean.toFixed(2);
-        let toString = `${total} ${votes} : ${note} / 5`;
-        // On ajoute la note du membre connecté, si il a voté
-        if (Base.userIdentified() && this.user > 0) {
-            toString += `, votre note: ${this.user}`;
-        }
-        return toString;
-    }
-    /**
-     * Crée une popup avec 5 étoiles pour noter le média
-     */
-    createPopupForVote(cb = Base.noop) {
-        if (Base.debug)
-            console.log('objNote createPopupForVote');
-        // La popup et ses éléments
-        const self = this, $popup = jQuery('#popin-dialog'), $contentHtmlElement = $popup.find(".popin-content-html"), $contentReact = $popup.find('.popin-content-reactmodule'), $closeButtons = $popup.find(".js-close-popupalert"), hidePopup = () => {
-            if (Base.debug)
-                console.log('objNote createPopupForVote hidePopup');
-            $popup.attr('aria-hidden', 'true');
-            $contentHtmlElement.find(".button-set").show();
-            $contentHtmlElement.hide();
-            // On désactive les events
-            $text.find('.star-svg').off('mouseenter').off('mouseleave').off('click');
-        }, showPopup = () => {
-            if (Base.debug)
-                console.log('objNote createPopupForVote showPopup');
-            $contentHtmlElement.find(".button-set").hide();
-            $contentHtmlElement.show();
-            $contentReact.hide();
-            $closeButtons.show();
-            $popup.attr('aria-hidden', 'false');
-        };
-        let $text = $popup.find("p"), $title = $contentHtmlElement.find(".title");
-        // On vérifie que la popup est masquée
-        hidePopup();
-        // Ajouter les étoiles
-        let template = '<div style="display: flex; justify-content: center; margin-bottom: 15px;"><div role="button" tabindex="0" class="stars btn-reset">', className;
-        for (let i = 1; i <= 5; i++) {
-            className = this.user <= i - 1 ? StarTypes.EMPTY : StarTypes.FULL;
-            template += `
-                <svg viewBox="0 0 100 100" class="star-svg" data-number="${i}" style="width: 30px; height: 30px;">
-                    <use xlink:href="#icon-starblue-${className}"></use>
-                </svg>`;
-        }
-        if ($text.length <= 0) {
-            $contentHtmlElement.replaceWith(`
-                <div class="popin-content-html">
-                    <div class="title" id="dialog-title" tabindex="0"></div>
-                    <div class="popin-content-ajax">
-                        <p></p>
-                    </div>
-                </div>`);
-            $text = $contentHtmlElement.find('p');
-            $title = $contentHtmlElement.find(".title");
-        }
-        // On vide la popup et on ajoute les étoiles
-        $text.empty().append(template + '</div></div>');
-        let title = 'Noter ';
-        switch (this._parent.mediaType.singular) {
-            case MediaType.show:
-                title += 'la série';
-                break;
-            case MediaType.movie:
-                title += 'le film';
-                break;
-            case MediaType.episode:
-                title += "l'épisode";
-                break;
-            default:
-                break;
-        }
-        $title.empty().text(title);
-        $closeButtons.click(() => {
-            hidePopup();
-            $popup.removeAttr('data-popin-type');
-        });
-        // On ajoute les events sur les étoiles
-        const updateStars = function (evt, note) {
-            const $stars = jQuery(evt.currentTarget).parent().find('.star-svg use');
-            let className;
-            for (let s = 0; s < 5; s++) {
-                className = (s <= note - 1) ? StarTypes.FULL : StarTypes.EMPTY;
-                $($stars.get(s)).attr('xlink:href', `#icon-starblue-${className}`);
-            }
-        };
-        const $stars = $text.find('.star-svg');
-        $stars.mouseenter((e) => {
-            const note = parseInt($(e.currentTarget).data('number'), 10);
-            updateStars(e, note);
-        });
-        $stars.mouseleave((e) => {
-            updateStars(e, self.user);
-        });
-        $stars.click((e) => {
-            const note = parseInt(jQuery(e.currentTarget).data('number'), 10), $stars = jQuery(e.currentTarget).parent().find('.star-svg');
-            // On supprime les events
-            $stars.off('mouseenter').off('mouseleave');
-            self._parent.addVote(note)
-                .then((result) => {
-                hidePopup();
-                if (result) {
-                    // TODO: Mettre à jour la note du média
-                    self._parent.changeTitleNote(true);
-                    self._parent._callListeners(EventTypes.NOTE);
-                    if (cb)
-                        cb.call(self);
-                }
-                else {
-                    Base.notification('Erreur Vote', "Une erreur s'est produite durant le vote");
-                }
-            })
-                .catch(() => hidePopup());
-        });
-        // On affiche la popup
-        showPopup();
-    }
-    /**
-     * Retourne le type d'étoile en fonction de la note et de l'indice
-     * de comparaison
-     * @param  {number} note   La note du media
-     * @param  {number} indice L'indice de comparaison
-     * @return {string}        Le type d'étoile
-     */
-    static getTypeSvg(note, indice) {
-        let typeSvg = StarTypes.EMPTY;
-        if (note <= indice) {
-            typeSvg = StarTypes.EMPTY;
-        }
-        else if (note < indice + 1) {
-            if (note > indice + 0.25) {
-                typeSvg = StarTypes.HALF;
-            }
-            else if (note > indice + 0.75) {
-                typeSvg = StarTypes.FULL;
+        let i, len;
+        for (i = 0, len = Debug.skips.length; i < len; i++) {
+            if (Debug.skips[i].test(name)) {
+                return false;
             }
         }
-        else {
-            typeSvg = StarTypes.FULL;
-        }
-        return typeSvg;
-    }
-    /**
-     * Met à jour l'affichage de la note
-     * @param   {JQuery<HTMLElement>} [$elt] - Element HTML contenant les étoiles représentant la note
-     * @returns {Note}
-     */
-    updateStars($elt) {
-        $elt = $elt || jQuery('.blockInformations__metadatas .js-render-stars', this._parent.elt);
-        if (!$elt || $elt.length <= 0)
-            return this;
-        let color = '';
-        const $stars = jQuery('.star-svg use', $elt);
-        const result = $($stars.get(0)).attr('xlink:href').match(/(grey|blue)/);
-        if (result) {
-            color = result[0];
-        }
-        for (let s = 0; s < 5; s++) {
-            const className = Note.getTypeSvg(this.mean, s);
-            $($stars.get(s)).attr('xlink:href', `#icon-star${color}-${className}`);
-        }
-        return this;
-    }
-    /**
-     * Met à jour l'attribut title de l'élément HTML représentant la note
-     * @param   {JQuery<HTMLElement>} [$elt] - Element HTML contenant les étoiles représentant la note
-     * @returns {Note}
-     */
-    updateAttrTitle($elt) {
-        $elt = $elt || jQuery('.blockInformations__metadatas .js-render-stars', this._parent.elt);
-        if (!$elt || $elt.length <= 0)
-            return this;
-        if (this.mean <= 0 || this.total <= 0) {
-            $elt.attr('title', 'Aucun vote');
-            return this;
-        }
-        $elt.attr('title', this.toString());
-        return this;
-    }
-    /**
-     * Retourne la template pour l'affichage d'une note sous forme d'étoiles
-     * @param   {number} [note=0] - La note à afficher
-     * @param   {string} [color] - La couleur des étoiles
-     * @returns {string}
-     */
-    static renderStars(note = 0, color = '') {
-        let typeSvg, template = '';
-        if (note == 0) {
-            color = 'grey';
-        }
-        for (let s = 0; s < 5; s++) {
-            typeSvg = Note.getTypeSvg(note, s);
-            template += `
-                <svg viewBox="0 0 100 100" class="star-svg">
-                    <use xmlns:xlink="http://www.w3.org/1999/xlink"
-                        xlink:href="#icon-star${color}-${typeSvg}">
-                    </use>
-                </svg>
-            `;
-        }
-        return template;
-    }
-}
-
-class Next {
-    id;
-    code;
-    date;
-    title;
-    image;
-    constructor(data) {
-        this.id = (data.id != undefined) ? parseInt(data.id, 10) : NaN;
-        this.code = data.code;
-        this.date = new Date(data.date) || null;
-        this.title = data.title;
-        this.image = data.image;
-    }
-}
-class User {
-    archived;
-    downloaded;
-    favorited;
-    friends_want_to_watch;
-    friends_watched;
-    hidden;
-    last;
-    mail;
-    next;
-    profile;
-    remaining;
-    seen;
-    status;
-    tags;
-    twitter;
-    constructor(data) {
-        this.archived = (data.archived !== undefined) ? !!data.archived : false;
-        this.downloaded = (data.downloaded !== undefined) ? !!data.downloaded : false;
-        this.favorited = (data.favorited !== undefined) ? !!data.favorited : false;
-        this.friends_want_to_watch = data.friends_want_to_watch || [];
-        this.friends_watched = data.friends_watched || [];
-        this.hidden = (data.hidden !== undefined) ? !!data.hidden : false;
-        this.last = data.last || '';
-        this.mail = (data.mail !== undefined) ? !!data.mail : false;
-        this.next = null;
-        if (data.next !== undefined) {
-            this.next = new Next(data.next);
-        }
-        this.profile = data.profile || '';
-        this.remaining = data.remaining || 0;
-        this.seen = !!data.seen || false;
-        this.status = (data.status !== undefined) ? parseInt(data.status, 10) : 0;
-        this.tags = data.tags || '';
-        this.twitter = !!data.twitter || false;
-    }
-    compare(data) {
-        const props = Object.getOwnPropertyNames(this);
-        for (const prop of props) {
-            if (typeof this[prop] !== 'object' && Object.hasOwn(data, prop) && this[prop] != data[prop]) {
+        for (i = 0, len = Debug.names.length; i < len; i++) {
+            if (Debug.names[i].test(name)) {
                 return true;
             }
         }
         return false;
     }
+    /**
+     * Coerce `val`.
+     *
+     * @param {Mixed} val
+     * @return {Mixed}
+     * @api private
+     */
+    static coerce(val) {
+        if (val instanceof Error) {
+            return val.stack || val.message;
+        }
+        return val;
+    }
+    /**
+     * Map of special "%n" handling functions, for the debug "format" argument.
+     *
+     * Valid key names are a single, lower or upper-case letter, i.e. "n" and "N".
+     * @type {Object.<string, Function>}
+     */
+    static formatters = {
+        /**
+         * Map %j to `JSON.stringify()`, since no Web Inspectors do that by default.
+         */
+        j: function (v) {
+            try {
+                return JSON.stringify(v);
+            }
+            catch (error) {
+                return '[UnexpectedJSONParseError]: ' + error.message;
+            }
+        }
+    };
+    /**
+     * Selects a color for a debug namespace
+     * @param {String} namespace The namespace string for the debug instance to be colored
+     * @return {String} An ANSI color code for the given namespace
+     * @api private
+     */
+    static selectColor(namespace) {
+        let hash = 0;
+        for (let i = 0; i < namespace.length; i++) {
+            hash = ((hash << 5) - hash) + namespace.charCodeAt(i);
+            hash |= 0; // Convert to 32bit integer
+        }
+        return Debug.colors[Math.abs(hash) % Debug.colors.length];
+    }
+    /**
+     * Ajoute un formatter dans le tableau des formatters
+     * @param   {string} letter - La lettre servant de flag dans le message (sans le percent) (ex: %d)
+     * @param   {Function} fn - La fonction appliquée à la valeur correspondante
+     * @returns {void}
+     * @throws  {Error}
+     */
+    static addFormatter(letter, fn) {
+        // On supprime le prefix '%' si il y est
+        if (/^%/.test(letter))
+            letter = letter.substring(1);
+        const letterFormatters = Object.keys(Debug.formatters);
+        if (letterFormatters.includes(letter)) {
+            throw new Error(`this letter(${letter}) of formatter already exists`);
+        }
+        Debug.formatters[letter] = fn;
+    }
+    /************************************/
+    /*          Properties              */
+    /************************************/
+    /**
+     * Namespace de l'instance
+     * @type {string}
+     */
+    namespace;
+    /**
+     * Nombre de milliseconds depuis le précédent log
+     * @type {number}
+     */
+    prevTime;
+    /**
+     * Durée entre 2 logs en milliseconds
+     * @type {number}
+     */
+    diff;
+    /**
+     * Surcharge de l'affichage du namespace au niveau de l'instance
+     * @type {boolean}
+     */
+    enableOverride = undefined;
+    /**
+     * Surcharge de l'affichage du temps entre 2 logs au niveau de l'instance
+     * @type {boolean}
+     */
+    timeOverride = undefined;
+    /**
+     * Stockage de la règle d'affichage des namespaces
+     * @type {string}
+     */
+    namespacesCache;
+    /**
+     * Stockage de l'autorisation ou non d'afficher les logs du namespace
+     * @type {boolean}
+     */
+    enabledCache;
+    /**
+     * Flag indiquant si l'instance peut utiliser des couleurs
+     * @type {boolean}
+     */
+    useColors;
+    /**
+     * Stockage de la couleur du namespace
+     * @type {string}
+     */
+    color;
+    constructor(namespace) {
+        this.useColors = useColors();
+        this.color = Debug.selectColor(namespace);
+        this.namespace = namespace;
+        return this;
+    }
+    get enabled() {
+        if (this.enableOverride !== undefined) {
+            return this.enableOverride;
+        }
+        if (this.namespacesCache !== Debug.namespaces) {
+            this.namespacesCache = Debug.namespaces;
+            this.enabledCache = Debug.ns_enabled(this.namespace);
+        }
+        return this.enabledCache;
+    }
+    set enabled(v) {
+        this.enableOverride = !!v;
+    }
+    get time() {
+        if (this.timeOverride !== undefined) {
+            return this.timeOverride;
+        }
+        return Debug.displayTime;
+    }
+    set time(v) {
+        this.timeOverride = !!v;
+    }
+    _prepareLog(args) {
+        const self = this;
+        if (Debug.displayTime) {
+            // Set `diff` timestamp
+            const curr = Date.now();
+            const ms = curr - (this.prevTime || curr);
+            self.diff = ms;
+            // self['prev'] = this.prevTime;
+            // self['curr'] = curr;
+            this.prevTime = curr;
+        }
+        args[0] = Debug.coerce(args[0]);
+        if (typeof args[0] !== 'string') {
+            // Anything else let's inspect with %O
+            args.unshift('%O');
+        }
+        // Apply any `formatters` transformations
+        let index = 0;
+        args[0] = args[0].replace(/%([a-zA-Z%])/g, (match, format) => {
+            // If we encounter an escaped % then don't increase the array index
+            if (match === '%%') {
+                return '%';
+            }
+            index++;
+            const formatter = Debug.formatters[format];
+            if (typeof formatter === 'function') {
+                const val = args[index];
+                match = formatter.call(self, val);
+                // Now we need to remove `args[index]` since it's inlined in the `format`
+                args.splice(index, 1);
+                index--;
+            }
+            return match;
+        });
+        // Apply env-specific formatting (colors, etc.)
+        formatArgs.call(self, args);
+        return args;
+    }
+    get fnDebug() {
+        return this.debug.bind(this);
+    }
+    debug(...args) {
+        // Disabled?
+        try {
+            if (!this.enabled) {
+                return;
+            }
+        }
+        catch (err) {
+            console.error('Error debug check enabled', this, err);
+        }
+        Debug._debug.apply(this, this._prepareLog(args));
+    }
+    get fnLog() {
+        return this.log.bind(this);
+    }
+    log(...args) {
+        // Disabled?
+        try {
+            if (!this.enabled) {
+                return;
+            }
+        }
+        catch (err) {
+            console.log('Error log check enabled', this, err);
+        }
+        Debug._log.apply(this, this._prepareLog(args));
+    }
+    get fnInfo() {
+        return this.info.bind(this);
+    }
+    info(...args) {
+        // Disabled?
+        try {
+            if (!this.enabled) {
+                return;
+            }
+        }
+        catch (err) {
+            console.log('Error log check enabled', this, err);
+        }
+        Debug._info.apply(this, this._prepareLog(args));
+    }
+    /**
+     * Retourne un nouveau `Debug` avec un namespace étendu
+     * @param   {string} namespace
+     * @param   {string} [delimiter]
+     * @returns {Debug}
+     */
+    extend(namespace, delimiter = Debug.delimiter) {
+        if (typeof namespace !== 'string' || namespace.length <= 0) {
+            throw new Error('namespace must be a string not empty');
+        }
+        return new Debug([this.namespace, namespace].join(delimiter));
+    }
 }
 
+/**
+ * Un objet Error, type ExceptionIdentification
+ * @param {string} message - Le message d'erreur
+ */
 function ExceptionIdentification(message) {
     this.message = message;
     this.name = "ExceptionIdentification";
 }
+/**
+ * NetworkState
+ * @enum
+ * @alias NetworkState
+ */
 var NetworkState;
 (function (NetworkState) {
     NetworkState[NetworkState["offline"] = 0] = "offline";
     NetworkState[NetworkState["online"] = 1] = "online";
 })(NetworkState = NetworkState || (NetworkState = {}));
-var MediaType;
-(function (MediaType) {
-    MediaType["show"] = "show";
-    MediaType["movie"] = "movie";
-    MediaType["episode"] = "episode";
-})(MediaType = MediaType || (MediaType = {}));
+/**
+ * EventTypes
+ * @enum
+ * @alias EventTypes
+ */
 var EventTypes;
 (function (EventTypes) {
-    EventTypes["UPDATE"] = "update";
-    EventTypes["SAVE"] = "save";
     EventTypes["ADD"] = "add";
     EventTypes["ADDED"] = "added";
-    EventTypes["REMOVE"] = "remove";
-    EventTypes["NOTE"] = "note";
     EventTypes["ARCHIVE"] = "archive";
-    EventTypes["UNARCHIVE"] = "unarchive";
-    EventTypes["SHOW"] = "show";
+    EventTypes["DELETE"] = "delete";
     EventTypes["HIDE"] = "hide";
+    EventTypes["NEW"] = "new";
+    EventTypes["NOTE"] = "note";
+    EventTypes["REMOVE"] = "remove";
+    EventTypes["SAVE"] = "save";
+    EventTypes["SEEN"] = "seen";
+    EventTypes["SHOW"] = "show";
+    EventTypes["UNARCHIVE"] = "unarchive";
+    EventTypes["UPDATE"] = "update";
 })(EventTypes = EventTypes || (EventTypes = {}));
+/**
+ * HTTP_VERBS
+ * @enum
+ * @alias HTTP_VERBS
+ */
 var HTTP_VERBS;
 (function (HTTP_VERBS) {
     HTTP_VERBS["GET"] = "GET";
@@ -2982,14 +789,19 @@ function objToArr(obj, data) {
     }
     return values;
 }
+/**
+ * Fonction servant à vérifier si une variable existe et si elle est nulle
+ * @param val - Valeur à vérifier
+ * @returns {boolean}
+ */
 function isNull(val) {
     return val === null || val === undefined;
 }
 /**
  * Fonction pour les requêtes fetch avec un timeout
- * @param request - URL à appeler
- * @param opts - Options de la requête
- * @param timeout - Durée en secondes du timeout de la requête
+ * @param   {URL | RequestInfo} request - URL à appeler
+ * @param   {RequestInit} [opts = {}] - Options de la requête
+ * @param   {number} [timeout = 30] - Durée en secondes du timeout de la requête
  * @returns {FetchTimeout}
  */
 function fetchTimeout(request, opts = {}, timeout = 30) {
@@ -3007,30 +819,55 @@ function fetchTimeout(request, opts = {}, timeout = 30) {
         }
     };
 }
-function checkNetwork() {
-    const request = `${Base.serverOauthUrl}/index.html`;
+/**
+ * Fonction servant à vérifier l'état du réseau
+ * @param {number} [milliseconds = 0] - Durée avant la prochaine vérification
+ */
+function checkNetwork(milliseconds = 0) {
+    const request = `${UsBetaSeries.serverOauthUrl}/index.html`;
     const init = {
         method: HTTP_VERBS.HEAD,
         mode: 'cors',
         cache: 'no-cache',
     };
-    fetchTimeout(request, init, 5).ready()
+    const timeout = 5;
+    /**
+     * Transforme des secondes en durée heures, minutes, secondes
+     * @param seconds - La durée en secondes
+     * @returns {string}
+     */
+    const duration = function (seconds) {
+        if (seconds < 60) {
+            return `${seconds.toString()} secondes`;
+        }
+        let minutes = Math.floor(seconds / 60);
+        const hours = Math.floor(minutes / 60);
+        seconds -= (minutes * 60);
+        let duration = '';
+        if (hours > 0) {
+            minutes -= (hours * 60);
+            duration += `${hours.toString()} heure${hours > 1 ? 's' : ''} `;
+        }
+        duration += `${minutes.toString()} min. ${seconds.toString()} sec.`;
+        return duration;
+    };
+    fetchTimeout(request, init, timeout).ready()
         .then((response) => {
         if (response.ok) {
-            Base.changeNetworkState(NetworkState.online);
-            console.log('Network is come back');
+            if (UsBetaSeries.networkTimeout) {
+                clearTimeout(UsBetaSeries.networkTimeout);
+                UsBetaSeries.networkTimeout = null;
+            }
+            UsBetaSeries.changeNetworkState(NetworkState.online);
+            UsBetaSeries.debug('Network is come back');
         }
     }).catch(err => {
-        if (err.name === 'AbortError') {
-            console.log('checkNetwork: Fetch aborted');
-        }
-        else if (err.message.toLowerCase() !== 'failed to fetch') {
+        milliseconds += (milliseconds === 0) ? 1000 : 10000;
+        if (err.message.toLowerCase() !== 'failed to fetch') {
             console.error('checkNetwork catch: ', err);
         }
-    }).finally(() => {
-        if (Base.networkState === NetworkState.offline) {
-            Base.networkTimeout = setTimeout(checkNetwork, 1000);
-        }
+        UsBetaSeries.logger.log('checkNetwork: Fetch aborted (next check in: %s)', duration(milliseconds / 1000));
+        UsBetaSeries.networkTimeout = setTimeout(checkNetwork, milliseconds, milliseconds);
     });
 }
 /**
@@ -3043,8 +880,9 @@ class FakePromise {
     /**
      * Permet de vérifier si la fonction se trouve déjà dans le
      * tableau des fonctions callback
-     * @param   {any} fn - Fonction callback de référence
-     * @param   {any[]} funcs - Tableau des fonctions
+     * @static
+     * @param   {Function} fn - Fonction callback de référence
+     * @param   {Function[]} funcs - Tableau des fonctions
      * @returns {boolean}
      */
     static fnAlreadyInclude(fn, funcs) {
@@ -3057,29 +895,48 @@ class FakePromise {
         return false;
     }
     /**
+     * @callback thenCallback
+     * @param   {Obj} data - Les données
+     * @returns {void}
+     */
+    /**
+     * @callback catchCallback
+     * @param   {?(string | Error)} reason - La raison de l'échec
+     * @returns {(void | PromiseLike<never>)}
+     */
+    /**
+     * @callback finallyCallback
+     * @returns {void}
+     */
+    /**
      * Tableau des fonctions callback de type **then**
-     * @type {Array<(data: Obj) => void>}
+     * @type {thenCallback[]}
      */
     thenQueue;
     /**
      * Tableau des fonctions callback de type **catch**
-     * @type {Array<(reason: any) => void>}
+     * @type {catchCallback[]}
      */
     catchQueue;
     /**
      * Tableau des fonctions callback de type **finally**
-     * @type {Array<() => void>}
+     * @type {finallyCallback[]}
      */
     finallyQueue;
     /**
+     * @callback apiCallback
+     * @param   {?string} reason - Une raison d'échec
+     * @returns {Promise<Obj>}
+     */
+    /**
      * Fonction qui sera executée lors de l'appel à la méthode **launch**
      * @see FakePromise.launch
-     * @type {() => Promise<Obj>}
+     * @type {apiCallback}
      */
     promiseFunc;
     /**
      * Constructor
-     * @param   {() => Promise<Obj>} [func] - Fonction promise qui sera executée plus tard
+     * @param   {apiCallback} [func] - Fonction promise qui sera executée plus tard
      * @returns {FakePromise}
      */
     constructor(func) {
@@ -3091,7 +948,7 @@ class FakePromise {
     }
     /**
      * Permet de définir la fonction qui retourne la vraie promesse
-     * @param   {() => Promise<Obj>} func Fonction promise qui sera executée plus tard
+     * @param   {apiCallback} func - Fonction promise qui sera executée plus tard
      * @returns {FakePromise}
      */
     setFunction(func) {
@@ -3100,40 +957,63 @@ class FakePromise {
     }
     /**
      * Simule un objet promise et stocke les fonctions pour plus tard
-     * @param   {(data: Obj) => void} onfulfilled - Fonction appelée lorsque la promesse est tenue
-     * @param   {(reason: any) => PromiseLike<never>} [onrejected] - Fonction appelée lorsque la promesse est rejetée
+     * @param   {thenCallback} onfulfilled - Fonction appelée lorsque la promesse est tenue
+     * @param   {?catchCallback} onrejected - Fonction appelée lorsque la promesse est rejetée
      * @returns {FakePromise}
      */
     then(onfulfilled, onrejected) {
-        if (onfulfilled && !FakePromise.fnAlreadyInclude(onfulfilled, this.thenQueue)) {
+        if (onfulfilled /*  && !FakePromise.fnAlreadyInclude(onfulfilled, this.thenQueue) */) {
             this.thenQueue.push(onfulfilled);
         }
-        if (onrejected && !FakePromise.fnAlreadyInclude(onrejected, this.catchQueue)) {
+        if (onrejected /*  && !FakePromise.fnAlreadyInclude(onrejected, this.catchQueue) */) {
             this.catchQueue.push(onrejected);
         }
         return this;
     }
     /**
      * Simule un objet promise et stocke les fonctions pour plus tard
-     * @param   {(reason: any) => void | PromiseLike<void>} [onrejected] - Fonction appelée lorsque la promesse est rejetée
+     * @param   {catchCallback} onrejected - Fonction appelée lorsque la promesse est rejetée
      * @returns {FakePromise}
      */
     catch(onrejected) {
-        if (onrejected && !FakePromise.fnAlreadyInclude(onrejected, this.catchQueue)) {
-            this.catchQueue.push(onrejected);
+        return this.then(null, onrejected);
+    }
+    /**
+     * Simule un objet promise et stocke les fonctions pour plus tard
+     * @param   {finallyCallback} onfinally - Fonction appelée lorsque la promesse est terminée
+     * @returns {FakePromise}
+     */
+    finally(onfinally) {
+        if (onfinally /*  && FakePromise.fnAlreadyInclude(onfinally, this.finallyQueue) */) {
+            this.finallyQueue.push(onfinally);
         }
         return this;
     }
     /**
-     * Simule un objet promise et stocke les fonctions pour plus tard
-     * @param   {() => void} [onfinally] - Fonction appelée lorsque la promesse est terminée
-     * @returns {FakePromise}
+     * Rejet de la promise
+     * @param reason - Le raison du rejet de la promise
+     * @returns {Promise<void>}
      */
-    finally(onfinally) {
-        if (!onfinally && FakePromise.fnAlreadyInclude(onfinally, this.finallyQueue)) {
-            this.finallyQueue.push(onfinally);
-        }
-        return this;
+    reject(reason) {
+        return this.promiseFunc(reason)
+            .catch(() => {
+            const catchs = this.catchQueue;
+            for (let c = catchs.length; c >= 0; c--) {
+                if (typeof catchs[c] === 'function') {
+                    catchs[c](reason);
+                    // return;
+                }
+            }
+        })
+            .finally(() => {
+            const finallies = this.finallyQueue;
+            for (let f = finallies.length; f >= 0; f--) {
+                if (typeof finallies[f] === 'function') {
+                    finallies[f]();
+                    // return;
+                }
+            }
+        });
     }
     /**
      * Permet de lancer la fonction qui retourne la vraie promesse
@@ -3147,7 +1027,7 @@ class FakePromise {
             for (let t = thens.length; t >= 0; t--) {
                 if (typeof thens[t] === 'function') {
                     thens[t](data);
-                    return;
+                    // return;
                 }
             }
         })
@@ -3156,7 +1036,7 @@ class FakePromise {
             for (let c = catchs.length; c >= 0; c--) {
                 if (typeof catchs[c] === 'function') {
                     catchs[c](err);
-                    return;
+                    // return;
                 }
             }
         })
@@ -3171,16 +1051,219 @@ class FakePromise {
         });
     }
 }
+/**
+ * Classe de base contenant essentiellement des propriétés et des méthodes statiques
+ * @class
+ * @abstract
+ */
 class Base {
+    /**
+     * Types d'évenements gérés par cette classe
+     * @type {Array}
+     */
+    static EventTypes = [
+        EventTypes.UPDATE,
+        EventTypes.SAVE,
+        EventTypes.NOTE
+    ];
+    /**
+     * Contient les écouteurs d'évènements de l'objet
+     * @type {object}
+     */
+    __listeners;
+    /**
+     * Constructor
+     * @param data - Les données provenant de l'API
+     * @returns {Base}
+     */
+    constructor(data) {
+        if (!(data instanceof Object)) {
+            throw new Error("data is not an object");
+        }
+        this._initListeners();
+        return this;
+    }
+    /**
+     * Initialize le tableau des écouteurs d'évènements
+     * @returns {Base}
+     * @sealed
+     */
+    _initListeners() {
+        this.__listeners = {};
+        const EvtTypes = this.constructor.EventTypes;
+        for (let e = 0; e < EvtTypes.length; e++) {
+            this.__listeners[EvtTypes[e]] = [];
+        }
+        return this;
+    }
+    /**
+     * Permet d'ajouter un listener sur un type d'évenement
+     * @param  {EventTypes} name - Le type d'évenement
+     * @param  {Function}   fn   - La fonction à appeler
+     * @return {Base} L'instance du média
+     * @sealed
+     */
+    addListener(name, fn, ...args) {
+        const logger = UsBetaSeries.logger.extend('listeners');
+        logger.debug('Base[%s] add Listener on event %s', this.constructor.name, name);
+        // On vérifie que le type d'event est pris en charge
+        if (this.constructor.EventTypes.indexOf(name) < 0) {
+            throw new Error(`${name} ne fait pas partit des events gérés par cette classe`);
+        }
+        if (isNull(this.__listeners[name])) {
+            this.__listeners[name] = [];
+        }
+        for (const func of this.__listeners[name]) {
+            if (typeof func === 'function' && func.toString() == fn.toString())
+                return;
+        }
+        this.__listeners[name].push((args.length <= 0) ? fn : { fn, args });
+        logger.debug('Base[%s] add Listener on event %s', this.constructor.name, name, this.__listeners[name]);
+        return this;
+    }
+    /**
+     * Permet d'ajouter un listener sur plusieurs types d'évenements
+     * @param  {EventTypes[]} names -   Le type d'évenement
+     * @param  {Function} fn -          La fonction à appeler
+     * @param  {any[]} [args] -         Paramètres optionnels
+     * @return {Base} L'instance du média
+     * @sealed
+     */
+    addListeners(names, fn, ...args) {
+        try {
+            for (const name of names) {
+                this.addListener(name, fn, args);
+            }
+        }
+        catch (err) {
+            console.warn('Base.addListeners error', err);
+        }
+        return this;
+    }
+    /**
+     * Permet de supprimer un listener sur un type d'évenement
+     * @param  {string}   name - Le type d'évenement
+     * @param  {Function} fn   - La fonction qui était appelée
+     * @return {Base} L'instance du média
+     * @sealed
+     */
+    removeListener(name, fn) {
+        if (this.__listeners[name] !== undefined) {
+            for (let l = 0; l < this.__listeners[name].length; l++) {
+                if ((typeof this.__listeners[name][l] === 'function' &&
+                    this.__listeners[name][l].toString() === fn.toString()) ||
+                    (typeof this.__listeners[name][l] === 'object' &&
+                        typeof this.__listeners[name][l].fn === 'function' &&
+                        this.__listeners[name][l].fn.toString() == fn.toString())) {
+                    this.__listeners[name].splice(l, 1);
+                }
+            }
+        }
+        return this;
+    }
+    /**
+     * Appel les listeners pour un type d'évenement
+     * @param  {EventTypes} name - Le type d'évenement
+     * @return {Base} L'instance du média
+     * @sealed
+     */
+    _callListeners(name) {
+        // UsBetaSeries.debug.extend('listeners')('Base[%s] call Listeners of event %s', this.constructor.name, name, this.__listeners);
+        if (this.constructor.EventTypes.indexOf(name) >= 0 && this.__listeners[name].length > 0) {
+            const logger = UsBetaSeries.logger.extend('listeners');
+            logger.debug('Base[%s] call %d Listeners on event %s', this.constructor.name, this.__listeners[name].length, name, this.__listeners);
+            const event = new CustomEvent('betaseries', {
+                detail: {
+                    name
+                }
+            });
+            for (let l = 0; l < this.__listeners[name].length; l++) {
+                if (typeof this.__listeners[name][l] === 'function') {
+                    this.__listeners[name][l].call(this, event, this);
+                }
+                else {
+                    const args = this.__listeners[name][l].args;
+                    this.__listeners[name][l].fn.apply(this, [event, this].concat(args));
+                }
+            }
+        }
+        return this;
+    }
+    /**
+     * Check if this emitter has `event` handlers.
+     *
+     * @param event - Le type d'évènement
+     * @returns {boolean}
+     */
+    hasListeners(event) {
+        return !!this.__listeners[event].length;
+    }
+    /**
+     * Listen on the given `event` with `fn`.
+     * @param   {EventTypes} event - Le type d'évènement à écouter
+     * @param   {fnListener} fn - La fonction callback
+     * @param   {...*} args - les paramètres supplémentaires à ajouter à la function callback
+     * @returns {Base}
+     */
+    on(event, fn, ...args) {
+        return this.addListener(event, fn, args);
+    }
+    /**
+     * Remove all registered callbacks for `event`.
+     * @param   {EventTypes} name - Le type d'évènement dont l'écoute est annulée
+     * @returns {Base}
+     */
+    off(name) {
+        if (this.constructor.EventTypes.indexOf(name) < 0) {
+            throw new Error(`${name} ne fait pas partit des events gérés par cette classe`);
+        }
+        if (!isNull(this.__listeners[name])) {
+            delete this.__listeners[name];
+        }
+        return this;
+    }
+    /**
+     * Adds an `event` listener that will be invoked a single
+     * time then automatically removed.
+     * @param {EventTypes} event - Le type d'évènement à écouter
+     * @param {fnListener} fn - La fonction callback
+     * @param {...*} argsOnce - les paramètres supplémentaires à ajouter à la function callback
+     * @returns {Base}
+     */
+    once(event, fn, ...argsOnce) {
+        function on(...args) {
+            this.removeEventListener(event, on);
+            fn.apply(this, args);
+        }
+        on.fn = fn;
+        this.on(event, on, argsOnce);
+        return this;
+    }
+    /**
+     * Emit `event`.
+     * @param  {EventTypes} event - Le type d'évenement
+     * @return {Base} L'instance du média
+     */
+    emit(event) {
+        return this._callListeners(event);
+    }
+}
+/**
+ * Classe principale du projet, contenant toutes les propriétés et méthodes statiques
+ * @class
+ */
+class UsBetaSeries {
+    static setDebug = Debug;
     /*
                     STATIC
-    */
+     */
+    static logger = new UsBetaSeries.setDebug('BS');
     /**
      * Flag de debug pour le dev
      * @static
-     * @type {boolean}
+     * @type {Function}
      */
-    static debug = false;
+    static debug = UsBetaSeries.logger.fnDebug;
     /**
      * L'objet cache du script pour stocker les données
      * @static
@@ -3188,13 +1271,46 @@ class Base {
      */
     static cache = null;
     /**
+     * Objet contenant les modèles de routes du site BetaSeries
+     * @type {Object.<string, string>}
+     */
+    static routes = {};
+    /**
+     * Génère une route à partir de son type et des données fournit en paramètre
+     * @param   {string} routeType - Type de route à générer (doit être une clé de l'objet UsBetaSeries.routes)
+     * @param   {object} [data = {}] - L'objet contenant les données à remplacer dans la route
+     * @returns {string} La route générée
+     * @throws  {Error} Si la donnée de remplacement n'est pas trouvée
+     */
+    static generateRoute(routeType, data = {}) {
+        // UsBetaSeries.debug('UsBetaSeries.generateRoute', {routeType, data, routes: this.routes});
+        if (isNull(this.routes[routeType]) || isNull(data))
+            return null;
+        let route = this.routes[routeType], found;
+        // UsBetaSeries.debug('UsBetaSeries.generateRoute model route: %s', route);
+        const reg = /\{(\w+)\}/;
+        while (!isNull(found = route.match(reg))) {
+            // UsBetaSeries.debug('UsBetaSeries.generateRoute while route: %s', route, found);
+            if (isNull(data[found[1]])) {
+                // UsBetaSeries.debug('UsBetaSeries.generateRoute while data not found', route, data[found[1]]);
+                throw new Error(`UsBetaSeries.generateRoute data[${found[1]}] not found`);
+            }
+            route = route.replace(reg, data[found[1]]);
+        }
+        // UsBetaSeries.debug('UsBetaSeries.generateRoute return route: %s', route);
+        return route;
+    }
+    /**
      * Objet contenant les informations de l'API
      * @static
      * @type {Obj}
      */
     static api = {
         "url": 'https://api.betaseries.com',
-        "versions": { "current": '3.0', "last": '3.0' },
+        "versions": {
+            "current": '3.0',
+            "last": '3.0'
+        },
         "resources": [
             'badges', 'comments', 'episodes', 'friends', 'members', 'messages',
             'movies', 'news', 'oauth', 'persons', 'pictures', 'planning',
@@ -3291,6 +1407,12 @@ class Base {
      */
     static userId = null;
     /**
+     * Infos du membre, si il est connecté
+     * @static
+     * @type {Member}
+     */
+    static member = null;
+    /**
      * Clé d'authentification pour l'API TheMovieDB
      * @static
      * @type {string}
@@ -3312,7 +1434,7 @@ class Base {
     /**
      * L'URL de base du serveur pour l'authentification
      * @static
-     * @see Base.authenticate
+     * @see UsBetaSeries.authenticate
      * @type {String}
      */
     static serverOauthUrl = '';
@@ -3332,7 +1454,9 @@ class Base {
      * Fonction pour vérifier que le membre est connecté
      * @type {Function}
      */
-    static userIdentified = () => { return false; };
+    static userIdentified = () => {
+        return !isNull(this.token) && !isNull(this.userId);
+    };
     /**
      * Fonction vide
      * @type {Function}
@@ -3341,12 +1465,14 @@ class Base {
     /**
      * Fonction de traduction de chaînes de caractères
      * @param   {String}  msg  - Identifiant de la chaîne à traduire
-     * @param   {Obj}     [params] - Variables utilisées dans la traduction {"%key%"": value}
+     * @param   {Obj}     [params] - Variables utilisées dans la traduction \{"%key%"": value\}
      * @param   {number}  [count=1] - Nombre d'éléments pour la version plural
      * @returns {string}
      */
     // eslint-disable-next-line @typescript-eslint/no-unused-vars
-    static trans = (msg, params, count = 1) => { return msg; };
+    static trans = (msg, params, count = 1) => {
+        return msg;
+    };
     /**
      * Contient les infos sur les différentes classification TV et cinéma
      * @type {Ratings}
@@ -3354,19 +1480,37 @@ class Base {
     static ratings = null;
     static gm_funcs = {
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        getValue: (key, defaultValue) => { return defaultValue; },
+        getValue: (key, defaultValue) => {
+            return defaultValue;
+        },
         // eslint-disable-next-line @typescript-eslint/no-unused-vars
         setValue: (key, val) => { }
     };
     /**
-     * Types d'évenements gérés par cette classe
-     * @type {Array}
+     * bsModule contient la correspondance entre les noms de classe et l'objet Function\
+     * Cela sert aux méthodes getInstance et checkClassname
+     * @static
+     * @type {Record<string, any>}
      */
-    static EventTypes = [
-        EventTypes.UPDATE,
-        EventTypes.SAVE,
-        EventTypes.NOTE
-    ];
+    static bsModule = {};
+    /**
+     * getInstance - fonction servant à instancier un objet à partir de son nom de classe
+     * et de paramètres
+     * @static
+     * @param   {string} className - Le nom de la classe à instancier
+     * @param   {Array} [args = []] - Les paramètres à fournir au constructeur
+     * @returns {any} L'objet instancié
+     * @throws Error
+     */
+    static getInstance;
+    /**
+     * checkClassname - Fonction servant à vérifier si la classe est connue
+     * et peut être instanciée
+     * @static
+     * @param   {string} className - Le nom de classe à vérifier
+     * @returns {boolean}
+     */
+    static checkClassname;
     /**
      * Méthode servant à afficher le loader sur la page Web
      * @static
@@ -3387,34 +1531,32 @@ class Base {
      * @return {Promise}
      */
     static authenticate() {
-        if (Base.debug)
-            console.log('authenticate');
+        UsBetaSeries.debug('authenticate');
         if (jQuery('#containerIframe').length <= 0) {
             jQuery('body').append(`
-                <div id="containerIframe">
-                <iframe id="userscript"
-                        name="userscript"
-                        title="Connexion à BetaSeries"
-                        width="50%"
-                        height="400"
-                        src="${Base.serverOauthUrl}/index.html"
-                        style="background:white;margin:auto;">
-                </iframe>
-                </div>'
-            `);
+                    <div id="containerIframe">
+                    <iframe id="userscript"
+                            name="userscript"
+                            title="Connexion à BetaSeries"
+                            width="50%"
+                            height="400"
+                            src="${UsBetaSeries.serverOauthUrl}/index.html"
+                            style="background:white;margin:auto;">
+                    </iframe>
+                    </div>'
+                `);
         }
         return new Promise((resolve, reject) => {
             function receiveMessage(event) {
-                const origin = new URL(Base.serverOauthUrl).origin;
-                // if (debug) console.log('receiveMessage', event);
+                const origin = new URL(UsBetaSeries.serverOauthUrl).origin;
+                // UsBetaSeries.debug('receiveMessage', event);
                 if (event.origin !== origin) {
-                    if (Base.debug)
-                        console.error('receiveMessage {origin: %s}', event.origin, event);
+                    console.error('receiveMessage {origin: %s}', event.origin, event);
                     reject(`event.origin is not ${origin}`);
                     return;
                 }
                 if (event.data.message === 'access_token') {
-                    Base.token = event.data.value;
+                    UsBetaSeries.token = event.data.value;
                     $('#containerIframe').remove();
                     resolve(event.data.message);
                     window.removeEventListener("message", receiveMessage, false);
@@ -3422,7 +1564,7 @@ class Base {
                 else {
                     console.error('Erreur de récuperation du token', event);
                     reject(event.data);
-                    Base.notification('Erreur de récupération du token', 'Pas de message');
+                    UsBetaSeries.notification('Erreur de récupération du token', 'Pas de message');
                     window.removeEventListener("message", receiveMessage, false);
                 }
             }
@@ -3430,9 +1572,11 @@ class Base {
         });
     }
     /**
-     * @type {boolean} Flag indiquant qu'une demande d'authentification est en cours
+     * Flag indiquant qu'une demande d'authentification est en cours
+     * @type {boolean}
+     * @private
      */
-    static checkAuthenticate = false;
+    static __checkAuthenticate = false;
     /**
      * Nombre de timeout consécutifs lors des appels à l'API
      * @type {number}
@@ -3440,6 +1584,7 @@ class Base {
      * @static
      */
     static __nbNetTimeout = 0;
+    static __maxTimeout = 2;
     /**
      * Durée du timeout des requêtes à l'API exprimé en secondes
      * @type {number}
@@ -3458,38 +1603,39 @@ class Base {
      * @throws Error
      */
     static callApi(type, resource, action, args, force = false) {
-        if (Base.api && Base.api.resources.indexOf(resource) === -1) {
+        if (UsBetaSeries.api && UsBetaSeries.api.resources.indexOf(resource) === -1) {
             throw new Error(`Ressource (${resource}) inconnue dans l'API.`);
         }
-        if (!Base.userKey) {
-            Base.notification('Call API', `La clé API doit être renseignée`);
+        if (!UsBetaSeries.userKey) {
+            UsBetaSeries.notification('Call API', `La clé API doit être renseignée`);
             throw new Error('userKey are required');
         }
-        if (!Base.token && resource in Base.api.tokenRequired &&
-            action in Base.api.tokenRequired[resource] &&
-            Base.api.tokenRequired[resource][action].indexOf(type) !== 1) {
-            Base.notification('Call API', `Identification requise pour cet appel: ${type} ${resource}/${action}`);
+        if (!UsBetaSeries.token && resource in UsBetaSeries.api.tokenRequired &&
+            action in UsBetaSeries.api.tokenRequired[resource] &&
+            UsBetaSeries.api.tokenRequired[resource][action].indexOf(type) !== 1) {
+            UsBetaSeries.notification('Call API', `Identification requise pour cet appel: ${type} ${resource}/${action}`);
             // Identification required
             throw new ExceptionIdentification("Identification required");
         }
+        const logger = (new UsBetaSeries.setDebug('BS:API'));
         let check = false;
         let display = true;
         // On vérifie si on doit afficher les infos de requêtes dans la console
-        if (Base.api.notDisplay.indexOf(resource + action) >= 0) {
+        if (UsBetaSeries.api.notDisplay.indexOf(resource + action) >= 0) {
             display = false;
         }
         else {
-            Base.showLoader();
+            UsBetaSeries.showLoader();
         }
         // Les en-têtes pour l'API
         const myHeaders = {
             'Accept': 'application/json',
-            'X-BetaSeries-Version': Base.api.versions.current,
-            'X-BetaSeries-Token': Base.token,
-            'X-BetaSeries-Key': Base.userKey
-        }, checkKeys = Object.keys(Base.api.check);
-        if (Base.debug && display) {
-            console.log('Base.callApi', {
+            'X-BetaSeries-Version': UsBetaSeries.api.versions.current,
+            'X-BetaSeries-Token': UsBetaSeries.token,
+            'X-BetaSeries-Key': UsBetaSeries.userKey
+        }, checkKeys = Object.keys(UsBetaSeries.api.check);
+        if (display) {
+            logger.debug('parameters', {
                 type: type,
                 resource: resource,
                 action: action,
@@ -3498,44 +1644,59 @@ class Base {
             });
         }
         // On retourne la ressource en cache si elle y est présente
-        if (Base.cache && !force && type === 'GET' && args && 'id' in args &&
-            Base.cache.has(resource, args.id)) {
-            //if (debug) console.log('Base.callApi retourne la ressource du cache (%s: %d)', resource, args.id);
+        if (UsBetaSeries.cache && !force && type === 'GET' && args && 'id' in args &&
+            UsBetaSeries.cache.has(resource, args.id)) {
+            //logger.debug('UsBetaSeries.callApi retourne la ressource du cache (%s: %d)', resource, args.id);
             return new Promise((resolve) => {
-                resolve(Base.cache.get(resource, args.id));
-                Base.hideLoader();
+                resolve(UsBetaSeries.cache.get(resource, args.id));
+                UsBetaSeries.hideLoader();
             });
         }
         // Vérification de l'état du réseau, doit être placé après la gestion du cache
-        if (Base.networkState === NetworkState.offline) {
+        if (UsBetaSeries.__networkState === NetworkState.offline) {
             const key = type + resource + action;
-            if (Base.__networkQueue[key]) {
-                return Base.__networkQueue[key];
+            if (!isNull(UsBetaSeries.__networkQueue[key])) {
+                UsBetaSeries.__networkQueue[key].reject('another request called');
             }
-            else {
-                const promise = new FakePromise(() => {
-                    return Base.callApi(type, resource, action, args, force)
-                        .then(data => data)
-                        .catch(err => err);
-                });
-                Base.__networkQueue[key] = promise;
-                return Base.__networkQueue[key];
-            }
+            const promise = new FakePromise((reason) => {
+                if (reason && reason.length > 0) {
+                    return Promise.reject(reason);
+                }
+                return UsBetaSeries.callApi(type, resource, action, args, force)
+                    .then(data => data)
+                    .catch(err => err);
+            });
+            UsBetaSeries.__networkQueue[key] = promise;
+            return promise;
         }
         // On check si on doit vérifier la validité du token
         // (https://www.betaseries.com/bugs/api/461)
-        if (Base.userIdentified() && checkKeys.indexOf(resource) !== -1 &&
-            Base.api.check[resource].indexOf(action) !== -1) {
+        if (UsBetaSeries.userIdentified() && checkKeys.indexOf(resource) !== -1 &&
+            UsBetaSeries.api.check[resource].indexOf(action) !== -1) {
             check = true;
-            if (Base.checkAuthenticate) {
-                if (Base.debug)
-                    console.log('Base::callApi authenticate in progress');
+            if (UsBetaSeries.__checkAuthenticate) {
+                logger.debug('authenticate in progress');
                 return new Promise((res, rej) => {
-                    setTimeout(() => {
-                        Base.callApi(type, resource, action, args, force)
-                            .then(data => res(data))
-                            .catch(err => rej(err));
-                    }, 500);
+                    let loop = 0;
+                    const checkAuthenticate = function checkAuthenticate() {
+                        logger.debug('checkAuthenticate(%d) for %s %s/%s', ++loop, type, resource, action);
+                        if (UsBetaSeries.__checkAuthenticate && UsBetaSeries.__networkState === NetworkState.online) {
+                            setTimeout(checkAuthenticate, 1000);
+                        }
+                        else if (UsBetaSeries.__networkState === NetworkState.offline) {
+                            UsBetaSeries.__checkAuthenticate = false;
+                            rej('network offline');
+                        }
+                        else if (UsBetaSeries.__networkState === NetworkState.online) {
+                            UsBetaSeries.callApi(type, resource, action, args, force)
+                                .then(data => res(data))
+                                .catch(err => rej(err));
+                        }
+                        else {
+                            logger.debug('checkAuthenticate - condition unknown', { checkAuthenticate: UsBetaSeries.__checkAuthenticate });
+                        }
+                    };
+                    checkAuthenticate();
                 });
             }
         }
@@ -3551,7 +1712,7 @@ class Base {
                 mode: 'cors',
                 cache: 'no-cache'
             };
-            let uri = `${Base.api.url}/${resource}/${action}`;
+            let uri = `${UsBetaSeries.api.url}/${resource}/${action}`;
             const keys = Object.keys(args);
             // On crée l'URL de la requête de type GET avec les paramètres
             if (type === 'GET' && keys.length > 0) {
@@ -3564,121 +1725,121 @@ class Base {
             else if (keys.length > 0) {
                 initFetch.body = new URLSearchParams(args);
             }
-            fetchTimeout(uri, initFetch, Base.timeoutRequests).ready()
+            fetchTimeout(uri, initFetch, UsBetaSeries.timeoutRequests).ready()
                 .then(response => {
-                Base.__nbNetTimeout = 0;
-                Base.counter++; // Incrément du compteur de requêtes à l'API
-                if (Base.debug && (display || response.status !== 200))
-                    console.log('fetch (%s %s) response status: %d', type, uri, response.status);
-                // On récupère les données et les transforme en objet
-                response.json().then((data) => {
-                    if (Base.debug && (display || response.status !== 200))
-                        console.log('fetch (%s %s) data', type, uri, data);
-                    // On gère le retour d'erreurs de l'API
-                    if (data.errors !== undefined && data.errors.length > 0) {
-                        const code = data.errors[0].code, text = data.errors[0].text;
-                        if (code === 2005 ||
-                            (response.status === 400 && code === 0 &&
-                                text === "L'utilisateur a déjà marqué cet épisode comme vu.")) {
-                            reject('changeStatus');
+                UsBetaSeries.__nbNetTimeout = 0;
+                UsBetaSeries.counter++; // Incrément du compteur de requêtes à l'API
+                if (display || response.status !== 200)
+                    //logger.debug('fetchUri (%s %s) response status: %d', type, uri, response.status);
+                    // On récupère les données et les transforme en objet
+                    response.json().then((data) => {
+                        if (display || response.status !== 200)
+                            logger.debug('fetchUri (%s %s) data', type, uri, data);
+                        // On gère le retour d'erreurs de l'API
+                        if (data.errors !== undefined && data.errors.length > 0) {
+                            const code = data.errors[0].code, text = data.errors[0].text;
+                            if (code === 2005 ||
+                                (response.status === 400 && code === 0 &&
+                                    text === "L'utilisateur a déjà marqué cet épisode comme vu.")) {
+                                reject('changeStatus');
+                            }
+                            else if (code == 2001) {
+                                // Appel de l'authentification pour obtenir un token valide
+                                UsBetaSeries.authenticate().then(() => {
+                                    UsBetaSeries.callApi(type, resource, action, args, force)
+                                        .then(data => resolve(data), err => reject(err));
+                                }, (err) => {
+                                    reject(err);
+                                });
+                            }
+                            else {
+                                reject(data.errors[0]);
+                            }
+                            UsBetaSeries.hideLoader();
+                            return;
                         }
-                        else if (code == 2001) {
-                            // Appel de l'authentification pour obtenir un token valide
-                            Base.authenticate().then(() => {
-                                Base.callApi(type, resource, action, args, force)
-                                    .then(data => resolve(data), err => reject(err));
-                            }, (err) => {
-                                reject(err);
-                            });
+                        // On gère les erreurs réseau
+                        if (!response.ok) {
+                            console.error('Fetch erreur network', response);
+                            reject(response);
+                            UsBetaSeries.hideLoader();
+                            return;
                         }
-                        else {
-                            reject(data.errors[0]);
-                        }
-                        Base.hideLoader();
-                        return;
-                    }
-                    // On gère les erreurs réseau
-                    if (!response.ok) {
-                        console.error('Fetch erreur network', response);
-                        reject(response);
-                        Base.hideLoader();
-                        return;
-                    }
-                    resolve(data);
-                    Base.hideLoader();
-                });
+                        resolve(data);
+                        UsBetaSeries.hideLoader();
+                    });
             }).catch(error => {
-                console.warn('Base::callApi fetchUri catch (%s: %s/%s)', type, resource, action);
+                console.warn('fetchUri catch (%s: %s/%s)', type, resource, action);
                 if (error.name === 'AbortError') {
-                    if (Base.debug)
-                        console.log('Base::callApi AbortError Timeout fetchUri');
-                    if (++Base.__nbNetTimeout > 5) {
-                        if (Base.debug)
-                            console.log('5 timeout consecutifs, Network state to offline');
-                        Base.changeNetworkState(NetworkState.offline, true);
+                    if (++UsBetaSeries.__nbNetTimeout > UsBetaSeries.__maxTimeout) {
+                        logger.debug('%d timeout consecutifs, Network state to offline', UsBetaSeries.__nbNetTimeout);
+                        UsBetaSeries.changeNetworkState(NetworkState.offline, true);
                     }
+                    logger.debug('AbortError Timeout(nb retry: %d) fetchUri', UsBetaSeries.__nbNetTimeout);
                     return;
                 }
-                console.warn('Base::callApi fetchUri error: ' + error.message);
+                console.warn('fetchUri error: ' + error.message);
                 console.error(error);
                 reject(error);
             }).finally(() => {
-                Base.hideLoader();
+                UsBetaSeries.hideLoader();
             });
         }
         return new Promise((resolve, reject) => {
             if (check) {
-                Base.checkAuthenticate = true;
+                UsBetaSeries.__checkAuthenticate = true;
                 const paramsFetch = {
                     method: HTTP_VERBS.GET,
                     headers: myHeaders,
                     mode: 'cors',
                     cache: 'no-cache'
                 };
-                if (Base.debug && display)
-                    console.info('%ccall /members/is_active', 'color:#1d6fb2');
-                fetchTimeout(`${Base.api.url}/members/is_active`, paramsFetch, Base.timeoutRequests).ready()
+                if (display)
+                    logger.info('%ccall /members/is_active', 'color:#ffc107');
+                fetchTimeout(`${UsBetaSeries.api.url}/members/is_active`, paramsFetch, UsBetaSeries.timeoutRequests).ready()
                     .then((resp) => {
-                    Base.__nbNetTimeout = 0;
-                    Base.counter++; // Incrément du compteur de requêtes à l'API
+                    UsBetaSeries.__nbNetTimeout = 0;
+                    UsBetaSeries.counter++; // Incrément du compteur de requêtes à l'API
                     if (!resp.ok && resp.status === 400) {
-                        if (Base.debug)
-                            console.log('authenticate for %s: %s/%s', type, resource, action);
+                        logger.debug('authenticate for %s: %s/%s', type, resource, action);
                         // Appel de l'authentification pour obtenir un token valide
-                        Base.authenticate().then(() => {
+                        UsBetaSeries.authenticate().then(() => {
                             // On met à jour le token pour le prochain appel à l'API
-                            myHeaders['X-BetaSeries-Token'] = Base.token;
-                            Base.checkAuthenticate = false;
+                            myHeaders['X-BetaSeries-Token'] = UsBetaSeries.token;
+                            UsBetaSeries.__checkAuthenticate = false;
                             fetchUri(resolve, reject);
                         }).catch(err => reject(err));
                         return;
                     }
-                    Base.checkAuthenticate = false;
+                    else if (!resp.ok) {
+                        reject(resp.statusText);
+                        return;
+                    }
+                    UsBetaSeries.__checkAuthenticate = false;
                     fetchUri(resolve, reject);
                 }).catch(error => {
-                    Base.checkAuthenticate = false;
-                    console.warn('Base::callApi fetch members/is_active catch');
+                    UsBetaSeries.__checkAuthenticate = false;
+                    console.warn('fetch members/is_active catch');
                     if (error.name === 'AbortError') {
-                        if (Base.debug)
-                            console.log('Base::callApi AbortError Timeout members/is_active');
-                        if (++Base.__nbNetTimeout > 5) {
-                            if (Base.debug)
-                                console.log('5 timeout consecutifs, Network state to offline');
-                            Base.changeNetworkState(NetworkState.offline, true);
+                        if (++UsBetaSeries.__nbNetTimeout > UsBetaSeries.__maxTimeout) {
+                            logger.debug('%d timeout consecutifs, Network state to offline', UsBetaSeries.__nbNetTimeout);
+                            UsBetaSeries.changeNetworkState(NetworkState.offline, true);
                         }
+                        logger.debug('AbortError Timeout(nb retry: %d) members/is_active', UsBetaSeries.__nbNetTimeout);
                         return;
                     }
                     else if (error.message.toLowerCase() === 'failed to fetch') {
-                        if (Base.debug)
-                            console.log('Réseau hors ligne');
-                        Base.changeNetworkState(NetworkState.offline, true);
+                        logger.debug('On déclare le réseau hors ligne. Le retour du réseau sera testé régulièrement.');
+                        UsBetaSeries.changeNetworkState(NetworkState.offline, true);
                     }
                     else {
-                        if (Base.debug)
-                            console.log('Il y a eu un problème avec l\'opération fetch: ' + error.message);
+                        logger.debug('Il y a eu un problème avec l\'opération fetch: ' + error.message);
                     }
                     console.error(error);
                     reject(error);
+                })
+                    .finally(() => {
+                    UsBetaSeries.__checkAuthenticate = false;
                 });
             }
             else {
@@ -3703,15 +1864,15 @@ class Base {
                 // On récupère le tableau et on laisse l'index
                 const tab = path.replace(/\[\d+\]$/, '');
                 const index = parseInt(path.replace(/[^\d]*/, ''), 10);
-                Base.setPropValue(obj[tab][index], key, val);
+                UsBetaSeries.setPropValue(obj[tab][index], key, val);
             }
             else if (/\[.*\]$/.test(path)) {
                 const tab = path.replace(/\[.+\]$/, '');
                 const index = path.replace(/^.*\[/, '').replace(/\]$/, '');
-                Base.setPropValue(obj[tab][index], key, val);
+                UsBetaSeries.setPropValue(obj[tab][index], key, val);
             }
             else {
-                Base.setPropValue(obj[path], key, val);
+                UsBetaSeries.setPropValue(obj[path], key, val);
             }
         }
         else if (/\[.*\]$/.test(key)) {
@@ -3750,588 +1911,53 @@ class Base {
         }
         return path;
     }
-    static relatedProps = {};
-    static selectorsCSS = {};
     /**
      * Etat du réseau
      * @type {NetworkState}
      */
-    static networkState = NetworkState.online;
+    static __networkState = NetworkState.online;
+    /**
+     * Contient l'identifiant du timer de vérification du réseau
+     * @type {number}
+     */
     static networkTimeout;
     /**
      * Stockage des appels à l'API lorsque le réseau est offline
-     * @type {Record<string, FakePromise>}
+     * @type {Object.<string, FakePromise>}
      */
     static __networkQueue = {};
+    /**
+     * Objet contenant les fonctions à exécuter lors des changements de d'état du réseau
+     * @type {NetworkStateEvents}
+     */
+    static networkStateEventsFn = {
+        offline: () => { },
+        online: () => { }
+    };
     /**
      * Modifie la variable de l'état du réseau
      * Et gère les promesses d'appels à l'API lorsque le réseau est online
      * @param {NetworkState} state - Etat du réseau
-     * @param {boolean} testNetwork - Flag demandant de vérifier l'état du réseau régulièrement
+     * @param {boolean} [testNetwork = false] - Flag demandant de vérifier l'état du réseau régulièrement
      */
     static changeNetworkState(state, testNetwork = false) {
-        this.networkState = state;
+        this.__networkState = state;
+        if (typeof UsBetaSeries.networkStateEventsFn[NetworkState[state]] === 'function') {
+            UsBetaSeries.networkStateEventsFn[NetworkState[state]]();
+        }
         if (state === NetworkState.online && Object.keys(this.__networkQueue).length > 0) {
             const keys = Reflect.ownKeys(this.__networkQueue);
             for (const key of keys) {
-                const promise = this.__networkQueue[key].launch();
-                promise.finally(() => delete this.__networkQueue[key]);
+                this.__networkQueue[key].launch();
+                // promise.finally(() => delete this.__networkQueue[key as string]);
             }
-            this.__networkQueue = {};
         }
         else if (state === NetworkState.offline) {
             this.__networkQueue = {};
             if (testNetwork) {
-                Base.networkTimeout = setTimeout(checkNetwork, 1000);
+                checkNetwork();
             }
         }
-    }
-    /*
-                    PROPERTIES
-    */
-    /** @type {string} */
-    description;
-    /** @type {number} */
-    nbComments;
-    /** @type {number} */
-    id;
-    /** @type {Note} */
-    objNote;
-    /** @type {string} */
-    resource_url;
-    /** @type {string} */
-    title;
-    /** @type {User} */
-    user;
-    /** @type {Array<Character>} */
-    characters;
-    /** @type {CommentsBS} */
-    comments;
-    /** @type {MediaTypes} */
-    mediaType;
-    /**
-     * @type {boolean} Flag d'initialisation de l'objet, nécessaire pour les methodes fill and compare
-     */
-    __initial;
-    /**
-     * @type {Record<string, Changes} Stocke les changements des propriétés de l'objet
-     */
-    __changes;
-    /**
-     * @type {Array<string>} Tableau des propriétés énumerables de l'objet
-     */
-    __props;
-    /**
-     * @type {JQuery<HTMLElement>} Element HTML de référence du média
-     */
-    __elt;
-    /**
-     * @type {object} Contient les écouteurs d'évènements de l'objet
-     */
-    __listeners;
-    /*
-                    METHODS
-    */
-    constructor(data) {
-        if (!(data instanceof Object)) {
-            throw new Error("data is not an object");
-        }
-        this.__initial = true;
-        this.__changes = {};
-        this.characters = [];
-        this.__elt = null;
-        this.__props = ['characters', 'comments', 'mediaType'];
-        this._initListeners();
-        return this;
-    }
-    /**
-     * Symbol.Iterator - Methode Iterator pour les boucles for..of
-     * @returns {object}
-     */
-    [Symbol.iterator]() {
-        const self = this;
-        return {
-            pos: 0,
-            props: self.__props,
-            next() {
-                if (this.pos < this.props.length) {
-                    const item = { value: this.props[this.pos], done: false };
-                    this.pos++;
-                    return item;
-                }
-                else {
-                    this.pos = 0;
-                    return { value: null, done: true };
-                }
-            }
-        };
-    }
-    /**
-     * Remplit l'objet avec les données fournit en paramètre
-     * @param  {Obj} data - Les données provenant de l'API
-     * @returns {Base}
-     * @virtual
-     */
-    fill(data) {
-        const self = this;
-        if (typeof data !== 'object') {
-            const err = new Error('Base.fill data is not an object: ' + typeof data);
-            console.error(err);
-            throw err;
-        }
-        for (const propKey in this.constructor.relatedProps) {
-            if (!Reflect.has(data, propKey))
-                continue;
-            const relatedProp = this.constructor.relatedProps[propKey];
-            const dataProp = data[propKey];
-            let descriptor;
-            if (this.__initial) {
-                descriptor = {
-                    configurable: true,
-                    enumerable: true,
-                    get: () => {
-                        return self['_' + relatedProp.key];
-                    },
-                    set: (newValue) => {
-                        if (self.__initial) {
-                            self['_' + relatedProp.key] = newValue;
-                            return;
-                        }
-                        const oldValue = self['_' + relatedProp.key];
-                        if (['string', 'number', 'boolean'].includes(relatedProp.type)) {
-                            if (oldValue === newValue)
-                                return;
-                        }
-                        else if (Array.isArray(oldValue) && oldValue.length === newValue.length) {
-                            let diff = false;
-                            for (let i = 0, _len = oldValue.length; i < _len; i++) {
-                                if (oldValue[i] !== newValue[i]) {
-                                    diff = true;
-                                    break;
-                                }
-                            }
-                            if (!diff)
-                                return;
-                        }
-                        else if (newValue instanceof Date) {
-                            if (oldValue instanceof Date && newValue.getTime() === oldValue.getTime()) {
-                                return;
-                            }
-                        }
-                        else if (typeof newValue === 'object') {
-                            // console.log('fill setter[%s]', relatedProp.key, {oldValue, newValue});
-                            let changed = false;
-                            try {
-                                const keysNew = Reflect.ownKeys(newValue)
-                                    .filter((key) => !key.startsWith('_'));
-                                for (let k = 0, _len = keysNew.length; k < _len; k++) {
-                                    if (oldValue[keysNew[k]] !== newValue[keysNew[k]]) {
-                                        changed = true;
-                                        break;
-                                    }
-                                }
-                                if (!changed)
-                                    return;
-                            }
-                            catch (err) {
-                                console.warn('Base fill error setter[%s.%s]', this.constructor.name, relatedProp.key, { oldValue, newValue });
-                            }
-                        }
-                        self['_' + relatedProp.key] = newValue;
-                        if (!self.__initial) {
-                            self.__changes[relatedProp.key] = { oldValue, newValue };
-                            self.updatePropRender(relatedProp.key);
-                        }
-                    }
-                };
-            }
-            let setValue = false, value = undefined;
-            switch (relatedProp.type) {
-                case 'string':
-                    value = String(dataProp);
-                    setValue = true;
-                    break;
-                case 'number':
-                    value = (!isNull(dataProp)) ? parseInt(dataProp, 10) : null;
-                    setValue = true;
-                    break;
-                case 'boolean':
-                case 'bool':
-                    value = !!dataProp;
-                    setValue = true;
-                    break;
-                case 'date':
-                    value = new Date(dataProp);
-                    setValue = true;
-                    break;
-                case 'object':
-                    value = Object.assign({}, dataProp);
-                    setValue = true;
-                    break;
-                case 'array': {
-                    value = dataProp;
-                    setValue = true;
-                    break;
-                }
-                default: {
-                    if (typeof relatedProp.type === 'function' && dataProp) {
-                        // if (Base.debug) console.log('fill type function', {type: relatedProp.type, dataProp});
-                        value = Reflect.construct(relatedProp.type, [dataProp]);
-                        if (typeof value === 'object' && Reflect.has(value, 'parent')) {
-                            value.parent = self;
-                        }
-                        setValue = true;
-                    }
-                    break;
-                }
-            }
-            if (!setValue && value == undefined && relatedProp.default) {
-                value = relatedProp.default;
-                setValue = true;
-            }
-            if (setValue) {
-                if (typeof relatedProp.transform === 'function') {
-                    const dataToTransform = (dataProp != undefined) ? dataProp : data;
-                    value = relatedProp.transform(this, dataToTransform);
-                }
-                // if (Base.debug) console.log('Base.fill descriptor[%s]', propKey, relatedProp, value);
-                if (this.__initial) {
-                    Object.defineProperty(this, relatedProp.key, descriptor);
-                    Reflect.set(this, relatedProp.key, value);
-                    this.__props.push(relatedProp.key);
-                }
-                else {
-                    this[relatedProp.key] = value;
-                }
-            }
-        }
-        if (this.__initial) {
-            this.__props.sort();
-            this.__initial = false;
-        }
-        return this.save();
-    }
-    /**
-     * Initialisation du rendu HTML
-     * @returns {void}
-     */
-    _initRender() {
-        if (!this.elt)
-            return;
-        this.objNote
-            .updateAttrTitle()
-            .updateStars();
-        this.decodeTitle();
-    }
-    /**
-     * Met à jour le rendu HTML des propriétés de l'objet
-     * si un sélecteur CSS exite pour la propriété (cf. Class.selectorCSS)
-     * Méthode appelée automatiquement par le setter de la propriété
-     * @see Show.selectorsCSS
-     * @param   {string} propKey - La propriété de l'objet à mettre à jour
-     * @returns {void}
-     */
-    updatePropRender(propKey) {
-        if (!this.elt)
-            return;
-        const fnPropKey = 'updatePropRender' + propKey.camelCase().upperFirst();
-        // if (Base.debug) console.log('updatePropRender', propKey, fnPropKey);
-        if (Reflect.has(this, fnPropKey)) {
-            // if (Base.debug) console.log('updatePropRender Reflect has method');
-            this[fnPropKey]();
-        }
-        else if (this.constructor.selectorsCSS &&
-            this.constructor.selectorsCSS[propKey]) {
-            // if (Base.debug) console.log('updatePropRender default');
-            const selectorCSS = this.constructor.selectorsCSS[propKey];
-            jQuery(selectorCSS).text(this[propKey].toString());
-            delete this.__changes[propKey];
-        }
-    }
-    /**
-     * Met à jour les informations de la note du média sur la page Web
-     */
-    updatePropRenderObjNote() {
-        if (Base.debug)
-            console.log('updatePropRenderObjNote');
-        this.objNote
-            .updateStars()
-            .updateAttrTitle();
-        this._callListeners(EventTypes.NOTE);
-        delete this.__changes.objNote;
-    }
-    /**
-     * Met à jour le titre du média sur la page Web
-     */
-    updatePropRenderTitle() {
-        const $title = jQuery(this.constructor.selectorsCSS.title);
-        if (/&#/.test(this.title)) {
-            $title.text($('<textarea />').html(this.title).text());
-        }
-        else {
-            $title.text(this.title);
-        }
-        delete this.__changes.title;
-    }
-    /**
-     * Indique si cet objet a été modifié
-     * @returns {boolean}
-     */
-    isModified() {
-        return Object.keys(this.__changes).length > 0;
-    }
-    /**
-     * Retourne les changements apportés à cet objet
-     * @returns {Record<string, Changes>}
-     */
-    getChanges() {
-        return this.__changes;
-    }
-    /**
-     * Indique si la propriété passée en paramètre a été modifiée
-     * @param   {string} key - La propriété ayant potentiellement été modifiée
-     * @returns {boolean}
-     */
-    hasChange(key) {
-        if (this.__props.includes(key)) {
-            throw new Error(`Property[${key}] not exists in this object(${this.constructor.name})`);
-        }
-        return Reflect.has(this.__changes, key);
-    }
-    /**
-     * Retourne l'objet Changes correspondant aux changements apportés à la propriété passée en paramètre
-     * @param   {string} key - La propriété ayant été modifiée
-     * @returns {Changes} L'objet Changes correspondant aux changement
-     */
-    getChange(key) {
-        if (this.__props.includes(key)) {
-            throw new Error(`Property[${key}] not exists in this object(${this.constructor.name})`);
-        }
-        return this.__changes[key];
-    }
-    /**
-     * Initialize le tableau des écouteurs d'évènements
-     * @returns {Base}
-     * @sealed
-     */
-    _initListeners() {
-        this.__listeners = {};
-        const EvtTypes = this.constructor.EventTypes;
-        for (let e = 0; e < EvtTypes.length; e++) {
-            this.__listeners[EvtTypes[e]] = [];
-        }
-        return this;
-    }
-    /**
-     * Permet d'ajouter un listener sur un type d'évenement
-     * @param  {EventTypes} name - Le type d'évenement
-     * @param  {Function}   fn   - La fonction à appeler
-     * @return {Base} L'instance du média
-     * @sealed
-     */
-    addListener(name, fn, ...args) {
-        //if (Base.debug) console.log('Base[%s] add Listener on event %s', this.constructor.name, name);
-        // On vérifie que le type d'event est pris en charge
-        if (this.constructor.EventTypes.indexOf(name) < 0) {
-            throw new Error(`${name} ne fait pas partit des events gérés par cette classe`);
-        }
-        if (this.__listeners[name] === undefined) {
-            this.__listeners[name] = [];
-        }
-        for (const func of this.__listeners[name]) {
-            if (typeof func === 'function' && func.toString() == fn.toString())
-                return;
-        }
-        if (args.length > 0) {
-            this.__listeners[name].push({ fn: fn, args: args });
-        }
-        else {
-            this.__listeners[name].push(fn);
-        }
-        if (Base.debug)
-            console.log('Base[%s] add Listener on event %s', this.constructor.name, name, this.__listeners[name]);
-        return this;
-    }
-    /**
-     * Permet d'ajouter un listener sur plusieurs types d'évenements
-     * @param  {EventTypes[]} names -   Le type d'évenement
-     * @param  {Function} fn -          La fonction à appeler
-     * @param  {any[]} [args] -         Paramètres optionnels
-     * @return {Base} L'instance du média
-     * @sealed
-     */
-    addListeners(names, fn, ...args) {
-        try {
-            for (const name of names) {
-                this.addListener(name, fn, args);
-            }
-        }
-        catch (err) {
-            console.warn('Base.addListeners error', err);
-        }
-        return this;
-    }
-    /**
-     * Permet de supprimer un listener sur un type d'évenement
-     * @param  {string}   name - Le type d'évenement
-     * @param  {Function} fn   - La fonction qui était appelée
-     * @return {Base} L'instance du média
-     * @sealed
-     */
-    removeListener(name, fn) {
-        if (this.__listeners[name] !== undefined) {
-            for (let l = 0; l < this.__listeners[name].length; l++) {
-                if ((typeof this.__listeners[name][l] === 'function' && this.__listeners[name][l].toString() === fn.toString()) ||
-                    this.__listeners[name][l].fn.toString() == fn.toString()) {
-                    this.__listeners[name].splice(l, 1);
-                }
-            }
-        }
-        return this;
-    }
-    /**
-     * Appel les listeners pour un type d'évenement
-     * @param  {EventTypes} name - Le type d'évenement
-     * @return {Base} L'instance du média
-     * @sealed
-     */
-    _callListeners(name) {
-        // if (Base.debug) console.log('Base[%s] call Listeners of event %s', this.constructor.name, name, this.__listeners);
-        if (this.constructor.EventTypes.indexOf(name) >= 0 && this.__listeners[name].length > 0) {
-            if (Base.debug)
-                console.log('Base[%s] call %d Listeners on event %s', this.constructor.name, this.__listeners[name].length, name, this.__listeners);
-            const event = new CustomEvent('betaseries', { detail: { name } });
-            for (let l = 0; l < this.__listeners[name].length; l++) {
-                if (typeof this.__listeners[name][l] === 'function') {
-                    this.__listeners[name][l].call(this, event, this);
-                }
-                else {
-                    const args = this.__listeners[name][l].args;
-                    this.__listeners[name][l].fn.apply(this, [event, this].concat(args));
-                }
-            }
-        }
-        return this;
-    }
-    /**
-     * Méthode d'initialisation de l'objet
-     * @returns {Promise<Base>}
-     */
-    init() {
-        if (this.elt) {
-            this.comments = new CommentsBS(this.nbComments, this);
-        }
-        return new Promise(resolve => resolve(this));
-    }
-    /**
-     * Sauvegarde l'objet en cache
-     * @return {Base} L'instance du média
-     */
-    save() {
-        if (Base.cache instanceof CacheUS) {
-            Base.cache.set(this.mediaType.plural, this.id, this);
-            this._callListeners(EventTypes.SAVE);
-        }
-        return this;
-    }
-    /**
-     * Retourne le DOMElement de référence du média
-     * @returns {JQuery<HTMLElement>} Le DOMElement jQuery
-     */
-    get elt() {
-        return this.__elt;
-    }
-    /**
-     * Définit le DOMElement de référence du média\
-     * Nécessaire **uniquement** pour le média principal de la page Web\
-     * Il sert à mettre à jour les données du média sur la page Web
-     * @param  {JQuery<HTMLElement>} elt - DOMElement auquel est rattaché le média
-     */
-    set elt(elt) {
-        this.__elt = elt;
-    }
-    /**
-     * Retourne le nombre d'acteurs référencés dans ce média
-     * @returns {number}
-     */
-    get nbCharacters() {
-        return this.characters.length;
-    }
-    /**
-     * Décode le titre de la page
-     * @return {Base} L'instance du média
-     */
-    decodeTitle() {
-        if (!this.elt)
-            return this;
-        let $elt = jQuery('.blockInformations__title', this.elt);
-        if (this.constructor.selectorsCSS.title) {
-            $elt = jQuery(this.constructor.selectorsCSS.title);
-        }
-        const title = $elt.text();
-        if (/&#/.test(title)) {
-            $elt.text($('<textarea />').html(title).text());
-        }
-        return this;
-    }
-    /**
-     * Ajoute le nombre de votes, à la note, dans l'attribut title de la balise
-     * contenant la représentation de la note du média
-     *
-     * @param  {boolean} [change=true] - Indique si on doit changer l'attribut title du HTMLElement
-     * @return {string} Le titre modifié de la note
-     */
-    changeTitleNote(change = true) {
-        const $elt = jQuery('.js-render-stars', this.elt);
-        if (this.objNote.mean <= 0 || this.objNote.total <= 0) {
-            if (change)
-                $elt.attr('title', 'Aucun vote');
-            return;
-        }
-        const title = this.objNote.toString();
-        if (change) {
-            $elt.attr('title', title);
-        }
-        return title;
-    }
-    /**
-     * Ajoute le vote du membre connecté pour le média
-     * @param   {number} note - Note du membre connecté pour le média
-     * @returns {Promise<boolean>}
-     */
-    addVote(note) {
-        const self = this;
-        // return new Promise((resolve, reject) => {
-        return Base.callApi(HTTP_VERBS.POST, this.mediaType.plural, 'note', { id: this.id, note: note })
-            .then((data) => {
-            self.fill(data[this.mediaType.singular]);
-            return this.objNote.user == note;
-        })
-            .catch(err => {
-            Base.notification('Erreur de vote', 'Une erreur s\'est produite lors de l\'envoi de la note: ' + err);
-            return false;
-        });
-        // });
-    }
-    /**
-     * *fetchCharacters* - Récupère les acteurs du média
-     * @abstract
-     * @returns {Promise<this>}
-     */
-    fetchCharacters() {
-        throw new Error('Method abstract');
-    }
-    /**
-     * *getCharacter* - Retourne un personnage à partir de son identifiant
-     * @param   {number} id - Identifiant du personnage
-     * @returns {Character | null}
-     */
-    getCharacter(id) {
-        for (const actor of this.characters) {
-            if (actor.id === id)
-                return actor;
-        }
-        return null;
     }
 }
 /*
@@ -4502,8 +2128,3528 @@ String.prototype.camelCase = function () {
     return camelCase(this);
 };
 
-/* eslint-disable @typescript-eslint/no-explicit-any */
-class Media extends Base {
+/**
+ * RenderHtml - Classe abstraite des éléments ayant un rendu HTML sur la page Web
+ * @class
+ * @abstract
+ * @extends Base
+ * @implements {implRenderHtml}
+ * @implements {implFillDecorator}
+ */
+class RenderHtml extends Base {
+    static logger = new UsBetaSeries.setDebug('RenderHtml');
+    static debug = RenderHtml.logger.debug.bind(RenderHtml.logger);
+    static relatedProps = {};
+    static selectorsCSS = {};
+    /**
+     * Decorators de la classe
+     * @type {Object.<string, AbstractDecorator>}
+     */
+    __decorators = {
+        fill: new FillDecorator(this)
+    };
+    /**
+     * Element HTML de référence du média
+     * @type {JQuery<HTMLElement>}
+     */
+    __elt;
+    /**
+     * Flag d'initialisation de l'objet, nécessaire pour les methodes fill and compare
+     * @type {boolean}
+     */
+    __initial = true;
+    /**
+     * Stocke les changements des propriétés de l'objet
+     * @type {Object.<string, Changes>}
+     */
+    __changes = {};
+    /**
+     * Tableau des propriétés énumerables de l'objet
+     * @type {Array<string>}
+     */
+    __props = [];
+    /*
+                    METHODS
+    */
+    constructor(data, elt) {
+        super(data);
+        if (elt)
+            this.__elt = elt;
+        this.__initial = true;
+        this.__changes = {};
+        this.__props = [];
+        return this;
+    }
+    /**
+     * Symbol.Iterator - Methode Iterator pour les boucles for..of
+     * @returns {object}
+     */
+    [Symbol.iterator]() {
+        const self = this;
+        return {
+            pos: 0,
+            props: self.__props,
+            next() {
+                if (this.pos < this.props.length) {
+                    const item = { value: this.props[this.pos], done: false };
+                    this.pos++;
+                    return item;
+                }
+                else {
+                    this.pos = 0;
+                    return { value: null, done: true };
+                }
+            }
+        };
+    }
+    /**
+     * Remplit l'objet avec les données fournit en paramètre
+     * @param   {Obj} data - Les données provenant de l'API
+     * @returns {RenderHtml}
+     */
+    fill(data) {
+        try {
+            return this.__decorators.fill.fill.call(this, data);
+        }
+        catch (err) {
+            console.error(err);
+        }
+    }
+    /**
+     * Met à jour le rendu HTML des propriétés de l'objet,
+     * si un sélecteur CSS exite pour la propriété fournit en paramètre\
+     * **Méthode appelée automatiquement par le setter de la propriété**
+     * @see Show.selectorsCSS
+     * @param   {string} propKey - La propriété de l'objet à mettre à jour
+     * @returns {void}
+     */
+    updatePropRender(propKey) {
+        try {
+            this.__decorators.fill.updatePropRender.call(this, propKey);
+        }
+        catch (err) {
+            console.error(err);
+        }
+    }
+    /**
+     * Retourne l'objet sous forme d'objet simple, sans référence circulaire,
+     * pour la méthode JSON.stringify
+     * @returns {object}
+     */
+    toJSON() {
+        const obj = {};
+        for (const key of this.__props) {
+            obj[key] = this[key];
+        }
+        return obj;
+    }
+    /**
+     * Indique si cet objet a été modifié
+     * @returns {boolean}
+     */
+    isModified() {
+        return Object.keys(this.__changes).length > 0;
+    }
+    /**
+     * Retourne les changements apportés à cet objet
+     * @returns {Record<string, Changes>}
+     */
+    getChanges() {
+        return this.__changes;
+    }
+    /**
+     * Indique si la propriété passée en paramètre a été modifiée
+     * @param   {string} propKey - La propriété ayant potentiellement été modifiée
+     * @returns {boolean}
+     */
+    hasChange(propKey) {
+        if (!this.__props.includes(propKey)) {
+            throw new Error(`Property[${propKey}] not exists in this object(${this.constructor.name})`);
+        }
+        return Reflect.has(this.__changes, propKey);
+    }
+    /**
+     * Retourne l'objet Changes correspondant aux changements apportés à la propriété passée en paramètre
+     * @param   {string} propKey - La propriété ayant été modifiée
+     * @returns {Changes} L'objet Changes correspondant aux changement
+     */
+    getChange(propKey) {
+        if (!this.__props.includes(propKey)) {
+            throw new Error(`Property[${propKey}] not exists in this object(${this.constructor.name})`);
+        }
+        return this.__changes[propKey];
+    }
+    /**
+     * Retourne le DOMElement de référence du média
+     * @returns {JQuery<HTMLElement>} Le DOMElement jQuery
+     */
+    get elt() {
+        return this.__elt;
+    }
+    /**
+     * Définit le DOMElement de référence du média\
+     * Nécessaire **uniquement** pour le média principal de la page Web\
+     * Il sert à mettre à jour les données du média sur la page Web
+     * @param  {JQuery<HTMLElement>} elt - DOMElement auquel est rattaché le média
+     */
+    set elt(elt) {
+        this.__elt = elt;
+    }
+}
+
+class Character {
+    static logger = new UsBetaSeries.setDebug('Character');
+    static debug = Character.logger.debug.bind(Character.logger);
+    static relatedProps = {
+        "actor": { key: "actor", type: 'string' },
+        // "description": {key: "description", type: 'string'},
+        // "guest": {key: "guest", type: 'boolean', default: false},
+        // "id": {key: "id", type: 'number'},
+        "name": { key: "name", type: 'string' },
+        "picture": { key: "picture", type: 'string' },
+        // "role": {key: "role", type: 'string'},
+        "show_id": { key: "show_id", type: 'number' },
+        "movie_id": { key: "movie_id", type: 'number' },
+        "person_id": { key: "person_id", type: 'number' }
+    };
+    /**
+     * Nom de l'acteur/actrice
+     * @type {string}
+     */
+    actor;
+    /**
+     * Nom du personnage
+     * @type {string}
+     */
+    name;
+    /**
+     * URL de l'image du personnage
+     * @type {string}
+     */
+    picture;
+    /**
+     * Identifiant de la série
+     * @type {number}
+     */
+    show_id;
+    /**
+     * Identifiant du film
+     * @type {number}
+     */
+    movie_id;
+    /**
+     * Identifiant de l'objet Person correspondant à l'acteur
+     * @type {number}
+     */
+    person_id;
+    __decorators = {
+        fill: new FillDecorator(this)
+    };
+    __elt;
+    __initial = true;
+    __changes = {};
+    __props = [];
+    person;
+    constructor(data) {
+        return this.fill(data)._initRender();
+    }
+    _initRender() {
+        if (!this.elt) {
+            const self = this;
+            const $actors = jQuery('#actors .slides_flex .slide_flex');
+            $actors.each((_, elt) => {
+                let title = jQuery('.slide__title', elt).text().trim();
+                if (/&nbsp;/g.test(title)) {
+                    title = title.replace(/&nbsp;/g, '');
+                }
+                if (title == this.actor) {
+                    Character.debug('Character._initRender: actor found', { actor: this.actor, title });
+                    self.elt = jQuery(elt);
+                    self.elt.attr('data-person-id', this.person_id);
+                    return false;
+                }
+            });
+        }
+        return this;
+    }
+    get elt() {
+        return this.__elt;
+    }
+    set elt(elt) {
+        this.__elt = elt;
+    }
+    /**
+     * Remplit l'objet avec les données fournit en paramètre
+     * @param   {Obj} data - Les données provenant de l'API
+     * @returns {Character}
+     */
+    fill(data) {
+        try {
+            return this.__decorators.fill.fill.call(this, data);
+        }
+        catch (err) {
+            console.error(err);
+        }
+    }
+    /**
+     * Met à jour le rendu HTML des propriétés de l'objet,
+     * si un sélecteur CSS exite pour la propriété fournit en paramètre\
+     * **Méthode appelée automatiquement par le setter de la propriété**
+     * @see Show.selectorsCSS
+     * @param   {string} propKey - La propriété de l'objet à mettre à jour
+     * @returns {void}
+     */
+    updatePropRender(propKey) {
+        try {
+            this.__decorators.fill.updatePropRender.call(this, propKey);
+        }
+        catch (err) {
+            console.error(err);
+        }
+    }
+    /**
+     * Retourne l'objet sous forme d'objet simple, sans référence circulaire,
+     * pour la méthode JSON.stringify
+     * @returns {object}
+     */
+    toJSON() {
+        const obj = {};
+        for (const key of this.__props) {
+            obj[key] = this[key];
+        }
+        return obj;
+    }
+    fetchPerson() {
+        return Person.fetch(this.person_id)
+            .then((person) => {
+            if (person instanceof Person) {
+                this.person = person;
+            }
+            return this.person;
+        }).catch(err => {
+            console.error('Character.fetchPerson error: ', err);
+            return null;
+        });
+    }
+}
+class PersonMedia {
+    static relatedProps = {
+        "id": { key: "id", type: 'number' },
+        "thetvdb_id": { key: "thetvdb_id", type: 'number' },
+        "imdb_id": { key: "imdb_id", type: 'string' },
+        "themoviedb_id": { key: "tmdb_id", type: 'number' },
+        "tmdb_id": { key: "tmdb_id", type: 'number' },
+        "title": { key: "title", type: 'string' },
+        "seasons": { key: "seasons", type: 'number' },
+        "episodes": { key: "episodes", type: 'number' },
+        "followers": { key: "followers", type: 'number' },
+        "creation": { key: "creation", type: 'number' },
+        "production_year": { key: "creation", type: 'number' },
+        "slug": { key: "slug", type: 'string' },
+        "url": { key: "slug", type: 'string' },
+        "poster": { key: "poster", type: 'string' },
+    };
+    id;
+    thetvdb_id;
+    imdb_id;
+    tmdb_id;
+    title;
+    seasons;
+    episodes;
+    followers;
+    creation;
+    slug;
+    poster;
+    __initial;
+    __changes;
+    __props;
+    elt;
+    __decorators = {
+        "fill": new FillDecorator(this)
+    };
+    constructor(data) {
+        this.fill(data);
+    }
+    /**
+     * Remplit l'objet avec les données fournit en paramètre
+     * @param   {Obj} data - Les données provenant de l'API
+     * @returns {Person}
+     */
+    fill(data) {
+        try {
+            return this.__decorators.fill.fill.call(this, data);
+        }
+        catch (err) {
+            console.error(err);
+        }
+    }
+    /**
+     * Met à jour le rendu HTML des propriétés de l'objet,
+     * si un sélecteur CSS exite pour la propriété fournit en paramètre\
+     * **Méthode appelée automatiquement par le setter de la propriété**
+     * @see Show.selectorsCSS
+     * @param   {string} propKey - La propriété de l'objet à mettre à jour
+     * @returns {void}
+     */
+    updatePropRender(propKey) {
+        try {
+            this.__decorators.fill.updatePropRender.call(this, propKey);
+        }
+        catch (err) {
+            console.error(err);
+        }
+    }
+    /**
+     * Retourne l'objet sous forme d'objet simple, sans référence circulaire,
+     * pour la méthode JSON.stringify
+     * @returns {object}
+     */
+    toJSON() {
+        const obj = {};
+        for (const key of this.__props) {
+            obj[key] = this[key];
+        }
+        return obj;
+    }
+}
+class PersonMedias {
+    media;
+    role;
+    type;
+    constructor(data, type) {
+        if (type === MediaType.show) {
+            this.media = new PersonMedia(data.show);
+        }
+        else if (type === MediaType.movie) {
+            this.media = new PersonMedia(data.movie);
+        }
+        this.role = data.name;
+        this.type = type;
+    }
+    /**
+     * Retourne le lien absolu du média
+     * @returns {string}
+     */
+    createLink() {
+        return UsBetaSeries.generateRoute(this.type, this.media);
+    }
+    /**
+     * Retourne la représentation du média et de l'acteur
+     * @returns {string}
+     */
+    getTemplate() {
+        return `<div class="card" style="width: 18rem;">
+            <img data-src="${this.media.poster}" alt="Affiche" class="js-lazy-image img-thumbnail card-img-top"/>
+            <div class="card-body">
+                <h5 class="card-title">(${this.media.creation}) ${this.media.title}</h5>
+                <p class="card-text"><u>Personnage:</u> ${this.role}</p>
+                <a href="${this.createLink()}" target="_blank" class="btn btn-primary">Voir la fiche ${this.type === MediaType.show ? 'de la série' : 'du film'}</a>
+            </div>
+        </div>`;
+    }
+}
+class Person {
+    static logger = new UsBetaSeries.setDebug('Person');
+    static debug = Character.logger.debug.bind(Character.logger);
+    static relatedProps = {
+        "id": { key: "id", type: 'number' },
+        "name": { key: "name", type: 'string' },
+        "birthday": { key: "birthday", type: 'date' },
+        "deathday": { key: "deathday", type: 'date' },
+        "description": { key: "description", type: 'string' },
+        "shows": { key: "shows", type: 'other', default: [], transform(obj, data) {
+                if (Array.isArray(obj.shows) && obj.shows.length === data.length) {
+                    return obj.shows;
+                }
+                const shows = [];
+                for (let s = 0, _len = data.length; s < _len; s++) {
+                    shows.push(new PersonMedias(data[s], MediaType.show));
+                }
+                return shows;
+            } },
+        "movies": { key: "movies", type: 'other', default: [], transform(obj, data) {
+                if (Array.isArray(obj.movies) && obj.movies.length === data.length) {
+                    return obj.movies;
+                }
+                const movies = [];
+                for (let s = 0, _len = data.length; s < _len; s++) {
+                    movies.push(new PersonMedias(data[s], MediaType.movie));
+                }
+                return movies;
+            } },
+        "last": { key: "last", type: PersonMedias, transform(obj, data) {
+                if (data instanceof PersonMedias)
+                    return data;
+                if (data && data.show) {
+                    return new PersonMedias(data, MediaType.show);
+                }
+                else if (data && data.movie) {
+                    return new PersonMedias(data, MediaType.movie);
+                }
+                return null;
+            } }
+    };
+    static selectorsCSS = {
+        "name": ".slide__title"
+    };
+    /**
+     * Récupère les données d'un acteur à partir de son identifiant et retourne un objet Person
+     * @param   {number} personId - L'identifiant de l'acteur / actrice
+     * @returns {Promise<Person | null>}
+     */
+    static fetch(personId) {
+        return UsBetaSeries.callApi(HTTP_VERBS.GET, 'persons', 'person', { id: personId })
+            .then(data => { return data ? new Person(data.person) : null; });
+    }
+    /**
+     * Identifiant de l'acteur / actrice
+     * @type {number}
+     */
+    id;
+    /**
+     * Nom de l'acteur
+     * @type {string}
+     */
+    name;
+    /**
+     * Date de naissance
+     * @type {Date}
+     */
+    birthday;
+    /**
+     * Date de décès
+     * @type {Date}
+     */
+    deathday;
+    /**
+     * Description
+     * @type {string}
+     */
+    description;
+    /**
+     * Dernier média enregistré sur BetaSeries
+     * @type {PersonMedias}
+     */
+    last;
+    /**
+     * Tableau des séries dans lesquelles à joué l'acteur
+     * @type {Array<PersonMedias>}
+     */
+    shows;
+    /**
+     * Tableau des films dans lesquels a joué l'acteur
+     * @type {Array<PersonMedias>}
+     */
+    movies;
+    __initial = true;
+    __changes = {};
+    __props = [];
+    __decorators = {
+        "fill": new FillDecorator(this)
+    };
+    __elt;
+    constructor(data) {
+        return this.fill(data)._initRender();
+    }
+    _initRender() {
+        if (!this.elt)
+            return this;
+    }
+    get elt() {
+        return this.__elt;
+    }
+    set elt(elt) {
+        this.__elt = elt;
+    }
+    /**
+     * Remplit l'objet avec les données fournit en paramètre
+     * @param   {Obj} data - Les données provenant de l'API
+     * @returns {Person}
+     */
+    fill(data) {
+        try {
+            return this.__decorators.fill.fill.call(this, data);
+        }
+        catch (err) {
+            console.error(err);
+        }
+    }
+    /**
+     * Met à jour le rendu HTML des propriétés de l'objet,
+     * si un sélecteur CSS exite pour la propriété fournit en paramètre\
+     * **Méthode appelée automatiquement par le setter de la propriété**
+     * @see Show.selectorsCSS
+     * @param   {string} propKey - La propriété de l'objet à mettre à jour
+     * @returns {void}
+     */
+    updatePropRender(propKey) {
+        try {
+            this.__decorators.fill.updatePropRender.call(this, propKey);
+        }
+        catch (err) {
+            console.error(err);
+        }
+    }
+    /**
+     * Retourne l'objet sous forme d'objet simple, sans référence circulaire,
+     * pour la méthode JSON.stringify
+     * @returns {object}
+     */
+    toJSON() {
+        const obj = {};
+        for (const key of this.__props) {
+            obj[key] = this[key];
+        }
+        return obj;
+    }
+}
+
+var OrderComments;
+(function (OrderComments) {
+    OrderComments["DESC"] = "desc";
+    OrderComments["ASC"] = "asc";
+})(OrderComments = OrderComments || (OrderComments = {}));
+var MediaStatusComments;
+(function (MediaStatusComments) {
+    MediaStatusComments["OPEN"] = "open";
+    MediaStatusComments["CLOSED"] = "close";
+})(MediaStatusComments = MediaStatusComments || (MediaStatusComments = {}));
+class CommentsBS extends Base {
+    /*************************************************/
+    /*                  STATIC                       */
+    /*************************************************/
+    static logger = new UsBetaSeries.setDebug('Comments');
+    static debug = CommentsBS.logger.debug.bind(CommentsBS.logger);
+    /**
+     * Types d'évenements gérés par cette classe
+     * @type {Array}
+     */
+    static EventTypes = [
+        EventTypes.UPDATE,
+        EventTypes.SAVE,
+        EventTypes.ADD,
+        EventTypes.ADDED,
+        EventTypes.DELETE,
+        EventTypes.SHOW
+    ];
+    /**
+     * Envoie une réponse de ce commentaire à l'API
+     * @param   {Base} media - Le média correspondant à la collection
+     * @param   {string} text - Le texte de la réponse
+     * @returns {Promise<void | CommentBS>}
+     */
+    static sendComment(media, text) {
+        const params = {
+            type: media.mediaType.singular,
+            id: media.id,
+            text: text
+        };
+        return UsBetaSeries.callApi(HTTP_VERBS.POST, 'comments', 'comment', params)
+            .then((data) => {
+            const comment = new CommentBS(data.comment, media.comments);
+            media.comments.addComment(comment);
+            media.comments.is_subscribed = true;
+            return comment;
+        })
+            .catch(err => {
+            UsBetaSeries.notification('Commentaire', "Erreur durant l'ajout d'un commentaire");
+            console.error(err);
+        });
+    }
+    /*************************************************/
+    /*                  PROPERTIES                   */
+    /*************************************************/
+    /**
+     * Tableau des commentaires
+     * @type {CommentBS[]}
+     */
+    comments;
+    /**
+     * Nombre total de commentaires du média
+     * @type {number}
+     */
+    nbComments;
+    /**
+     * Indique si le membre à souscrit aux alertes commentaires du média
+     * @type {boolean}
+     */
+    is_subscribed;
+    /**
+     * Indique si les commentaires sont ouverts ou fermés
+     * @type {string}
+     */
+    status;
+    /**
+     * Le média auquel sont associés les commentaires
+     * @type {Base}
+     * @private
+     */
+    _parent;
+    /**
+     * Tableau des events déclarés par la fonction loadEvents
+     * @type {Array<CustomEvent>}
+     * @private
+     */
+    _events;
+    /**
+     * Ordre de tri des commentaires et des réponses
+     * @type {OrderComments}
+     */
+    _order;
+    /**
+     * Indique si la collection est affiché ou non
+     * @type {boolean}
+     */
+    _display = false;
+    /*************************************************/
+    /*                  METHODS                      */
+    /*************************************************/
+    constructor(nbComments, media) {
+        super({});
+        this.comments = [];
+        this._parent = media;
+        this.is_subscribed = false;
+        this.status = MediaStatusComments.OPEN;
+        this.nbComments = nbComments;
+        this._order = OrderComments.DESC;
+        return this;
+    }
+    /**
+     * Initialise la collection de commentaires
+     */
+    init() {
+        const self = this;
+        const addCommentId = function () {
+            const $vignettes = jQuery('#comments .slides_flex .slide_flex .slide__comment');
+            let vignette;
+            for (let v = 0; v < $vignettes.length; v++) {
+                vignette = jQuery($vignettes.get(v));
+                vignette.attr('data-comment-id', self.comments[v].id);
+            }
+        };
+        if (this.comments.length <= 0 && this.nbComments > 0) {
+            const $vignettes = jQuery('#comments .slides_flex .slide_flex');
+            this.fetchComments($vignettes.length)
+                .then(addCommentId);
+        }
+        else {
+            addCommentId();
+        }
+    }
+    /**
+     * Retourne l'objet sous forme d'objet simple, sans référence circulaire,
+     * pour la méthode JSON.stringify
+     * @returns {object}
+     */
+    toJSON() {
+        const obj = {};
+        const keys = Reflect.ownKeys(this)
+            .filter((key) => !key.startsWith('_'));
+        for (const key of keys) {
+            obj[key] = this[key];
+        }
+        return obj;
+    }
+    get parent() {
+        return this._parent;
+    }
+    set parent(media) {
+        if (!(media instanceof MediaBase)) {
+            throw new TypeError('Parameter "media" in setter parent must be an instance of MediaBase');
+        }
+        this._parent = media;
+    }
+    /**
+     * Retourne la taille de la collection
+     * @readonly
+     */
+    get length() {
+        return this.comments.length;
+    }
+    /**
+     * Retourne le média auxquels sont associés les commentaires
+     * @readonly
+     */
+    get media() {
+        return this._parent;
+    }
+    /**
+     * Retourne l'ordre de tri des commentaires
+     * @returns {OrderComments}
+     */
+    get order() {
+        return this._order;
+    }
+    /**
+     * Définit l'ordre de tri des commentaires
+     * @param {OrderComments} o - Ordre de tri
+     */
+    set order(o) {
+        this._order = o;
+    }
+    /**
+     * Récupère les commentaires du média sur l'API
+     * @param   {number} [nbpp=50] - Le nombre de commentaires à récupérer
+     * @param   {number} [since=0] - L'identifiant du dernier commentaire reçu
+     * @param   {OrderComments} [order='desc'] - Ordre de tri des commentaires
+     * @returns {Promise<CommentsBS>}
+     */
+    fetchComments(nbpp = 50, since = 0, order = OrderComments.DESC) {
+        if (order !== this._order) {
+            this.order = order;
+        }
+        const self = this;
+        return new Promise((resolve, reject) => {
+            const params = {
+                type: self._parent.mediaType.singular,
+                id: self._parent.id,
+                nbpp: nbpp,
+                replies: 0,
+                order: self.order
+            };
+            if (since > 0) {
+                params.since_id = since;
+            }
+            UsBetaSeries.callApi(HTTP_VERBS.GET, 'comments', 'comments', params)
+                .then((data) => {
+                if (data.comments !== undefined) {
+                    if (since <= 0) {
+                        self.comments = [];
+                    }
+                    for (let c = 0; c < data.comments.length; c++) {
+                        self.comments.push(new CommentBS(data.comments[c], self));
+                        // self.addComment(data.comments[c]);
+                    }
+                }
+                self.nbComments = parseInt(data.total, 10);
+                self.is_subscribed = !!data.is_subscribed;
+                self.status = data.status;
+                resolve(self);
+            })
+                .catch(err => {
+                console.warn('fetchComments', err);
+                UsBetaSeries.notification('Récupération des commentaires', "Une erreur est apparue durant la récupération des commentaires");
+                reject(err);
+            });
+        });
+    }
+    /**
+     * Ajoute un commentaire à la collection
+     * /!\ (Ne l'ajoute pas sur l'API) /!\
+     * @param   {Obj} data - Les données du commentaire provenant de l'API
+     * @returns {CommentsBS}
+     */
+    addComment(data) {
+        const method = this.order == OrderComments.DESC ? Array.prototype.unshift : Array.prototype.push;
+        CommentsBS.debug('addComment order: %s - method: %s', this.order, method.name);
+        if (data instanceof CommentBS) {
+            method.call(this.comments, data);
+        }
+        else {
+            method.call(this.comments, new CommentBS(data, this));
+        }
+        this.nbComments++;
+        this.media.nbComments++;
+        this._callListeners(EventTypes.ADD);
+        return this;
+    }
+    /**
+     * Retire un commentaire de la collection
+     * /!\ (Ne le supprime pas sur l'API) /!\
+     * @param   {number} cmtId - L'identifiant du commentaire à retirer
+     * @returns {CommentsBS}
+     */
+    removeComment(cmtId) {
+        for (let c = 0; c < this.comments.length; c++) {
+            if (this.comments[c].id === cmtId) {
+                this.comments.splice(c, 1);
+                // retire le commentaire de la liste des commentaires
+                this.removeFromPage(cmtId);
+                this.nbComments--;
+                this.media.nbComments--;
+                this._callListeners('delete');
+                break;
+            }
+        }
+        return this;
+    }
+    /**
+     * Indique si il s'agit du premier commentaire
+     * @param cmtId - L'identifiant du commentaire
+     * @returns {boolean}
+     */
+    isFirst(cmtId) {
+        return this.comments[0].id === cmtId;
+    }
+    /**
+     * Indique si il s'agit du dernier commentaire
+     * @param cmtId - L'identifiant du commentaire
+     * @returns {boolean}
+     */
+    isLast(cmtId) {
+        return this.comments[this.comments.length - 1].id === cmtId;
+    }
+    /**
+     * Indique si on peut écrire des commentaires sur ce média
+     * @returns {boolean}
+     */
+    isOpen() {
+        return this.status === MediaStatusComments.OPEN;
+    }
+    /**
+     * Retourne le commentaire correspondant à l'ID fournit en paramètre
+     * @param   {number} cId - L'identifiant du commentaire
+     * @returns {CommentBS|void}
+     */
+    getComment(cId) {
+        for (let c = 0; c < this.comments.length; c++) {
+            if (this.comments[c].id === cId) {
+                return this.comments[c];
+            }
+        }
+        return null;
+    }
+    /**
+     * Retourne le commentaire précédent celui fournit en paramètre
+     * @param   {number} cId - L'identifiant du commentaire
+     * @returns {CommentBS|null}
+     */
+    getPrevComment(cId) {
+        for (let c = 0; c < this.comments.length; c++) {
+            if (this.comments[c].id === cId && c > 0) {
+                return this.comments[c - 1];
+            }
+        }
+        return null;
+    }
+    /**
+     * Retourne le commentaire suivant celui fournit en paramètre
+     * @param   {number} cId - L'identifiant du commentaire
+     * @returns {CommentBS|null}
+     */
+    getNextComment(cId) {
+        const len = this.comments.length;
+        for (let c = 0; c < this.comments.length; c++) {
+            // TODO: Vérifier que tous les commentaires ont été récupérer
+            if (this.comments[c].id === cId && c < len - 1) {
+                return this.comments[c + 1];
+            }
+        }
+        return null;
+    }
+    /**
+     * Retourne les réponses d'un commentaire
+     * @param   {number} commentId - Identifiant du commentaire original
+     * @param   {OrderComments} [order='desc'] - Ordre de tri des réponses
+     * @returns {Promise<Array<CommentBS>>} Tableau des réponses
+     */
+    async fetchReplies(commentId, order = OrderComments.ASC) {
+        const data = await UsBetaSeries.callApi(HTTP_VERBS.GET, 'comments', 'replies', { id: commentId, order });
+        const replies = [];
+        if (data.comments) {
+            for (let c = 0; c < data.comments.length; c++) {
+                replies.push(new CommentBS(data.comments[c], this));
+            }
+        }
+        return replies;
+    }
+    /**
+     * Modifie le nombre de votes et le vote du membre pour un commentaire
+     * @param   {number} commentId - Identifiant du commentaire
+     * @param   {number} thumbs - Nombre de votes
+     * @param   {number} thumbed - Le vote du membre connecté
+     * @returns {boolean}
+     */
+    changeThumbs(commentId, thumbs, thumbed) {
+        for (let c = 0; c < this.comments.length; c++) {
+            if (this.comments[c].id === commentId) {
+                this.comments[c].thumbs = thumbs;
+                this.comments[c].thumbed = thumbed;
+                return true;
+            }
+        }
+        return false;
+    }
+    /**
+     * Retourne la template pour l'affichage de l'ensemble des commentaires
+     * @param   {number} nbpp - Le nombre de commentaires à récupérer
+     * @returns {Promise<string>} La template
+     */
+    async getTemplate(nbpp) {
+        const self = this;
+        return new Promise((resolve, reject) => {
+            let promise = Promise.resolve(self);
+            CommentsBS.debug('Base ', { length: self.comments.length, nbComments: self.nbComments });
+            if (self.comments.length <= 0 && self.nbComments > 0) {
+                CommentsBS.debug('Base fetchComments call');
+                promise = self.fetchComments(nbpp);
+            }
+            promise.then(async () => {
+                let comment, template = `
+                        <div data-media-type="${self._parent.mediaType.singular}"
+                            data-media-id="${self._parent.id}"
+                            class="displayFlex flexDirectionColumn"
+                            style="margin-top: 2px; min-height: 0">`;
+                if (UsBetaSeries.userIdentified()) {
+                    template += `
+                    <button type="button" class="btn-reset btnSubscribe" style="position: absolute; top: 3px; right: 31px; padding: 8px;">
+                        <span class="svgContainer">
+                            <svg></svg>
+                        </span>
+                    </button>`;
+                }
+                template += '<div class="comments overflowYScroll">';
+                for (let c = 0; c < self.comments.length; c++) {
+                    comment = self.comments[c];
+                    template += CommentBS.getTemplateComment(comment);
+                    // Si le commentaires à des réponses et qu'elles ne sont pas chargées
+                    if (comment.nbReplies > 0 && comment.replies.length <= 0) {
+                        // On récupère les réponses
+                        CommentsBS.debug('Comments render getTemplate fetchReplies');
+                        await comment.fetchReplies();
+                        // On ajoute un boutton pour afficher/masquer les réponses
+                    }
+                    for (let r = 0; r < comment.replies.length; r++) {
+                        template += CommentBS.getTemplateComment(comment.replies[r]);
+                    }
+                }
+                // On ajoute le bouton pour voir plus de commentaires
+                if (self.comments.length < self.nbComments) {
+                    template += `
+                        <button type="button" class="btn-reset btn-greyBorder moreComments" style="margin-top: 10px; width: 100%;">
+                            ${UsBetaSeries.trans("timeline.comments.display_more")}
+                            <i class="fa-solid fa-cog fa-spin fa-2x" style="display:none;margin-left:15px;vertical-align:middle;"></i>
+                            <span class="sr-only">Loading...</span>
+                        </button>`;
+                }
+                template += '</div>'; // Close div.comments
+                if (self.isOpen() && UsBetaSeries.userIdentified()) {
+                    template += CommentBS.getTemplateWriting();
+                }
+                resolve(template + '</div>');
+            })
+                .catch(err => {
+                reject(err);
+            });
+        });
+    }
+    /**
+     * Retourne un tableau contenant les logins des commentaires
+     * @returns {Array<string>}
+     */
+    getLogins() {
+        const users = [];
+        for (let c = 0; c < this.comments.length; c++) {
+            if (!users.includes(this.comments[c].login)) {
+                users.push(this.comments[c].login);
+            }
+        }
+        return users;
+    }
+    /**
+     * Met à jour le nombre de commentaires sur la page
+     */
+    updateCounter() {
+        const $counter = jQuery('#comments .blockTitle');
+        $counter.text($counter.text().replace(/\d+/, this.nbComments.toString()));
+    }
+    /**
+     * Ajoute les évènements sur les commentaires lors du rendu
+     * @param   {JQuery<HTMLElement>} $container - Le conteneur des éléments d'affichage
+     * @param   {number} nbpp - Le nombre de commentaires à récupérer sur l'API
+     * @param   {Obj} funcPopup - Objet des fonctions d'affichage/ de masquage de la popup
+     * @returns {void}
+     */
+    loadEvents($container, nbpp, funcPopup) {
+        // Tableau servant à contenir les events créer pour pouvoir les supprimer plus tard
+        this._events = [];
+        const self = this;
+        const $popup = jQuery('#popin-dialog');
+        const $btnClose = jQuery("#popin-showClose");
+        /**
+         * Retourne l'objet CommentBS associé au DOMElement fournit en paramètre
+         * @param   {JQuery<HTMLElement>} $comment - Le DOMElement contenant le commentaire
+         * @returns {Promise<CommentBS>}
+         */
+        const getObjComment = async function ($comment) {
+            const commentId = parseInt($comment.data('commentId'), 10);
+            let comment;
+            // Si il s'agit d'une réponse, il nous faut le commentaire parent
+            if ($comment.hasClass('reply')) {
+                let $parent = $comment.prev();
+                while ($parent.hasClass('reply')) {
+                    $parent = $parent.prev();
+                }
+                const parentId = parseInt($parent.data('commentId'), 10);
+                if (commentId == parentId) {
+                    comment = self.getComment(commentId);
+                }
+                else {
+                    const cmtParent = self.getComment(parentId);
+                    comment = await cmtParent.getReply(commentId);
+                }
+            }
+            else {
+                comment = self.getComment(commentId);
+            }
+            return comment;
+        };
+        // On ajoute les templates HTML du commentaire,
+        // des réponses et du formulaire de d'écriture
+        // On active le bouton de fermeture de la popup
+        $btnClose.on('click', () => {
+            funcPopup.hidePopup();
+            $popup.removeAttr('data-popin-type');
+        });
+        this._events.push({ elt: $btnClose, event: 'click' });
+        const $btnAllReplies = $container.find('.toggleAllReplies');
+        $btnAllReplies.on('click', (e) => {
+            const $btn = jQuery(e.currentTarget);
+            const stateReplies = $btn.attr('data-toggle'); // 0: Etat masqué, 1: Etat affiché
+            const $btnReplies = $container.find(`.toggleReplies[data-toggle="${stateReplies}"]`);
+            if (stateReplies == '1') {
+                $btnReplies.trigger('click');
+                $btn.attr('data-toggle', '0');
+                $btn.text('Afficher toutes les réponses');
+            }
+            else {
+                $btnReplies.trigger('click');
+                $btn.attr('data-toggle', '1');
+                $btn.text('Masquer toutes les réponses');
+            }
+        });
+        this._events.push({ elt: $btnAllReplies, event: 'click' });
+        const $btnSubscribe = $container.find('.btnSubscribe');
+        /**
+         * Met à jour l'affichage du bouton de souscription
+         * des alertes de nouveaux commentaires
+         * @param   {JQuery<HTMLElement>} $btn - L'élément jQuery correspondant au bouton de souscription
+         * @returns {void}
+         */
+        function displaySubscription($btn) {
+            if (!self.is_subscribed) {
+                $btn.removeClass('active');
+                $btn.attr('title', "Recevoir les commentaires par e-mail");
+                $btn.find('svg').replaceWith(`
+                    <svg fill="${UsBetaSeries.theme == 'dark' ? 'rgba(255, 255, 255, .5)' : '#333'}" width="14" height="16" style="position: relative; top: 1px; left: -1px;">
+                        <path fill-rule="nonzero" d="M13.176 13.284L3.162 2.987 1.046.812 0 1.854l2.306 2.298v.008c-.428.812-.659 1.772-.659 2.806v4.103L0 12.709v.821h11.307l1.647 1.641L14 14.13l-.824-.845zM6.588 16c.914 0 1.647-.73 1.647-1.641H4.941c0 .91.733 1.641 1.647 1.641zm4.941-6.006v-3.02c0-2.527-1.35-4.627-3.705-5.185V1.23C7.824.55 7.272 0 6.588 0c-.683 0-1.235.55-1.235 1.23v.559c-.124.024-.239.065-.346.098a2.994 2.994 0 0 0-.247.09h-.008c-.008 0-.008 0-.017.009-.19.073-.379.164-.56.254 0 0-.008 0-.008.008l7.362 7.746z"></path>
+                    </svg>
+                `);
+            }
+            else if (self.is_subscribed) {
+                $btn.addClass('active');
+                $btn.attr('title', "Ne plus recevoir les commentaires par e-mail");
+                $btn.find('svg').replaceWith(`
+                    <svg width="20" height="22" viewBox="0 0 20 22" style="width: 17px;">
+                        <g transform="translate(-4)" fill="none">
+                            <path d="M0 0h24v24h-24z"></path>
+                            <path fill="${UsBetaSeries.theme == 'dark' ? 'rgba(255, 255, 255, .5)' : '#333'}" d="M12 22c1.1 0 2-.9 2-2h-4c0 1.1.89 2 2 2zm6-6v-5c0-3.07-1.64-5.64-4.5-6.32v-.68c0-.83-.67-1.5-1.5-1.5s-1.5.67-1.5 1.5v.68c-2.87.68-4.5 3.24-4.5 6.32v5l-2 2v1h16v-1l-2-2z"></path>
+                        </g>
+                    </svg>
+                `);
+            }
+        }
+        $btnSubscribe.on('click', (e) => {
+            e.stopPropagation();
+            e.preventDefault();
+            if (!UsBetaSeries.userIdentified()) {
+                faceboxDisplay('inscription', {}, () => { });
+                return;
+            }
+            const $btn = $(e.currentTarget);
+            const params = { type: self._parent.mediaType.singular, id: self._parent.id };
+            if ($btn.hasClass('active')) {
+                UsBetaSeries.callApi(HTTP_VERBS.DELETE, 'comments', 'subscription', params)
+                    .then(() => {
+                    self.is_subscribed = false;
+                    displaySubscription($btn);
+                });
+            }
+            else {
+                UsBetaSeries.callApi(HTTP_VERBS.POST, 'comments', 'subscription', params)
+                    .then(() => {
+                    self.is_subscribed = true;
+                    displaySubscription($btn);
+                });
+            }
+        });
+        displaySubscription($btnSubscribe);
+        this._events.push({ elt: $btnSubscribe, event: 'click' });
+        // On active le lien pour afficher le spoiler
+        const $btnSpoiler = $container.find('.view-spoiler');
+        if ($btnSpoiler.length > 0) {
+            $btnSpoiler.on('click', (e) => {
+                e.stopPropagation();
+                e.preventDefault();
+                const $btn = jQuery(e.currentTarget);
+                const $spoiler = $btn.next('.comment-text').find('.spoiler');
+                if ($spoiler.is(':visible')) {
+                    $spoiler.fadeOut('fast');
+                    $btn.text('Voir le spoiler');
+                }
+                else {
+                    $spoiler.fadeIn('fast');
+                    $btn.text('Cacher le spoiler');
+                }
+            });
+        }
+        this._events.push({ elt: $btnSpoiler, event: 'click' });
+        /**
+         * Ajoutons les events pour:
+         *  - btnUpVote: Voter pour ce commentaire
+         *  - btnDownVote: Voter contre ce commentaire
+         */
+        const $btnThumb = $container.find('.comments .comment .btnThumb');
+        $btnThumb.on('click', async (e) => {
+            e.stopPropagation();
+            e.preventDefault();
+            if (!UsBetaSeries.userIdentified()) {
+                faceboxDisplay('inscription', {}, () => { });
+                return;
+            }
+            const $btn = jQuery(e.currentTarget);
+            const $comment = $btn.parents('.comment');
+            const commentId = parseInt($comment.data('commentId'), 10);
+            let comment;
+            // Si il s'agit d'une réponse, il nous faut le commentaire parent
+            if ($comment.hasClass('reply')) {
+                let $parent = $comment.prev();
+                while ($parent.hasClass('reply')) {
+                    $parent = $parent.prev();
+                }
+                const parentId = parseInt($parent.data('commentId'), 10);
+                if (commentId == parentId) {
+                    comment = this.getComment(commentId);
+                }
+                else {
+                    const cmtParent = this.getComment(parentId);
+                    comment = await cmtParent.getReply(commentId);
+                }
+            }
+            else {
+                comment = this.getComment(commentId);
+            }
+            let verb = HTTP_VERBS.POST;
+            const vote = $btn.hasClass('btnUpVote') ? 1 : -1;
+            let params = { id: commentId, type: vote, switch: false };
+            // On a déjà voté
+            if (comment.thumbed == vote) {
+                verb = HTTP_VERBS.DELETE;
+                params = { id: commentId };
+            }
+            else if (comment.thumbed != 0) {
+                console.warn("Le vote est impossible. Annuler votre vote et recommencer");
+                return;
+            }
+            UsBetaSeries.callApi(verb, 'comments', 'thumb', params)
+                .then((data) => {
+                comment.thumbs = parseInt(data.comment.thumbs, 10);
+                comment.thumbed = data.comment.thumbed ? parseInt(data.comment.thumbed, 10) : 0;
+                comment.updateRenderThumbs(vote);
+            })
+                .catch(err => {
+                const msg = err.text !== undefined ? err.text : err;
+                UsBetaSeries.notification('Thumb commentaire', "Une erreur est apparue durant le vote: " + msg);
+            });
+        });
+        this._events.push({ elt: $btnThumb, event: 'click' });
+        /**
+         * On affiche/masque les options du commentaire
+         */
+        const $btnOptions = $container.find('.btnToggleOptions');
+        $btnOptions.on('click', (e) => {
+            e.stopPropagation();
+            e.preventDefault();
+            jQuery(e.currentTarget).parents('.actionsCmt').first()
+                .find('.options-comment').each((_index, elt) => {
+                const $elt = jQuery(elt);
+                if ($elt.is(':visible')) {
+                    $elt.hide();
+                }
+                else {
+                    $elt.show();
+                }
+            });
+        });
+        this._events.push({ elt: $btnOptions, event: 'click' });
+        /**
+         * On envoie la réponse à ce commentaire à l'API
+         */
+        const $btnSend = $container.find('.sendComment');
+        $btnSend.on('click', async (e) => {
+            e.stopPropagation();
+            e.preventDefault();
+            if (!UsBetaSeries.userIdentified()) {
+                faceboxDisplay('inscription', {}, () => { });
+                return;
+            }
+            const getNodeCmt = function (cmtId) {
+                return jQuery(e.currentTarget).parents('.writing').prev('.comments').find(`.comment[data-comment-id="${cmtId.toString()}"]`);
+            };
+            const $textarea = $(e.currentTarget).siblings('textarea');
+            if ($textarea.val().length > 0) {
+                const action = $textarea.data('action');
+                const msg = $textarea.val();
+                let comment;
+                let promise;
+                if ($textarea.data('replyTo')) {
+                    const cmtId = parseInt($textarea.data('replyTo'), 10);
+                    comment = self.getComment(cmtId);
+                    const $comment = getNodeCmt(cmtId);
+                    promise = comment.sendReply($textarea.val()).then((reply) => {
+                        if (reply instanceof CommentBS) {
+                            $textarea.val('');
+                            $textarea.siblings('button').attr('disabled', 'true');
+                            $textarea.removeAttr('data-reply-to');
+                            const template = CommentBS.getTemplateComment(reply);
+                            if ($comment.next('.comment').hasClass('reply')) {
+                                let $next = $comment.next('.comment');
+                                let $prev;
+                                while ($next.hasClass('reply')) {
+                                    $prev = $next;
+                                    $next = $next.next('.comment');
+                                }
+                                $prev.after(template);
+                            }
+                            else {
+                                $comment.after(template);
+                            }
+                        }
+                    });
+                }
+                else if (action && action === 'edit') {
+                    const cmtId = parseInt($textarea.data('commentId'), 10);
+                    let $comment = getNodeCmt(cmtId);
+                    const comment = await getObjComment($comment);
+                    promise = comment.edit(msg).then((comment) => {
+                        $comment.find('.comment-text').text(comment.text);
+                        $comment = jQuery(`#comments .slide_flex .slide__comment[data-comment-id="${cmtId}"]`);
+                        $comment.find('p').text(comment.text);
+                        $textarea.removeAttr('data-action');
+                        $textarea.removeAttr('data-comment-id');
+                        $textarea.val('');
+                        $textarea.siblings('button').attr('disabled', 'true');
+                    });
+                }
+                else {
+                    promise = CommentsBS.sendComment(self._parent, $textarea.val())
+                        .then((comment) => {
+                        if (comment) {
+                            $textarea.val('');
+                            $textarea.siblings('button').attr('disabled', 'true');
+                            const $comments = $textarea.parents('.writing').prev('.comments');
+                            if (this.order === OrderComments.DESC) {
+                                $comments.prepend(CommentBS.getTemplateComment(comment));
+                            }
+                            else {
+                                $comments.append(CommentBS.getTemplateComment(comment));
+                            }
+                            $comments.find(`.comment[data-comment-id="${comment.id}"]`).get(0).scrollIntoView();
+                            self.addToPage(comment.id);
+                        }
+                    });
+                }
+                promise.then(() => {
+                    self.cleanEvents(() => {
+                        self.loadEvents($container, nbpp, funcPopup);
+                    });
+                });
+            }
+        });
+        this._events.push({ elt: $btnSend, event: 'click' });
+        /**
+         * On active / desactive le bouton d'envoi du commentaire
+         * en fonction du contenu du textarea
+         */
+        const $textarea = $container.find('textarea');
+        $textarea.on('keypress', (e) => {
+            const $textarea = $(e.currentTarget);
+            if ($textarea.val().length > 0) {
+                $textarea.siblings('button').removeAttr('disabled');
+            }
+            else {
+                $textarea.siblings('button').attr('disabled', 'true');
+            }
+        });
+        this._events.push({ elt: $textarea, event: 'keypress' });
+        /**
+         * On ajoute les balises SPOILER au message dans le textarea
+         */
+        const $baliseSpoiler = $container.find('.baliseSpoiler');
+        /**
+         * Permet d'englober le texte du commentaire en écriture
+         * avec les balises [spoiler]...[/spoiler]
+         */
+        $baliseSpoiler.on('click', () => {
+            const $textarea = $popup.find('textarea');
+            if (/\[spoiler\]/.test($textarea.val())) {
+                return;
+            }
+            // TODO: Gérer la balise spoiler sur une zone de texte sélectionnée
+            const text = '[spoiler]' + $textarea.val() + '[/spoiler]';
+            $textarea.val(text);
+        });
+        this._events.push({ elt: $baliseSpoiler, event: 'click' });
+        const $btnReplies = $container.find('.comments .toggleReplies');
+        /**
+         * Affiche/masque les réponses d'un commentaire
+         */
+        $btnReplies.on('click', (e) => {
+            e.stopPropagation();
+            e.preventDefault();
+            const $btn = jQuery(e.currentTarget);
+            const state = $btn.attr('data-toggle'); // 0: Etat masqué, 1: Etat affiché
+            const $comment = $btn.parents('.comment');
+            const inner = $comment.data('commentInner');
+            const $replies = $comment.parents('.comments').find(`.comment[data-comment-reply="${inner}"]`);
+            if (state == '0') {
+                // On affiche
+                $replies.fadeIn('fast');
+                $btn.find('.btnText').text(UsBetaSeries.trans("comment.hide_answers"));
+                $btn.find('svg').attr('style', 'transition: transform 200ms ease 0s; transform: rotate(180deg);');
+                $btn.attr('data-toggle', '1');
+            }
+            else {
+                // On masque
+                $replies.fadeOut('fast');
+                $btn.find('.btnText').text(UsBetaSeries.trans("comment.button.reply", { "%count%": $replies.length.toString() }, $replies.length));
+                $btn.find('svg').attr('style', 'transition: transform 200ms ease 0s;');
+                $btn.attr('data-toggle', '0');
+            }
+        });
+        this._events.push({ elt: $btnReplies, event: 'click' });
+        const $btnResponse = $container.find('.btnResponse');
+        /**
+         * Permet de créer une réponse à un commentaire
+         */
+        $btnResponse.on('click', async (e) => {
+            e.stopPropagation();
+            e.preventDefault();
+            if (!UsBetaSeries.userIdentified()) {
+                faceboxDisplay('inscription', {}, () => { });
+                return;
+            }
+            const $btn = $(e.currentTarget);
+            const $comment = $btn.parents('.comment');
+            const comment = await getObjComment($comment);
+            $container.find('textarea')
+                .val('@' + comment.login)
+                .attr('data-reply-to', comment.id);
+        });
+        this._events.push({ elt: $btnResponse, event: 'click' });
+        const $btnMore = $container.find('.moreComments');
+        /**
+         * Permet d'afficher plus de commentaires
+         */
+        $btnMore.on('click', (e) => {
+            e.stopPropagation();
+            e.preventDefault();
+            const $btn = jQuery(e.currentTarget);
+            if (self.comments.length >= self.nbComments) {
+                $btn.hide();
+                return;
+            }
+            const $loader = $btn.find('.fa-spin');
+            $loader.show();
+            const lastCmtId = self.comments[self.comments.length - 1].id;
+            const oldLastCmtIndex = self.comments.length - 1;
+            self.fetchComments(nbpp, lastCmtId).then(async () => {
+                let template = '', comment;
+                const firstCmtId = self.comments[oldLastCmtIndex + 1].id;
+                for (let c = oldLastCmtIndex + 1; c < self.comments.length; c++) {
+                    comment = self.comments[c];
+                    template += CommentBS.getTemplateComment(comment);
+                    // Si le commentaires à des réponses et qu'elles ne sont pas chargées
+                    if (comment.nbReplies > 0 && comment.replies.length <= 0) {
+                        // On récupère les réponses
+                        comment.replies = await self.fetchReplies(comment.id);
+                        // On ajoute un boutton pour afficher/masquer les réponses
+                    }
+                    for (let r = 0; r < comment.replies.length; r++) {
+                        template += CommentBS.getTemplateComment(comment.replies[r]);
+                    }
+                }
+                $btn.before(template);
+                jQuery(`.comment[data-comment-id="${firstCmtId.toString()}"]`).get(0).scrollIntoView();
+                self.cleanEvents(() => {
+                    self.loadEvents($container, nbpp, funcPopup);
+                });
+                if (self.comments.length >= self.nbComments) {
+                    $btn.hide();
+                }
+            }).finally(() => {
+                $loader.hide();
+            });
+        });
+        this._events.push({ elt: $btnMore, event: 'click' });
+        const $btnEdit = $container.find('.btnEditComment');
+        $btnEdit.on('click', async (e) => {
+            e.stopPropagation();
+            e.preventDefault();
+            const $comment = jQuery(e.currentTarget).parents('.comment');
+            const commentId = parseInt($comment.data('commentId'), 10);
+            const comment = await getObjComment($comment);
+            $textarea.val(comment.text);
+            $textarea.attr('data-action', 'edit');
+            $textarea.attr('data-comment-id', commentId);
+        });
+        this._events.push({ elt: $btnEdit, event: 'click' });
+        const $btnDelete = $container.find('.btnDeleteComment');
+        $btnDelete.on('click', async (e) => {
+            e.stopPropagation();
+            e.preventDefault();
+            const $comment = jQuery(e.currentTarget).parents('.comment');
+            const $options = jQuery(e.currentTarget).parents('.options-options');
+            const template = `
+                <div class="options-delete">
+                    <span class="mainTime">Supprimer mon commentaire :</span>
+                    <button type="button" class="btn-reset fontWeight700 btnYes" style="vertical-align: 0px; padding-left: 10px; padding-right: 10px; color: rgb(208, 2, 27);">Oui</button>
+                    <button type="button" class="btn-reset mainLink btnNo" style="vertical-align: 0px;">Non</button>
+                </div>
+            `;
+            $options.hide().after(template);
+            const $btnYes = $comment.find('.options-delete .btnYes');
+            const $btnNo = $comment.find('.options-delete .btnNo');
+            const comment = await getObjComment($comment);
+            $btnYes.on('click', (e) => {
+                e.stopPropagation();
+                e.preventDefault();
+                comment.delete();
+                let $next = $comment.next('.comment');
+                let $prev;
+                while ($next.hasClass('reply')) {
+                    $prev = $next;
+                    $next = $next.next('.comment');
+                    $prev.remove();
+                }
+                $comment.remove();
+                self.updateCounter();
+            });
+            $btnNo.on('click', (e) => {
+                e.stopPropagation();
+                e.preventDefault();
+                $comment.find('.options-delete').remove();
+                $options.show();
+                $btnYes.off('click');
+                $btnNo.off('click');
+            });
+        });
+        this._events.push({ elt: $btnDelete, event: 'click' });
+        this._callListeners(EventTypes.SHOW);
+    }
+    /**
+     * Nettoie les events créer par la fonction loadEvents
+     * @param   {Function} onComplete - Fonction de callback
+     * @returns {void}
+     */
+    cleanEvents(onComplete = UsBetaSeries.noop) {
+        if (this._events && this._events.length > 0) {
+            let data;
+            for (let e = 0; e < this._events.length; e++) {
+                data = this._events[e];
+                if (data.elt.length > 0)
+                    data.elt.off(data.event);
+            }
+        }
+        this._events = [];
+        onComplete();
+    }
+    /**
+     * Gère l'affichage de l'ensemble des commentaires
+     * @returns {void}
+     */
+    render() {
+        CommentsBS.debug('CommentsBS render');
+        // La popup et ses éléments
+        const self = this, $popup = jQuery('#popin-dialog'), $contentHtmlElement = $popup.find(".popin-content-html"), $contentReact = $popup.find('.popin-content-reactmodule'), $closeButtons = $popup.find("#popin-showClose"), hidePopup = () => {
+            document.body.style.overflow = "visible";
+            document.body.style.paddingRight = "";
+            $popup.attr('aria-hidden', 'true');
+            $popup.find("#popupalertyes").show();
+            $popup.find("#popupalertno").show();
+            $contentHtmlElement.hide();
+            $contentReact.empty();
+            self.cleanEvents();
+        }, showPopup = () => {
+            document.body.style.overflow = "hidden";
+            document.body.style.paddingRight = getScrollbarWidth() + "px";
+            $popup.find("#popupalertyes").hide();
+            $popup.find("#popupalertno").hide();
+            $contentHtmlElement.hide();
+            $contentReact.show();
+            $closeButtons.show();
+            $popup.attr('aria-hidden', 'false');
+        };
+        // On ajoute le loader dans la popup et on l'affiche
+        $contentReact.empty().append(`<div class="title" id="dialog-title" tabindex="0">${UsBetaSeries.trans("blog.title.comments")}</div>`);
+        const $title = $contentReact.find('.title');
+        $title.append(`<button type="button" class="btn-primary toggleAllReplies" data-toggle="1" style="border-radius:4px;margin-left:10px;">Cacher toutes les réponses</button>`);
+        let templateLoader = `
+            <div class="loaderCmt">
+                <svg class="sr-only">
+                    <defs>
+                        <clipPath id="placeholder">
+                            <path d="M50 25h160v8H50v-8zm0-18h420v8H50V7zM20 40C8.954 40 0 31.046 0 20S8.954 0 20 0s20 8.954 20 20-8.954 20-20 20z"></path>
+                        </clipPath>
+                    </defs>
+                </svg>
+        `;
+        for (let l = 0; l < 4; l++) {
+            templateLoader += `
+                <div class="er_ex null"><div class="ComponentPlaceholder er_et " style="height: 40px;"></div></div>`;
+        }
+        $contentReact.append(templateLoader + '</div>');
+        showPopup();
+        const nbCmts = 20; // Nombre de commentaires à récupérer sur l'API
+        self.getTemplate(nbCmts).then((template) => {
+            // On définit le type d'affichage de la popup
+            $popup.attr('data-popin-type', 'comments');
+            // On masque le loader pour ajouter les données à afficher
+            $contentReact.fadeOut('fast', () => {
+                $contentReact.find('.loaderCmt').remove();
+                $contentReact.append(template);
+                $contentReact.fadeIn();
+                self.cleanEvents();
+                self.loadEvents($contentReact, nbCmts, { hidePopup, showPopup });
+            });
+        });
+    }
+    /**
+     * Ajoute un commentaire dans la liste des commentaires de la page
+     * @param {number} cmtId - L'identifiant du commentaire
+     */
+    addToPage(cmtId) {
+        const comment = this.getComment(cmtId);
+        const headMsg = comment.text.substring(0, 210);
+        const isSpoiler = comment.isSpoiler();
+        let hideMsg = '';
+        if (comment.text.length > 210) {
+            hideMsg = '<span class="u-colorWhiteOpacity05 u-show-fulltext positionRelative zIndex1"></span><span class="sr-only">' + comment.text.substring(210) + '</span>';
+        }
+        let message = `<p>${headMsg} ${hideMsg}</p>`;
+        if (isSpoiler) {
+            message = `<button class="btn-reset spoilerWrapper js-display-spoiler">
+                <span class="spoiler__inner">
+                    <span class="fake-p">
+                        Ce commentaire contient un spoiler.
+                    </span>
+                    <span class="btn-semiTransparent">
+                        ${UsBetaSeries.trans("show.comment.show_spoiler")}
+                    </span>
+                </span>
+            </button>
+            <p>${headMsg}</p>`;
+        }
+        const avatar = comment.avatar || 'https://img.betaseries.com/NkUiybcFbxbsT_EnzkGza980XP0=/42x42/smart/https%3A%2F%2Fwww.betaseries.com%2Fimages%2Fsite%2Favatar-default.png';
+        const template = `
+            <div class="slide_flex">
+                <div class="slide__comment positionRelative u-insideBorderOpacity u-insideBorderOpacity--01" data-comment-id="${comment.id}">
+                    ${message}
+                    <button type="button" class="btn-reset js-popup-comments zIndex10" data-comment-id="${comment.id}"></button>
+                </div>
+                <div class="slide__author">
+                    <div class="media">
+                        <span class="media-left avatar">
+                            <a href="https://www.betaseries.com/membre/${comment.login}">
+                                <img class="u-opacityBackground" src="${avatar}" width="42" height="42" alt="avatar de ${comment.login}" />
+                            </a>
+                        </span>
+                        <div class="media-body">
+                            <div class="displayFlex alignItemsCenter">
+                                ${comment.login}
+                                <span class="stars">${Note.renderStars(comment.user_note, comment.user_id === UsBetaSeries.userId ? 'blue' : '')}</span>
+                            </div>
+                            <div>
+                                <time class="u-colorWhiteOpacity05" style="font-size: 14px;">
+                                    ${comment.date.format('dd mmmm yyyy')}
+                                </time>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>`;
+        jQuery('#comments .slides_flex').prepend(template);
+        // On met à jour le nombre de commentaires
+        jQuery('#comments .blockTitle').text(jQuery('#comments .blockTitle').text().replace(/\d+/, this._parent.nbComments.toString()));
+        this._callListeners(EventTypes.ADDED);
+    }
+    /**
+     * Supprime un commentaire dans la liste des commentaires de la page
+     * @param {number} cmtId - L'identifiant du commentaire
+     */
+    removeFromPage(cmtId) {
+        const $vignette = jQuery(`#comments .slides_flex .slide__comment[data-comment-id="${cmtId}"]`);
+        $vignette.parents('.slide_flex').remove();
+    }
+    /**
+     * Retourne la template affichant les notes associés aux commentaires
+     * @returns {string} La template affichant les évaluations des commentaires
+     */
+    showEvaluations() {
+        const self = this;
+        const params = {
+            type: this.media.mediaType.singular,
+            id: this.media.id,
+            replies: 1,
+            nbpp: this.media.nbComments
+        };
+        return UsBetaSeries.callApi(HTTP_VERBS.GET, 'comments', 'comments', params)
+            .then((data) => {
+            let comments = data.comments || [];
+            comments = comments.filter((comment) => { return comment.user_note > 0; });
+            const notes = { 1: 0, 2: 0, 3: 0, 4: 0, 5: 0 };
+            const userIds = [];
+            let nbEvaluations = 0;
+            for (let c = 0; c < comments.length; c++) {
+                // Pour éviter les doublons
+                if (!userIds.includes(comments[c].user_id)) {
+                    userIds.push(comments[c].user_id);
+                    nbEvaluations++;
+                    notes[comments[c].user_note]++;
+                }
+            }
+            const buildline = function (index, notes) {
+                const percent = nbEvaluations > 0 ? (notes[index] * 100) / nbEvaluations : 0;
+                return `<tr class="histogram-row">
+                    <td class="nowrap">${index} étoile${index > 1 ? 's' : ''}</td>
+                    <td class="span10">
+                        <div class="meter" role="progressbar" aria-valuenow="${percent.toFixed(1)}%">
+                            <div class="meter-filled" style="width: ${percent.toFixed(1)}%"></div>
+                        </div>
+                    </td>
+                    <td class="nowrap">${percent.toFixed(1)}%</td>
+                </tr>`;
+            };
+            /*
+             * Construction de la template
+             *  - Le nombre de notes
+             *  - La note moyenne
+             *  - Les barres de progression par note
+             */
+            let template = `
+                <div class="evaluations">
+                    <div class="size-base">${this.media.objNote.total} évaluation${this.media.objNote.total > 1 ? 's' : ''} dont ${nbEvaluations} parmis les commentaires</div>
+                    <div class="size-base average">Note globale: <strong>${self._parent.objNote.mean.toFixed(2)}</strong></div>
+                    <div><table><tbody>`;
+            for (let i = 5; i > 0; i--) {
+                template += buildline(i, notes);
+            }
+            return template + '</tbody></table><p class="alert alert-info"><small>Les pourcentages sont calculés uniquement sur les évaluations dans les commentaires.</small></p></div>';
+        });
+    }
+}
+
+/**
+ * TypeDisplayComment
+ * @memberof CommentBS
+ * @enum
+ * @alias TypeDisplayComment
+ */
+var TypeDisplayComment;
+(function (TypeDisplayComment) {
+    TypeDisplayComment[TypeDisplayComment["hidden"] = 0] = "hidden";
+    TypeDisplayComment[TypeDisplayComment["page"] = 1] = "page";
+    TypeDisplayComment[TypeDisplayComment["collection"] = 2] = "collection";
+    TypeDisplayComment[TypeDisplayComment["alone"] = 3] = "alone"; // Affiché seul
+})(TypeDisplayComment = TypeDisplayComment || (TypeDisplayComment = {}));
+/**
+ * CommentBS - Classe servant à manipuler les commentaires provenant de l'API BetaSeries
+ * @class
+ * @extends Base
+ * @implements {implFillDecorator}
+ */
+class CommentBS extends Base {
+    /*************************************************/
+    /*                  STATIC                       */
+    /*************************************************/
+    static logger = new UsBetaSeries.setDebug('Comments:Comment');
+    static debug = CommentBS.logger.debug.bind(CommentBS.logger);
+    /**
+     * @type {Object.<string, RelatedProp>}
+     */
+    static relatedProps = {
+        id: { key: "id", type: "number" },
+        reference: { key: "reference", type: "string" },
+        type: { key: "type", type: "string" },
+        ref_id: { key: "ref_id", type: 'number' },
+        user_id: { key: 'user_id', type: 'number' },
+        login: { key: "login", type: "string" },
+        avatar: { key: "avatar", type: "string" },
+        date: { key: "date", type: 'date' },
+        text: { key: "text", type: "string" },
+        inner_id: { key: "inner_id", type: 'number' },
+        in_reply_to: { key: "in_reply_to", type: 'number' },
+        in_reply_id: { key: "in_reply_id", type: 'number' },
+        in_reply_user: { key: "in_reply_user", type: "object" },
+        user_note: { key: "user_note", type: 'number', default: 0 },
+        thumbs: { key: "thumbs", type: 'number' },
+        thumbed: { key: "thumbed", type: 'number', default: 0 },
+        replies: { key: "nbReplies", type: 'number', default: 0 },
+        from_admin: { key: "from_admin", type: 'boolean', default: false },
+        user_rank: { key: "user_rank", type: 'string' },
+    };
+    /**
+     * Types d'évenements gérés par cette classe
+     * @type {EventTypes[]}
+     */
+    static EventTypes = [
+        EventTypes.UPDATE,
+        EventTypes.SAVE,
+        EventTypes.ADD,
+        EventTypes.SHOW,
+        EventTypes.HIDE,
+        EventTypes.DELETE
+    ];
+    /**
+     * Contient le nom des classes CSS utilisées pour le rendu du commentaire
+     * @type {Obj}
+     */
+    static classNamesCSS = { reply: 'it_i3', actions: 'it_i1', comment: 'it_ix' };
+    /*************************************************/
+    /*                  PROPERTIES                   */
+    /*************************************************/
+    /**
+     * Identifiant du commentaire
+     * @type {number}
+     */
+    id;
+    /**
+     * Référence du média, pour créer l'URL (type.titleUrl)
+     * @type {string}
+     */
+    reference;
+    /**
+     * Type de média
+     * @type {string}
+     */
+    type;
+    /**
+     * Identifiant du média
+     * @type {number}
+     */
+    ref_id;
+    /**
+     * Identifiant du membre du commentaire
+     * @type {number}
+     */
+    user_id;
+    /**
+     * Login du membre du commentaire
+     * @type {string}
+     */
+    login;
+    /**
+     * URL de l'avatar du membre du commentaire
+     * @type {string}
+     */
+    avatar;
+    /**
+     * Date de création du commentaire
+     * @type {Date}
+     */
+    date;
+    /**
+     * Contenu du commentaire
+     * @type {string}
+     */
+    text;
+    /**
+     * Index du commentaire dans la liste des commentaires du média
+     * @type {number}
+     */
+    inner_id;
+    /**
+     * Index du commentaire dont celui-ci est une réponse
+     * @type {number}
+     */
+    in_reply_to;
+    /**
+     * Identifiant du commentaire dont celui-ci est une réponse
+     * @type {number}
+     */
+    in_reply_id;
+    /**
+     * Informations sur le membre du commentaire original
+     * @type {ReplyUser}
+     */
+    in_reply_user;
+    /**
+     * Note du membre pour le média
+     * @type {number}
+     */
+    user_note;
+    /**
+     * Votes pour ce commentaire
+     * @type {number}
+     */
+    thumbs;
+    /**
+     * Vote du membre connecté
+     * @type {number}
+     */
+    thumbed;
+    /**
+     * Nombre de réponse à ce commentaires
+     * @type {number}
+     */
+    nbReplies;
+    /**
+     * Les réponses au commentaire
+     * @type {CommentBS[]}
+     */
+    replies;
+    /**
+     * Message de l'administration
+     * @type {boolean}
+     */
+    from_admin;
+    /**
+     * ???
+     * @type {string}
+     */
+    user_rank;
+    /**
+     * Indique le type d'affichage en cours du commentaire
+     * @type {TypeDisplayComment}
+     */
+    _typeDisplay = TypeDisplayComment.hidden;
+    /**
+     * La collection de commentaires
+     * @type {CommentsBS}
+     */
+    _parent;
+    /**
+     * Liste des events déclarés par la fonction loadEvents
+     * @type {CustomEvent[]}
+     */
+    _events;
+    /**
+     * Decorators de la classe
+     * @type {Object.<string, AbstractDecorator>}
+     */
+    __decorators = {
+        fill: new FillDecorator(this)
+    };
+    /**
+     * Element HTML de référence du commentaire
+     * @type {JQuery<HTMLElement>}
+     */
+    __elt;
+    /**
+     * Flag d'initialisation de l'objet, nécessaire pour la methode fill
+     * @type {boolean}
+     */
+    __initial = true;
+    /**
+     * Stocke les changements des propriétés de l'objet
+     * @type {Object.<string, Changes>}
+     */
+    __changes = {};
+    /**
+     * Tableau des propriétés énumerables de l'objet
+     * @type {string[]}
+     */
+    __props = [];
+    constructor(data, parent) {
+        super(data);
+        this._parent = parent;
+        this.replies = [];
+        return this.fill(data).init();
+    }
+    /**
+     * Initialise l'objet CommentBS
+     * @returns {CommentBS}
+     */
+    init() {
+        const selectorCSS = `#comments .slides_flex .slide_flex .slide__comment[data-comment-id="${this.id}"]`;
+        const $comment = jQuery(selectorCSS);
+        if ($comment.length > 0) {
+            this.elt = $comment.parents('.slide_flex');
+        }
+        return this;
+    }
+    get elt() {
+        return this.__elt;
+    }
+    set elt(elt) {
+        this.__elt = elt;
+    }
+    get parent() {
+        return this._parent;
+    }
+    set parent(par) {
+        if (!(par instanceof CommentsBS) && !(par instanceof CommentBS)) {
+            throw new TypeError('Paremeter "parent" must be an instance of CommentsBS or CommentBS');
+        }
+        this._parent = par;
+    }
+    /**
+     * Remplit l'objet avec les données fournit en paramètre
+     * @param   {Obj} data - Les données provenant de l'API
+     * @returns {CommentBS}
+     * @see FillDecorator.fill
+     */
+    fill(data) {
+        try {
+            return this.__decorators.fill.fill.call(this, data);
+        }
+        catch (err) {
+            console.error(err);
+        }
+    }
+    /**
+     * Met à jour le rendu HTML des propriétés de l'objet,
+     * si un sélecteur CSS exite pour la propriété fournit en paramètre\
+     * **Méthode appelée automatiquement par le setter de la propriété**
+     * @see Show.selectorsCSS
+     * @param   {string} propKey - La propriété de l'objet à mettre à jour
+     * @returns {void}
+     */
+    updatePropRender(propKey) {
+        try {
+            this.__decorators.fill.updatePropRender.call(this, propKey);
+        }
+        catch (err) {
+            console.error(err);
+        }
+    }
+    /**
+     * Retourne l'objet sous forme d'objet simple, sans référence circulaire,
+     * pour la méthode JSON.stringify
+     * @returns {object}
+     */
+    toJSON() {
+        const obj = {};
+        for (const key of this.__props) {
+            obj[key] = this[key];
+        }
+        return obj;
+    }
+    /**
+     * Récupère les réponses du commentaire
+     * @param   {OrderComments} order - Ordre de tri des réponses
+     * @returns {Promise<CommentBS>}
+     */
+    async fetchReplies(order = OrderComments.ASC) {
+        if (this.nbReplies <= 0)
+            return this;
+        const data = await UsBetaSeries.callApi(HTTP_VERBS.GET, 'comments', 'replies', { id: this.id, order }, true);
+        // this.replies = [];
+        if (data.comments) {
+            for (let c = 0, _len = data.comments.length; c < _len; c++) {
+                if (this.replies[c] && this.replies[c].id == data.comments[c].id) {
+                    this.replies[c].fill(data.comments[c]);
+                }
+                else {
+                    // TODO: créer une fonction Array.insertAt pour insérer un élément
+                    // dans un tableau à une position donnée et déplacer le reste du tableau
+                    this.replies.push(new CommentBS(data.comments[c], this));
+                }
+            }
+        }
+        return this;
+    }
+    /**
+     * Permet de trier les réponses du commentaires selon l'ordre passé en paramètre
+     * @param   {OrderComments} [order='asc'] - Ordre de tri des réponses
+     * @returns {CommentBS[]}
+     */
+    sortReplies(order = OrderComments.ASC) {
+        this.replies.sort((cmtA, cmtB) => {
+            if (order === OrderComments.ASC) {
+                return (cmtA.inner_id < cmtB.inner_id) ? -1 : cmtA.inner_id > cmtB.inner_id ? 1 : 0;
+            }
+            else {
+                return (cmtB.inner_id < cmtA.inner_id) ? -1 : cmtB.inner_id > cmtA.inner_id ? 1 : 0;
+            }
+        });
+        return this.replies;
+    }
+    /**
+     * Modifie le texte du commentaire
+     * @param   {string} msg - Le nouveau message du commentaire
+     * @returns {CommentBS}
+     */
+    edit(msg) {
+        const self = this;
+        this.text = msg;
+        const params = {
+            edit_id: this.id,
+            text: msg
+        };
+        return UsBetaSeries.callApi(HTTP_VERBS.POST, 'comments', 'comment', params)
+            .then((data) => {
+            return self.fill(data.comment);
+        });
+    }
+    /**
+     * Supprime le commentaire sur l'API
+     * @returns {void}
+     */
+    delete() {
+        const self = this;
+        const promises = [];
+        if (this.nbReplies > 0) {
+            for (let r = 0; r < this.replies.length; r++) {
+                promises.push(UsBetaSeries.callApi(HTTP_VERBS.DELETE, 'comments', 'comment', { id: this.replies[r].id }));
+            }
+        }
+        Promise.all(promises).then(() => {
+            UsBetaSeries.callApi(HTTP_VERBS.DELETE, 'comments', 'comment', { id: this.id })
+                .then(() => {
+                if (self._parent instanceof CommentsBS) {
+                    self._parent.removeComment(self.id);
+                }
+                else if (self._parent instanceof CommentBS) {
+                    self._parent.removeReply(self.id);
+                }
+                self.getCollectionComments().nbComments = self.getCollectionComments().nbComments - (promises.length + 1);
+            });
+        });
+    }
+    /**
+     * Indique si le commentaire est le premier de la liste
+     * @returns {boolean}
+     */
+    isFirst() {
+        return this._parent.isFirst(this.id);
+    }
+    /**
+     * Indique si le commentaire est le dernier de la liste
+     * @returns {boolean}
+     */
+    isLast() {
+        return this._parent.isLast(this.id);
+    }
+    /**
+     * Indique si le message est un spoiler
+     * @returns {boolean}
+     */
+    isSpoiler() {
+        return /\[spoiler\]/.test(this.text);
+    }
+    /**
+     * Renvoie la template HTML pour l'affichage d'un commentaire
+     * @param   {CommentBS} comment Le commentaire à afficher
+     * @returns {string}
+     */
+    static getTemplateComment(comment) {
+        let text = new Option(comment.text).innerHTML;
+        if (/@\w+/.test(text)) {
+            text = text.replace(/@(\w+)/g, '<a href="/membre/$1" class="mainLink mainLink--regular">@$1</a>');
+        }
+        const btnSpoiler = comment.isSpoiler() ? `<button type="button" class="btn-reset mainLink view-spoiler">${UsBetaSeries.trans("comment.button.display_spoiler")}</button>` : '';
+        text = text.replace(/\[spoiler\](.*)\[\/spoiler\]/g, '<span class="spoiler" style="display:none">$1</span>');
+        // let classNames = {reply: 'iv_i5', actions: 'iv_i3', comment: 'iv_iz'};
+        // const classNames = {reply: 'it_i3', actions: 'it_i1', comment: 'it_ix'};
+        const isReply = comment.in_reply_to > 0 ? true : false;
+        const className = isReply ? CommentBS.classNamesCSS.reply + ' reply ' : '';
+        const btnToggleReplies = comment.nbReplies > 0 ? `
+            <button type="button" class="btn-reset mainLink mainLink--regular toggleReplies" data-toggle="1">
+                <span class="svgContainer">
+                    <svg width="8" height="6" xmlns="http://www.w3.org/2000/svg" style="transition: transform 200ms ease 0s; transform: rotate(180deg);">
+                        <path d="M4 5.667l4-4-.94-.94L4 3.78.94.727l-.94.94z" fill="#54709D" fill-rule="nonzero"></path>
+                    </svg>
+                </span>&nbsp;<span class="btnText">${UsBetaSeries.trans("comment.hide_answers")}</span>
+            </button>` : '';
+        let templateOptions = `
+            <a href="/messages/nouveau?login=${comment.login}" class="mainLink">Envoyer un message</a>
+            <span class="mainLink">∙</span>
+            <button type="button" class="btn-reset mainLink btnSignal">Signaler</button>
+        `;
+        if (comment.user_id === UsBetaSeries.userId) {
+            templateOptions = `
+                <button type="button" class="btn-reset mainLink btnEditComment">Éditer</button>
+                <span class="mainLink">∙</span>
+                <button type="button" class="btn-reset mainLink btnDeleteComment">Supprimer</button>
+            `;
+        }
+        let btnResponse = `<span class="mainLink">&nbsp;∙&nbsp;</span><button type="button" class="btn-reset mainLink mainLink--regular btnResponse" ${!UsBetaSeries.userIdentified() ? 'style="display:none;"' : ''}>${UsBetaSeries.trans("timeline.comment.reply")}</button>`;
+        if (isReply)
+            btnResponse = '';
+        return `
+            <div class="comment ${className}positionRelative ${CommentBS.classNamesCSS.comment}" data-comment-id="${comment.id}" ${comment.in_reply_to > 0 ? 'data-comment-reply="' + comment.in_reply_to + '"' : ''} data-comment-inner="${comment.inner_id}">
+                <div class="media">
+                    <div class="media-left">
+                        <a href="/membre/${comment.login}" class="avatar">
+                            <img src="https://api.betaseries.com/pictures/members?key=${UsBetaSeries.userKey}&amp;id=${comment.user_id}&amp;width=64&amp;height=64&amp;placeholder=png" width="32" height="32" alt="Profil de ${comment.login}">
+                        </a>
+                    </div>
+                    <div class="media-body">
+                        <a href="/membre/${comment.login}">
+                            <span class="mainLink">${comment.login}</span>
+                        </a>
+                        ${btnSpoiler}
+                        <span class="comment-text">${text}</span>
+                        <div class="${CommentBS.classNamesCSS.actions} actionsCmt">
+                            <div class="options-main options-comment">
+                                <button type="button" class="btn-reset btnUpVote btnThumb" title="+1 pour ce commentaire">
+                                    <svg data-disabled="false" class="SvgLike" fill="#fff" width="16" height="14" viewBox="0 0 16 14" xmlns="http://www.w3.org/2000/svg">
+                                        <g fill="${comment.thumbed > 0 ? '#FFAC3B' : 'inherit'}" fill-rule="nonzero">
+                                            <path fill="#fff" fill-rule="evenodd" d="M.67 6h2.73v8h-2.73v-8zm14.909.67c0-.733-.614-1.333-1.364-1.333h-4.302l.648-3.047.02-.213c0-.273-.116-.527-.3-.707l-.723-.7-4.486 4.393c-.252.24-.402.573-.402.94v6.667c0 .733.614 1.333 1.364 1.333h6.136c.566 0 1.05-.333 1.255-.813l2.059-4.7c.061-.153.095-.313.095-.487v-1.273l-.007-.007.007-.053z"></path>
+                                            <path class="SvgLikeStroke" stroke="#54709D" d="M1.17 6.5v7h1.73v-7h-1.73zm13.909.142c-.016-.442-.397-.805-.863-.805h-4.92l.128-.604.639-2.99.018-.166c0-.13-.055-.257-.148-.348l-.373-.361-4.144 4.058c-.158.151-.247.355-.247.578v6.667c0 .455.387.833.864.833h6.136c.355 0 .664-.204.797-.514l2.053-4.685c.04-.1.06-.198.06-.301v-1.063l-.034-.034.034-.265z"></path>
+                                        </g>
+                                    </svg>
+                                </button>
+                                <button type="button" class="btn-reset btnDownVote btnThumb" title="-1 pour ce commentaire">
+                                    <svg data-disabled="false" class="SvgLike" fill="#fff" width="16" height="14" viewBox="0 0 16 14" xmlns="http://www.w3.org/2000/svg" style="transform: rotate(180deg) scaleX(-1); margin-left: 4px; vertical-align: -4px;">
+                                        <g fill="${comment.thumbed < 0 ? '#FFAC3B' : 'inherit'}" fill-rule="nonzero">
+                                            <path fill="#fff" fill-rule="evenodd" d="M.67 6h2.73v8h-2.73v-8zm14.909.67c0-.733-.614-1.333-1.364-1.333h-4.302l.648-3.047.02-.213c0-.273-.116-.527-.3-.707l-.723-.7-4.486 4.393c-.252.24-.402.573-.402.94v6.667c0 .733.614 1.333 1.364 1.333h6.136c.566 0 1.05-.333 1.255-.813l2.059-4.7c.061-.153.095-.313.095-.487v-1.273l-.007-.007.007-.053z"></path>
+                                            <path class="SvgLikeStroke" stroke="#54709D" d="M1.17 6.5v7h1.73v-7h-1.73zm13.909.142c-.016-.442-.397-.805-.863-.805h-4.92l.128-.604.639-2.99.018-.166c0-.13-.055-.257-.148-.348l-.373-.361-4.144 4.058c-.158.151-.247.355-.247.578v6.667c0 .455.387.833.864.833h6.136c.355 0 .664-.204.797-.514l2.053-4.685c.04-.1.06-.198.06-.301v-1.063l-.034-.034.034-.265z"></path>
+                                        </g>
+                                    </svg>
+                                </button>
+                                <strong class="mainLink thumbs${comment.thumbs < 0 ? ' negative' : comment.thumbs > 0 ? ' positive' : ''}">${comment.thumbs > 0 ? '+' + comment.thumbs : comment.thumbs}</strong>
+                                ${btnResponse}
+                                <span class="mainLink">∙</span>
+                                <span class="mainTime">Le ${comment.date.format('dd/mm/yyyy HH:MM')}</span>
+                                <span class="stars" title="${comment.user_note} / 5">
+                                    ${Note.renderStars(comment.user_note, comment.user_id === UsBetaSeries.userId ? 'blue' : '')}
+                                </span>
+                                <div class="it_iv">
+                                    <button type="button" class="btn-reset btnToggleOptions">
+                                        <span class="svgContainer">
+                                            <svg width="4" height="16" xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" style="transform: rotate(90deg);">
+                                                <defs>
+                                                    <path d="M12 8c1.1 0 2-.9 2-2s-.9-2-2-2-2 .9-2 2 .9 2 2 2zm0 2c-1.1 0-2 .9-2 2s.9 2 2 2 2-.9 2-2-.9-2-2-2zm0 6c-1.1 0-2 .9-2 2s.9 2 2 2 2-.9 2-2-.9-2-2-2z" id="svgthreedots"></path>
+                                                </defs>
+                                                <use fill="${UsBetaSeries.theme === 'dark' ? "rgba(255, 255, 255, .5)" : "#333"}" fill-rule="nonzero" xlink:href="#svgthreedots" transform="translate(-10 -4)"></use>
+                                            </svg>
+                                        </span>
+                                    </button>
+                                </div>
+                            </div>
+                            <div class="options-options options-comment" style="display:none;">
+                                ${templateOptions}
+                                <button type="button" class="btn-reset btnToggleOptions">
+                                    <span class="svgContainer">
+                                        <svg fill="${UsBetaSeries.theme === 'dark' ? "rgba(255, 255, 255, .5)" : "#333"}" width="9" height="9" viewBox="0 0 14 14" xmlns="http://www.w3.org/2000/svg">
+                                            <path d="M14 1.41l-1.41-1.41-5.59 5.59-5.59-5.59-1.41 1.41 5.59 5.59-5.59 5.59 1.41 1.41 5.59-5.59 5.59 5.59 1.41-1.41-5.59-5.59z"></path>
+                                        </svg>
+                                    </span>
+                                </button>
+                            </div>
+                        </div>
+                        ${btnToggleReplies}
+                    </div>
+                </div>
+            </div>
+        `;
+    }
+    /**
+     * Renvoie la template HTML pour l'écriture d'un commentaire
+     * @param   {CommentBS} [comment?] - L'objet commentaire sur lequel envoyé les réponses
+     * @returns {string}
+     */
+    static getTemplateWriting(comment) {
+        const login = UsBetaSeries.userIdentified() ? currentLogin : '';
+        let replyTo = '', placeholder = UsBetaSeries.trans("timeline.comment.write");
+        if (comment) {
+            replyTo = ` data-reply-to="${comment.id}"`;
+            placeholder = "Ecrivez une réponse à ce commentaire";
+        }
+        return `
+            <div class="writing">
+                <div class="media">
+                    <div class="media-left">
+                        <div class="avatar">
+                            <img src="https://api.betaseries.com/pictures/members?key=${UsBetaSeries.userKey}&amp;id=${UsBetaSeries.userId}&amp;width=32&amp;height=32&amp;placeholder=png" width="32" height="32" alt="Profil de ${login}">
+                        </div>
+                    </div>
+                    <div class="media-body">
+                        <form class="gz_g1">
+                            <textarea rows="2" placeholder="${placeholder}" class="form-control"${replyTo}></textarea>
+                            <button class="btn-reset sendComment" disabled="" aria-label="${UsBetaSeries.trans("comment.send.label")}" title="${UsBetaSeries.trans("comment.send.label")}">
+                                <span class="svgContainer" style="width: 16px; height: 16px;">
+                                    <svg fill="${UsBetaSeries.theme === 'dark' ? "#fff" : "#333"}" width="15" height="12" xmlns="http://www.w3.org/2000/svg">
+                                        <path d="M.34 12l13.993-6L.34 0 .333 4.667l10 1.333-10 1.333z"></path>
+                                    </svg>
+                                </span>
+                            </button>
+                        </form>
+                        <p class="mainTime">Utilisez la balise <span class="baliseSpoiler" title="Ajouter la balise spoiler à votre commentaire">[spoiler]…[/spoiler]</span> pour masquer le contenu pouvant spoiler les lecteurs.</p>
+                    </div>
+                </div>
+            </div>
+        `;
+    }
+    /**
+     * Renvoie la template HTML pour l'écriture d'un signalement de commentaire
+     * @param   {CommentBS} [comment] - L'objet commentaire à signaler
+     * @returns {string}
+     */
+    static getTemplateReport(comment) {
+        return `
+            <form class="form-middle" method="POST" action="/apps/report.php">
+                <fieldset>
+                    <div class="title" id="dialog-title" tabindex="0">Signaler un commentaire</div>
+                    <p>Vous êtes sur le point de signaler un commentaire, veuillez indiquer ci-dessous la raison de ce signalement.</p>
+                    <div>
+                        <textarea class="form-control" name="texte"></textarea>
+                    </div>
+                    <div class="button-set">
+                        <button class="js-close-popupalert btn-reset btn-btn btn-blue2" type="submit" id="popupalertyes">Signaler le contenu</button>
+                    </div>
+                </fieldset>
+                <input type="hidden" name="id" value="${comment.id}">
+                <input type="hidden" name="type" value="comment">
+            </form>`;
+    }
+    /**
+     * Retourne le login du commentaire et des réponses
+     * @returns {string[]}
+     */
+    getLogins() {
+        const users = [];
+        users.push(this.login);
+        for (let r = 0; r < this.replies.length; r++) {
+            if (!users.includes(this.replies[r].login)) {
+                users.push(this.replies[r].login);
+            }
+        }
+        return users;
+    }
+    /**
+     * Met à jour le rendu des votes de ce commentaire
+     * @param   {number} vote Le vote
+     * @returns {void}
+     */
+    updateRenderThumbs(vote = 0) {
+        const $thumbs = jQuery(`.comments .comment[data-comment-id="${this.id}"] .thumbs`);
+        const val = parseInt($thumbs.text(), 10);
+        const result = (vote == this.thumbed) ? val + vote : val - vote;
+        const text = result > 0 ? `+${result}` : result.toString();
+        // if (BetaSeries.debug) CommentBS.debug('renderThumbs: ', {val, vote, result, text});
+        $thumbs.text(text);
+        if (this.thumbed == 0) {
+            // On supprime la couleur de remplissage des icones de vote
+            $thumbs.siblings('.btnThumb').find('g').attr('fill', 'inherited');
+            return;
+        }
+        // On affiche le vote en remplissant l'icone correspondant d'une couleur jaune
+        const $btnVote = this.thumbed > 0 ? $thumbs.siblings('.btnThumb.btnUpVote') : $thumbs.siblings('.btnThumb.btnDownVote');
+        $btnVote.find('g').attr('fill', '#FFAC3B');
+    }
+    /**
+     * Indique si le comment fournit en paramètre fait parti des réponses
+     * @param   {number} commentId L'identifiant de la réponse
+     * @returns {boolean}
+     */
+    async isReply(commentId) {
+        if (this.replies.length <= 0 && this.nbReplies <= 0)
+            return false;
+        else if (this.replies.length <= 0) {
+            await this.fetchReplies();
+        }
+        for (let r = 0; r < this.replies.length; r++) {
+            if (this.replies[r].id == commentId) {
+                return true;
+            }
+        }
+        return false;
+    }
+    /**
+     * Retourne la réponse correspondant à l'identifiant fournit
+     * @param   {number} commentId L'identifiant de la réponse
+     * @returns {Promise<(CommentBS | void)>} La réponse
+     */
+    async getReply(commentId) {
+        if (this.replies.length <= 0 && this.nbReplies <= 0)
+            return null;
+        else if (this.replies.length <= 0) {
+            await this.fetchReplies();
+        }
+        for (let r = 0; r < this.replies.length; r++) {
+            if (this.replies[r].id == commentId) {
+                return this.replies[r];
+            }
+        }
+        return null;
+    }
+    /**
+     * Supprime une réponse
+     * @param   {number} cmtId - L'identifiant de la réponse
+     * @returns {boolean}
+     */
+    removeReply(cmtId) {
+        for (let r = 0; r < this.replies.length; r++) {
+            if (this.replies[r].id == cmtId) {
+                this.replies.splice(r, 1);
+                return true;
+            }
+        }
+        return false;
+    }
+    /**
+     * Retourne l'objet CommentsBS
+     * @returns {CommentsBS}
+     */
+    getCollectionComments() {
+        if (this._parent instanceof CommentsBS) {
+            return this._parent;
+        }
+        else if (this._parent instanceof CommentBS) {
+            return this._parent._parent;
+        }
+        return null;
+    }
+    /**
+     * Ajoute les évènements sur les commentaires lors du rendu
+     * @param   {JQuery<HTMLElement>} $container - Le conteneur des éléments d'affichage
+     * @param   {Obj} funcPopup - Objet des fonctions d'affichage/ de masquage de la popup
+     * @returns {void}
+     */
+    loadEvents($container, funcPopup) {
+        this._events = [];
+        const self = this;
+        const $popup = jQuery('#popin-dialog');
+        const $btnClose = jQuery("#popin-showClose");
+        const $title = $container.find('.title');
+        /**
+         * Retourne l'objet CommentBS associé au DOMElement fournit en paramètre
+         * @param   {JQuery<HTMLElement>} $comment - Le DOMElement contenant le commentaire
+         * @returns {Promise<CommentBS>}
+         */
+        const getObjComment = async function ($comment) {
+            const commentId = parseInt($comment.data('commentId'), 10);
+            if (commentId === self.id)
+                return self;
+            else if (self.isReply(commentId))
+                return await self.getReply(commentId);
+            else
+                return self.getCollectionComments().getComment(commentId);
+        };
+        $btnClose.on('click', () => {
+            funcPopup.hidePopup();
+            $popup.removeAttr('data-popin-type');
+        });
+        this._events.push({ elt: $btnClose, event: 'click' });
+        const $btnReport = $container.find('.btnSignal');
+        $btnReport.on('click', async (e) => {
+            e.stopPropagation();
+            e.preventDefault();
+            const $comment = $(e.currentTarget).parents('.comment');
+            const comment = await getObjComment($comment);
+            const $contentHtml = $container.parents('.popin-content').find('.popin-content-html');
+            $contentHtml.empty().append(CommentBS.getTemplateReport(comment));
+            $contentHtml.find('button.js-close-popupalert.btn-blue2').on('click', (e) => {
+                e.stopPropagation();
+                e.preventDefault();
+                const $form = $contentHtml.find('form');
+                const paramsFetch = {
+                    method: 'POST',
+                    cache: 'no-cache',
+                    body: new URLSearchParams($form.serialize())
+                };
+                fetch('/apps/report.php', paramsFetch)
+                    .then(() => {
+                    $contentHtml.hide();
+                    $container.show();
+                })
+                    .catch(() => {
+                    $contentHtml.hide();
+                    $container.show();
+                });
+            });
+            $container.hide();
+            $contentHtml.show();
+        });
+        this._events.push({ elt: $btnReport, event: 'click' });
+        const $btnSubscribe = $container.find('.btnSubscribe');
+        /**
+         * Met à jour l'affichage du bouton de souscription
+         * des alertes de nouveaux commentaires
+         * @param   {JQuery<HTMLElement>} $btn - L'élément jQuery correspondant au bouton de souscription
+         * @returns {void}
+         */
+        function displaySubscription($btn) {
+            const collection = self.getCollectionComments();
+            if (!collection.is_subscribed) {
+                $btn.removeClass('active');
+                $btn.attr('title', "Recevoir les commentaires par e-mail");
+                $btn.find('svg').replaceWith(`
+                    <svg fill="${UsBetaSeries.theme == 'dark' ? 'rgba(255, 255, 255, .5)' : '#333'}" width="14" height="16" style="position: relative; top: 1px; left: -1px;">
+                        <path fill-rule="nonzero" d="M13.176 13.284L3.162 2.987 1.046.812 0 1.854l2.306 2.298v.008c-.428.812-.659 1.772-.659 2.806v4.103L0 12.709v.821h11.307l1.647 1.641L14 14.13l-.824-.845zM6.588 16c.914 0 1.647-.73 1.647-1.641H4.941c0 .91.733 1.641 1.647 1.641zm4.941-6.006v-3.02c0-2.527-1.35-4.627-3.705-5.185V1.23C7.824.55 7.272 0 6.588 0c-.683 0-1.235.55-1.235 1.23v.559c-.124.024-.239.065-.346.098a2.994 2.994 0 0 0-.247.09h-.008c-.008 0-.008 0-.017.009-.19.073-.379.164-.56.254 0 0-.008 0-.008.008l7.362 7.746z"></path>
+                    </svg>
+                `);
+            }
+            else if (collection.is_subscribed) {
+                $btn.addClass('active');
+                $btn.attr('title', "Ne plus recevoir les commentaires par e-mail");
+                $btn.find('svg').replaceWith(`
+                    <svg width="20" height="22" viewBox="0 0 20 22" style="width: 17px;">
+                        <g transform="translate(-4)" fill="none">
+                            <path d="M0 0h24v24h-24z"></path>
+                            <path fill="${UsBetaSeries.theme == 'dark' ? 'rgba(255, 255, 255, .5)' : '#333'}" d="M12 22c1.1 0 2-.9 2-2h-4c0 1.1.89 2 2 2zm6-6v-5c0-3.07-1.64-5.64-4.5-6.32v-.68c0-.83-.67-1.5-1.5-1.5s-1.5.67-1.5 1.5v.68c-2.87.68-4.5 3.24-4.5 6.32v5l-2 2v1h16v-1l-2-2z"></path>
+                        </g>
+                    </svg>
+                `);
+            }
+        }
+        $btnSubscribe.on('click', (e) => {
+            e.stopPropagation();
+            e.preventDefault();
+            if (!UsBetaSeries.userIdentified()) {
+                faceboxDisplay('inscription', {}, () => { });
+                return;
+            }
+            const $btn = $(e.currentTarget);
+            const params = { type: self.getCollectionComments().media.mediaType.singular, id: self.getCollectionComments().media.id };
+            if ($btn.hasClass('active')) {
+                UsBetaSeries.callApi(HTTP_VERBS.DELETE, 'comments', 'subscription', params)
+                    .then(() => {
+                    self.getCollectionComments().is_subscribed = false;
+                    displaySubscription($btn);
+                });
+            }
+            else {
+                UsBetaSeries.callApi(HTTP_VERBS.POST, 'comments', 'subscription', params)
+                    .then(() => {
+                    self.getCollectionComments().is_subscribed = true;
+                    displaySubscription($btn);
+                });
+            }
+        });
+        displaySubscription($btnSubscribe);
+        this._events.push({ elt: $btnSubscribe, event: 'click' });
+        // On récupère le bouton de navigation 'précédent'
+        const $prevCmt = $title.find('.prev-comment');
+        // Si le commentaire est le premier de la liste
+        // on ne l'active pas
+        if (this.isFirst()) {
+            $prevCmt.css('color', 'grey').css('cursor', 'initial');
+        }
+        else {
+            // On active le btn précédent
+            $prevCmt.on('click', (e) => {
+                e.stopPropagation();
+                e.preventDefault();
+                // Il faut tout nettoyer, comme pour la fermeture
+                self.cleanEvents();
+                // Il faut demander au parent d'afficher le commentaire précédent
+                self.getCollectionComments().getPrevComment(self.id).render();
+            });
+            this._events.push({ elt: $prevCmt, event: 'click' });
+        }
+        const $nextCmt = $title.find('.next-comment');
+        // Si le commentaire est le dernier de la liste
+        // on ne l'active pas
+        if (this.isLast()) {
+            $nextCmt.css('color', 'grey').css('cursor', 'initial');
+        }
+        else {
+            // On active le btn suivant
+            $nextCmt.on('click', (e) => {
+                e.stopPropagation();
+                e.preventDefault();
+                // Il faut tout nettoyer, comme pour la fermeture
+                self.cleanEvents();
+                // Il faut demander au parent d'afficher le commentaire suivant
+                self.getCollectionComments().getNextComment(self.id).render();
+            });
+            this._events.push({ elt: $nextCmt, event: 'click' });
+        }
+        // On active le lien pour afficher le spoiler
+        const $btnSpoiler = $container.find('.view-spoiler');
+        if ($btnSpoiler.length > 0) {
+            $btnSpoiler.on('click', (e) => {
+                e.stopPropagation();
+                e.preventDefault();
+                const $btn = jQuery(e.currentTarget);
+                const $spoiler = $btn.next('.comment-text').find('.spoiler');
+                if ($spoiler.is(':visible')) {
+                    $spoiler.fadeOut('fast');
+                    $btn.text('Voir le spoiler');
+                }
+                else {
+                    $spoiler.fadeIn('fast');
+                    $btn.text('Cacher le spoiler');
+                }
+            });
+            this._events.push({ elt: $btnSpoiler, event: 'click' });
+        }
+        /**
+         * Ajoutons les events pour:
+         *  - btnUpVote: Voter pour ce commentaire
+         *  - btnDownVote: Voter contre ce commentaire
+         */
+        const $btnThumb = $container.find('.comments .comment .btnThumb');
+        $btnThumb.on('click', (e) => {
+            e.stopPropagation();
+            e.preventDefault();
+            if (!UsBetaSeries.userIdentified()) {
+                faceboxDisplay('inscription', {}, () => { });
+                return;
+            }
+            const $btn = jQuery(e.currentTarget);
+            const commentId = parseInt($btn.parents('.comment').data('commentId'), 10);
+            let verb = HTTP_VERBS.POST;
+            const vote = $btn.hasClass('btnUpVote') ? 1 : -1;
+            let params = { id: commentId, type: vote, switch: false };
+            // On a déjà voté
+            if (self.thumbed == vote) {
+                verb = HTTP_VERBS.DELETE;
+                params = { id: commentId };
+            }
+            else if (self.thumbed != 0) {
+                console.warn("Le vote est impossible. Annuler votre vote et recommencer");
+                return;
+            }
+            UsBetaSeries.callApi(verb, 'comments', 'thumb', params)
+                .then(async (data) => {
+                if (commentId == self.id) {
+                    self.thumbs = parseInt(data.comment.thumbs, 10);
+                    self.thumbed = data.comment.thumbed ? parseInt(data.comment.thumbed, 10) : 0;
+                    self.updateRenderThumbs(vote);
+                }
+                else if (await self.isReply(commentId)) {
+                    const reply = await self.getReply(commentId);
+                    reply.thumbs = parseInt(data.comment.thumbs, 10);
+                    reply.thumbed = data.comment.thumbed ? parseInt(data.comment.thumbed, 10) : 0;
+                    reply.updateRenderThumbs(vote);
+                }
+                else {
+                    // Demander au parent d'incrémenter les thumbs du commentaire
+                    const thumbed = data.comment.thumbed ? parseInt(data.comment.thumbed, 10) : 0;
+                    self.getCollectionComments().changeThumbs(commentId, data.comment.thumbs, thumbed);
+                }
+                // Petite animation pour le nombre de votes
+                $btn.siblings('strong.thumbs')
+                    .css('animation', '1s ease 0s 1 normal forwards running backgroundFadeOut');
+            })
+                .catch(err => {
+                const msg = err.text !== undefined ? err.text : err;
+                UsBetaSeries.notification('Vote commentaire', "Une erreur est apparue durant le vote: " + msg);
+            });
+        });
+        this._events.push({ elt: $btnThumb, event: 'click' });
+        /**
+         * On affiche/masque les options du commentaire
+         */
+        const $btnOptions = $container.find('.btnToggleOptions');
+        // if (BetaSeries.debug) CommentBS.debug('Comment loadEvents toggleOptions.length', $btnOptions.length);
+        $btnOptions.on('click', (e) => {
+            e.stopPropagation();
+            e.preventDefault();
+            jQuery(e.currentTarget).parents(`.${CommentBS.classNamesCSS.actions}`).first()
+                .find('.options-comment').each((_index, elt) => {
+                const $elt = jQuery(elt);
+                if ($elt.is(':visible')) {
+                    $elt.hide();
+                }
+                else {
+                    $elt.show();
+                }
+            });
+        });
+        this._events.push({ elt: $btnOptions, event: 'click' });
+        /**
+         * On envoie la réponse à ce commentaire à l'API
+         */
+        const $btnSend = $container.find('.sendComment');
+        $btnSend.on('click', async (e) => {
+            e.stopPropagation();
+            e.preventDefault();
+            if (!UsBetaSeries.userIdentified()) {
+                faceboxDisplay('inscription', {}, () => { });
+                return;
+            }
+            const $textarea = $(e.currentTarget).siblings('textarea');
+            if ($textarea.val().length > 0) {
+                const replyId = parseInt($textarea.data('replyTo'), 10);
+                const action = $textarea.data('action');
+                const msg = $textarea.val();
+                if (replyId && replyId == self.id) {
+                    self.sendReply(msg).then(comment => {
+                        if (comment) {
+                            const template = CommentBS.getTemplateComment(comment);
+                            $container.find('.comments').append(template);
+                            $textarea.removeAttr('data-reply-to');
+                            self.cleanEvents(() => {
+                                self.loadEvents($container, funcPopup);
+                            });
+                        }
+                    });
+                }
+                else if (replyId) {
+                    const reply = await self.getReply(replyId);
+                    if (reply) {
+                        reply.sendReply(msg).then(comment => {
+                            if (comment) {
+                                const template = CommentBS.getTemplateComment(comment);
+                                $container.find(`.comments .comment[data-comment-id="${reply.id}"]`)
+                                    .after(template);
+                                $textarea.removeAttr('data-reply-to');
+                                self.cleanEvents(() => {
+                                    self.loadEvents($container, funcPopup);
+                                });
+                            }
+                        });
+                    }
+                    else {
+                        // Allo Houston, on a un problème
+                    }
+                }
+                else if (action === 'edit') {
+                    self.edit(msg).then(() => {
+                        const cmtId = parseInt($textarea.data('commentId'), 10);
+                        let $comment = $(e.currentTarget).parents('.writing').siblings('.comments').children(`.comment[data-comment-id="${cmtId.toString()}"]`);
+                        $comment.find('.comment-text').text(self.text);
+                        $comment = jQuery(`#comments .slide_flex .slide__comment[data-comment-id="${cmtId}"]`);
+                        $comment.find('p').text(msg);
+                        $textarea.removeAttr('data-action').removeAttr('data-comment-id');
+                    });
+                }
+                else {
+                    CommentsBS.sendComment(self.getCollectionComments().media, msg).then((comment) => {
+                        self.getCollectionComments().addToPage(comment.id);
+                        self.cleanEvents(() => {
+                            self.loadEvents($container, funcPopup);
+                        });
+                    });
+                }
+                $textarea.val('');
+                $textarea.siblings('button').attr('disabled', 'true');
+            }
+        });
+        this._events.push({ elt: $btnSend, event: 'click' });
+        /**
+         * On active / desactive le bouton d'envoi du commentaire
+         * en fonction du contenu du textarea
+         */
+        const $textarea = $container.find('textarea');
+        $textarea.on('keypress', (e) => {
+            const $textarea = $(e.currentTarget);
+            if ($textarea.val().length > 0) {
+                $textarea.siblings('button').removeAttr('disabled');
+            }
+            else {
+                $textarea.siblings('button').attr('disabled', 'true');
+            }
+        });
+        this._events.push({ elt: $textarea, event: 'keypress' });
+        /**
+         * On ajoute les balises SPOILER au message dans le textarea
+         */
+        const $baliseSpoiler = $container.find('.baliseSpoiler');
+        $baliseSpoiler.on('click', () => {
+            const $textarea = $popup.find('textarea');
+            if (/\[spoiler\]/.test($textarea.val())) {
+                return;
+            }
+            const text = '[spoiler]' + $textarea.val() + '[/spoiler]';
+            $textarea.val(text);
+        });
+        this._events.push({ elt: $baliseSpoiler, event: 'click' });
+        const $btnReplies = $container.find('.comments .toggleReplies');
+        $btnReplies.on('click', (e) => {
+            e.stopPropagation();
+            e.preventDefault();
+            const $btn = $(e.currentTarget);
+            const state = $btn.data('toggle'); // 0: Etat masqué, 1: Etat affiché
+            const $comment = $btn.parents('.comment');
+            const inner = $comment.data('commentInner');
+            const $replies = $comment.parents('.comments').find(`.comment[data-comment-reply="${inner}"]`);
+            if (state == '0') {
+                // On affiche
+                $replies.nextAll('.sub').fadeIn('fast');
+                $replies.fadeIn('fast');
+                $btn.find('.btnText').text(UsBetaSeries.trans("comment.hide_answers"));
+                $btn.find('svg').attr('style', 'transition: transform 200ms ease 0s; transform: rotate(180deg);');
+                $btn.data('toggle', '1');
+            }
+            else {
+                // On masque
+                $replies.nextAll('.sub').fadeOut('fast');
+                $replies.fadeOut('fast');
+                $btn.find('.btnText').text(UsBetaSeries.trans("comment.button.reply", { "%count%": $replies.length.toString() }, $replies.length));
+                $btn.find('svg').attr('style', 'transition: transform 200ms ease 0s;');
+                $btn.data('toggle', '0');
+            }
+        });
+        this._events.push({ elt: $btnReplies, event: 'click' });
+        const $btnResponse = $container.find('.btnResponse');
+        $btnResponse.on('click', async (e) => {
+            e.stopPropagation();
+            e.preventDefault();
+            if (!UsBetaSeries.userIdentified()) {
+                faceboxDisplay('inscription', {}, () => { });
+                return;
+            }
+            const $btn = $(e.currentTarget);
+            const $comment = $btn.parents('.comment');
+            const comment = await getObjComment($comment);
+            $container.find('textarea')
+                .val('@' + comment.login)
+                .attr('data-reply-to', comment.id);
+        });
+        this._events.push({ elt: $btnResponse, event: 'click' });
+        const $btnEdit = $container.find('.btnEditComment');
+        $btnEdit.on('click', (e) => {
+            e.stopPropagation();
+            e.preventDefault();
+            const $parent = $(e.currentTarget).parents('.comment');
+            const commentId = parseInt($parent.data('commentId'), 10);
+            $textarea.val(self.text);
+            $textarea.attr('data-action', 'edit');
+            $textarea.attr('data-comment-id', commentId);
+        });
+        this._events.push({ elt: $btnEdit, event: 'click' });
+        const $btnDelete = $container.find('.btnDeleteComment');
+        $btnDelete.on('click', (e) => {
+            e.stopPropagation();
+            e.preventDefault();
+            const $parent = $(e.currentTarget).parents('.comment');
+            const $options = $(e.currentTarget).parents('.options-options');
+            const template = `
+                <div class="options-delete">
+                    <span class="mainTime">Supprimer mon commentaire :</span>
+                    <button type="button" class="btn-reset fontWeight700 btnYes" style="vertical-align: 0px; padding-left: 10px; padding-right: 10px; color: rgb(208, 2, 27);">Oui</button>
+                    <button type="button" class="btn-reset mainLink btnNo" style="vertical-align: 0px;">Non</button>
+                </div>
+            `;
+            $options.hide().after(template);
+            const $btnYes = $parent.find('.options-delete .btnYes');
+            const $btnNo = $parent.find('.options-delete .btnNo');
+            $btnYes.on('click', (e) => {
+                e.stopPropagation();
+                e.preventDefault();
+                self.delete();
+                $btnClose.trigger('click');
+            });
+            $btnNo.on('click', (e) => {
+                e.stopPropagation();
+                e.preventDefault();
+                $parent.find('.options-delete').remove();
+                $options.show();
+                $btnYes.off('click');
+                $btnNo.off('click');
+            });
+        });
+        this._events.push({ elt: $btnDelete, event: 'click' });
+    }
+    /**
+     * Nettoie les events créer par la fonction loadEvents
+     * @param   {Callback} onComplete - Fonction de callback
+     * @returns {void}
+     */
+    cleanEvents(onComplete = UsBetaSeries.noop) {
+        if (this._events && this._events.length > 0) {
+            let data;
+            for (let e = 0; e < this._events.length; e++) {
+                data = this._events[e];
+                data.elt.off(data.event);
+            }
+        }
+        onComplete();
+    }
+    /**
+     * Affiche le commentaire dans une dialogbox
+     */
+    async render() {
+        // La popup et ses éléments
+        const self = this, $popup = jQuery('#popin-dialog'), $contentHtml = $popup.find(".popin-content-html"), $contentReact = $popup.find('.popin-content-reactmodule'), $closeButtons = $popup.find("#popin-showClose"), hidePopup = () => {
+            document.body.style.overflow = "visible";
+            document.body.style.paddingRight = "";
+            $popup.attr('aria-hidden', 'true');
+            $popup.find("#popupalertyes").show();
+            $popup.find("#popupalertno").show();
+            $contentReact.empty();
+            $contentHtml.hide();
+            self.cleanEvents();
+            self._callListeners(EventTypes.HIDE);
+        }, showPopup = () => {
+            document.body.style.overflow = "hidden";
+            document.body.style.paddingRight = getScrollbarWidth() + "px";
+            $popup.find("#popupalertyes").hide();
+            $popup.find("#popupalertno").hide();
+            $contentHtml.hide();
+            $contentReact.show();
+            $closeButtons.show();
+            $popup.attr('aria-hidden', 'false');
+        };
+        // On ajoute le loader dans la popup et on l'affiche
+        $contentReact.empty().append(`<div class="title" id="dialog-title" tabindex="0">${UsBetaSeries.trans("blog.title.comments")}</div>`);
+        let $title = $contentReact.find('.title');
+        let templateLoader = `
+            <div class="loaderCmt">
+                <svg class="sr-only">
+                    <defs>
+                        <clipPath id="placeholder">
+                            <path d="M50 25h160v8H50v-8zm0-18h420v8H50V7zM20 40C8.954 40 0 31.046 0 20S8.954 0 20 0s20 8.954 20 20-8.954 20-20 20z"></path>
+                        </clipPath>
+                    </defs>
+                </svg>
+        `;
+        for (let l = 0; l < 4; l++) {
+            templateLoader += `
+                <div class="er_ex null">
+                    <div class="ComponentPlaceholder er_et" style="height: 40px;"></div>
+                </div>`;
+        }
+        $contentReact.append(templateLoader + '</div>');
+        showPopup();
+        let template = `
+            <div data-media-type="${self.getCollectionComments().media.mediaType.singular}"
+                            data-media-id="${self.getCollectionComments().media.id}"
+                            class="displayFlex flexDirectionColumn"
+                            style="margin-top: 2px; min-height: 0">`;
+        if (UsBetaSeries.userIdentified()) {
+            template += `<button type="button" class="btn-reset btnSubscribe" style="position: absolute; top: 3px; right: 31px; padding: 8px;">
+                <span class="svgContainer">
+                    <svg></svg>
+                </span>
+            </button>`;
+        }
+        template += '<div class="comments overflowYScroll">' + CommentBS.getTemplateComment(this);
+        // Récupération des réponses sur l'API
+        // On ajoute les réponses, par ordre décroissant à la template
+        if (this.nbReplies > 0 && this.replies.length <= 0) {
+            await this.fetchReplies();
+        }
+        for (let r = 0; r < this.replies.length; r++) {
+            template += CommentBS.getTemplateComment(this.replies[r]);
+        }
+        template += '</div>';
+        if (this.getCollectionComments().isOpen() && UsBetaSeries.userIdentified()) {
+            template += CommentBS.getTemplateWriting(self);
+        }
+        template += '</div>';
+        // On définit le type d'affichage de la popup
+        $popup.attr('data-popin-type', 'comments');
+        $contentReact.fadeOut('fast', () => {
+            $contentReact.find('.loaderCmt').remove();
+            // On affiche le titre de la popup
+            // avec des boutons pour naviguer
+            $contentReact.empty().append(`<div class="title" id="dialog-title" tabindex="0"></div>`);
+            $title = $contentReact.find('.title');
+            let nav = '';
+            if (!self._parent.isFirst(self.id)) {
+                nav += ' <i class="fa-solid fa-circle-chevron-left prev-comment" aria-hidden="true" title="Commentaire précédent"></i>';
+            }
+            if (!self._parent.isLast(self.id)) {
+                nav += '  <i class="fa-solid fa-circle-chevron-right next-comment" aria-hidden="true" title="Commentaire suivant"></i>';
+            }
+            $title.append(UsBetaSeries.trans("blog.title.comments") + nav);
+            // On ajoute les templates HTML du commentaire,
+            // des réponses et du formulaire de d'écriture
+            $contentReact.append(template);
+            $contentReact.fadeIn();
+            // On active les boutons de l'affichage du commentaire
+            self.loadEvents($contentReact, { hidePopup, showPopup });
+            self._callListeners(EventTypes.SHOW);
+        });
+    }
+    /**
+     * Envoie une réponse de ce commentaire à l'API
+     * @param   {string} text        Le texte de la réponse
+     * @returns {Promise<(void | CommentBS)>}
+     */
+    sendReply(text) {
+        const self = this;
+        const params = {
+            type: this.getCollectionComments().media.mediaType.singular,
+            id: this.getCollectionComments().media.id,
+            in_reply_to: this.inner_id,
+            text: text
+        };
+        return UsBetaSeries.callApi(HTTP_VERBS.POST, 'comments', 'comment', params)
+            .then((data) => {
+            const comment = new CommentBS(data.comment, self);
+            const method = self.getCollectionComments().order === OrderComments.DESC ? Array.prototype.unshift : Array.prototype.push;
+            method.call(self.replies, comment);
+            self.nbReplies++;
+            self.getCollectionComments().nbComments++;
+            self.getCollectionComments().is_subscribed = true;
+            return comment;
+        })
+            .catch(err => {
+            UsBetaSeries.notification('Commentaire', "Erreur durant l'ajout d'un commentaire");
+            console.error(err);
+        });
+    }
+}
+
+var StarTypes;
+(function (StarTypes) {
+    StarTypes["EMPTY"] = "empty";
+    StarTypes["HALF"] = "half";
+    StarTypes["FULL"] = "full";
+    StarTypes["DISABLE"] = "disable";
+})(StarTypes || (StarTypes = {}));
+class Note {
+    static logger = new UsBetaSeries.setDebug('Note');
+    static debug = Note.logger.debug.bind(Note.logger);
+    /**
+     * Nombre de votes
+     * @type {number}
+     */
+    total;
+    /**
+     * Note moyenne du média
+     * @type {number}
+     */
+    mean;
+    /**
+     * Note du membre connecté
+     * @type {number}
+     */
+    user;
+    /**
+     * Media de référence
+     * @type {Base}
+     */
+    _parent;
+    __initial;
+    __changes = {};
+    constructor(data, parent) {
+        this.__initial = true;
+        this._parent = parent ? parent : null;
+        return this.fill(data);
+    }
+    fill(data) {
+        const self = this;
+        const fnTransform = {
+            total: parseInt,
+            user: parseInt,
+            mean: parseFloat
+        };
+        for (const propKey of Object.keys(fnTransform)) {
+            if (self.__initial) {
+                const descriptor = {
+                    configurable: true,
+                    enumerable: true,
+                    get: () => {
+                        return self['_' + propKey];
+                    },
+                    set: (newValue) => {
+                        const oldValue = self['_' + propKey];
+                        if (oldValue === newValue)
+                            return;
+                        self['_' + propKey] = newValue;
+                        if (!self.__initial) {
+                            self.__changes[propKey] = { oldValue, newValue };
+                            if (self._parent)
+                                self._parent.updatePropRenderObjNote();
+                        }
+                    }
+                };
+                Object.defineProperty(this, propKey, descriptor);
+            }
+            const value = fnTransform[propKey](data[propKey]);
+            Reflect.set(this, propKey, value);
+        }
+        this.__initial = false;
+        return this;
+    }
+    get parent() {
+        return this._parent;
+    }
+    set parent(parent) {
+        if (!(parent instanceof MediaBase)) {
+            throw new TypeError('Parameter "parent" must be an instance of MediaBase');
+        }
+        this._parent = parent;
+    }
+    /**
+     * Retourne la note moyenne sous forme de pourcentage
+     * @returns {number} La note sous forme de pourcentage
+     */
+    getPercentage() {
+        return Math.round(((this.mean / 5) * 100) / 10) * 10;
+    }
+    /**
+     * Retourne l'objet Note sous forme de chaine
+     * @returns {string}
+     */
+    toString() {
+        let locale = 'fr-FR';
+        if (UsBetaSeries.member) {
+            locale = UsBetaSeries.member.locale;
+        }
+        const votes = 'vote' + (this.total > 1 ? 's' : ''), 
+        // On met en forme le nombre de votes
+        total = new Intl.NumberFormat(locale, { style: 'decimal', useGrouping: true }).format(this.total), 
+        // On limite le nombre de chiffre après la virgule
+        note = this.mean.toFixed(2);
+        let toString = `${total} ${votes} : ${note} / 5`;
+        // On ajoute la note du membre connecté, si il a voté
+        if (UsBetaSeries.userIdentified() && this.user > 0) {
+            toString += `, votre note: ${this.user}`;
+        }
+        return toString;
+    }
+    /**
+     * Retourne l'objet sous forme d'objet simple, sans référence circulaire,
+     * pour la méthode JSON.stringify
+     * @returns {object}
+     */
+    toJSON() {
+        return {
+            total: this.total,
+            mean: this.mean,
+            user: this.user
+        };
+    }
+    /**
+     * Crée une popup avec 5 étoiles pour noter le média
+     * @param {Callback} cb - Fonction callback
+     */
+    createPopupForVote(cb = UsBetaSeries.noop) {
+        Note.debug('objNote createPopupForVote');
+        // La popup et ses éléments
+        const self = this, $popup = jQuery('#popin-dialog'), $contentHtmlElement = $popup.find(".popin-content-html"), $contentReact = $popup.find('.popin-content-reactmodule'), $closeButtons = $popup.find(".js-close-popupalert"), hidePopup = () => {
+            Note.debug('objNote createPopupForVote hidePopup');
+            $popup.attr('aria-hidden', 'true');
+            $contentHtmlElement.find(".button-set").show();
+            $contentHtmlElement.hide();
+            // On désactive les events
+            $text.find('.star-svg').off('mouseenter').off('mouseleave').off('click');
+        }, showPopup = () => {
+            Note.debug('objNote createPopupForVote showPopup');
+            $contentHtmlElement.find(".button-set").hide();
+            $contentHtmlElement.show();
+            $contentReact.hide();
+            $closeButtons.show();
+            $popup.attr('aria-hidden', 'false');
+        };
+        let $text = $popup.find("p"), $title = $contentHtmlElement.find(".title");
+        // On vérifie que la popup est masquée
+        hidePopup();
+        // Ajouter les étoiles
+        let template = '<div style="display: flex; justify-content: center; margin-bottom: 15px;"><div role="button" tabindex="0" class="stars btn-reset">', className;
+        for (let i = 1; i <= 5; i++) {
+            className = this.user <= i - 1 ? StarTypes.EMPTY : StarTypes.FULL;
+            template += `
+                <svg viewBox="0 0 100 100" class="star-svg" data-number="${i}" style="width: 30px; height: 30px;">
+                    <use xlink:href="#icon-starblue-${className}"></use>
+                </svg>`;
+        }
+        if ($text.length <= 0) {
+            $contentHtmlElement.replaceWith(`
+                <div class="popin-content-html">
+                    <div class="title" id="dialog-title" tabindex="0"></div>
+                    <div class="popin-content-ajax">
+                        <p></p>
+                    </div>
+                </div>`);
+            $text = $contentHtmlElement.find('p');
+            $title = $contentHtmlElement.find(".title");
+        }
+        // On vide la popup et on ajoute les étoiles
+        $text.empty().append(template + '</div></div>');
+        let title = 'Noter ';
+        switch (this._parent.mediaType.singular) {
+            case MediaType.show:
+                title += 'la série';
+                break;
+            case MediaType.movie:
+                title += 'le film';
+                break;
+            case MediaType.episode:
+                title += "l'épisode";
+                break;
+            default:
+                break;
+        }
+        $title.empty().text(title);
+        $closeButtons.click(() => {
+            hidePopup();
+            $popup.removeAttr('data-popin-type');
+        });
+        // On ajoute les events sur les étoiles
+        const updateStars = function (evt, note) {
+            const $stars = jQuery(evt.currentTarget).parent().find('.star-svg use');
+            let className;
+            for (let s = 0; s < 5; s++) {
+                className = (s <= note - 1) ? StarTypes.FULL : StarTypes.EMPTY;
+                $($stars.get(s)).attr('xlink:href', `#icon-starblue-${className}`);
+            }
+        };
+        const $stars = $text.find('.star-svg');
+        $stars.mouseenter((e) => {
+            const note = parseInt($(e.currentTarget).data('number'), 10);
+            updateStars(e, note);
+        });
+        $stars.mouseleave((e) => {
+            updateStars(e, self.user);
+        });
+        $stars.click((e) => {
+            const note = parseInt(jQuery(e.currentTarget).data('number'), 10), $stars = jQuery(e.currentTarget).parent().find('.star-svg');
+            // On supprime les events
+            $stars.off('mouseenter').off('mouseleave');
+            self._parent.addVote(note)
+                .then((result) => {
+                hidePopup();
+                if (result) {
+                    // TODO: Mettre à jour la note du média
+                    self._parent.changeTitleNote();
+                    self._parent._callListeners(EventTypes.NOTE);
+                    if (cb)
+                        cb.call(self);
+                }
+                else {
+                    UsBetaSeries.notification('Erreur Vote', "Une erreur s'est produite durant le vote");
+                }
+            })
+                .catch(() => hidePopup());
+        });
+        // On affiche la popup
+        showPopup();
+    }
+    /**
+     * Retourne le type d'étoile en fonction de la note et de l'indice
+     * de comparaison
+     * @param  {number} note   La note du media
+     * @param  {number} indice L'indice de comparaison
+     * @return {string}        Le type d'étoile
+     */
+    static getTypeSvg(note, indice) {
+        let typeSvg = StarTypes.EMPTY;
+        if (note <= indice) {
+            typeSvg = StarTypes.EMPTY;
+        }
+        else if (note < indice + 1) {
+            if (note > indice + 0.25) {
+                typeSvg = StarTypes.HALF;
+            }
+            else if (note > indice + 0.75) {
+                typeSvg = StarTypes.FULL;
+            }
+        }
+        else {
+            typeSvg = StarTypes.FULL;
+        }
+        return typeSvg;
+    }
+    /**
+     * Met à jour l'affichage de la note
+     * @param   {JQuery<HTMLElement>} [$elt] - Element HTML contenant les étoiles représentant la note
+     * @returns {Note}
+     */
+    updateStars($elt) {
+        $elt = $elt || jQuery('.blockInformations__metadatas .js-render-stars', this._parent.elt);
+        if (!$elt || $elt.length <= 0)
+            return this;
+        let color = '';
+        const $stars = jQuery('.star-svg use', $elt);
+        const result = $($stars.get(0)).attr('xlink:href').match(/(grey|blue)/);
+        if (result) {
+            color = result[0];
+        }
+        for (let s = 0; s < 5; s++) {
+            const className = Note.getTypeSvg(this.mean, s);
+            $($stars.get(s)).attr('xlink:href', `#icon-star${color}-${className}`);
+        }
+        return this;
+    }
+    /**
+     * Met à jour l'attribut title de l'élément HTML représentant la note
+     * @param   {JQuery<HTMLElement>} [$elt] - Element HTML contenant les étoiles représentant la note
+     * @returns {Note}
+     */
+    updateAttrTitle($elt) {
+        $elt = $elt || jQuery('.blockInformations__metadatas .js-render-stars', this._parent.elt);
+        if (!$elt || $elt.length <= 0)
+            return this;
+        if (this.mean <= 0 || this.total <= 0) {
+            $elt.attr('title', 'Aucun vote');
+            return this;
+        }
+        $elt.attr('title', this.toString());
+        return this;
+    }
+    /**
+     * Retourne la template pour l'affichage d'une note sous forme d'étoiles
+     * @param   {number} [note=0] - La note à afficher
+     * @param   {string} [color] - La couleur des étoiles
+     * @returns {string}
+     */
+    static renderStars(note = 0, color = '') {
+        let typeSvg, template = '';
+        if (note == 0) {
+            color = 'grey';
+        }
+        for (let s = 0; s < 5; s++) {
+            typeSvg = Note.getTypeSvg(note, s);
+            template += `
+                <svg viewBox="0 0 100 100" class="star-svg">
+                    <use xmlns:xlink="http://www.w3.org/1999/xlink"
+                        xlink:href="#icon-star${color}-${typeSvg}">
+                    </use>
+                </svg>
+            `;
+        }
+        return template;
+    }
+}
+
+/**
+ * Next
+ * @class
+ * @memberof User
+ */
+class Next {
+    id;
+    code;
+    date;
+    title;
+    image;
+    constructor(data) {
+        this.id = (data.id != undefined) ? parseInt(data.id, 10) : NaN;
+        this.code = data.code;
+        this.date = new Date(data.date) || null;
+        this.title = data.title;
+        this.image = data.image;
+    }
+}
+/**
+ * User
+ * @class
+ * @extends RenderHtml
+ */
+class User extends RenderHtml {
+    static logger = new UsBetaSeries.setDebug('User');
+    static debug = User.logger.debug.bind(User.logger);
+    /**
+     * Objet contenant les relations entre les données de l'API BS et la classe User
+     * @type {Record<string, RelatedProp>}
+     * @static
+     */
+    static relatedProps = {
+        archived: { key: "archived", type: 'boolean', default: false },
+        downloaded: { key: "downloaded", type: 'boolean', default: false },
+        favorited: { key: "favorited", type: 'boolean', default: false },
+        friends_want_to_watch: { key: "friends_want_to_watch", type: 'array', default: [] },
+        friends_watching: { key: "friends_watched", type: 'array', default: [] },
+        hidden: { key: "hidden", type: 'boolean', default: false },
+        last: { key: 'last', type: 'string', default: '' },
+        mail: { key: "mail", type: 'boolean', default: false },
+        next: { key: "next", type: Next },
+        profile: { key: 'profile', type: 'string', default: '' },
+        remaining: { key: "remaining", type: 'number', default: 0 },
+        seen: { key: "seen", type: 'boolean', default: false },
+        status: { key: "status", type: 'number', default: 0 },
+        tags: { key: 'tags', type: 'string', default: '' },
+        twitter: { key: "twitter", type: 'boolean', default: false }
+    };
+    static selectorsCSS = {};
+    archived;
+    downloaded;
+    favorited;
+    friends_want_to_watch;
+    friends_watched;
+    hidden;
+    last;
+    mail;
+    next;
+    profile;
+    remaining;
+    seen;
+    status;
+    tags;
+    twitter;
+    /**
+     * Constructeur de la classe User
+     * @param   {Obj} data - Les données de l'objet
+     * @returns {User}
+     */
+    constructor(data) {
+        super(data, null);
+        return this.fill(data)._initRender();
+    }
+    /**
+     * Initialise le rendu HTML de la saison
+     * @returns {User}
+     */
+    _initRender() {
+        return this;
+    }
+}
+
+var MediaType;
+(function (MediaType) {
+    MediaType["show"] = "show";
+    MediaType["movie"] = "movie";
+    MediaType["episode"] = "episode";
+})(MediaType = MediaType || (MediaType = {}));
+class MediaBase extends RenderHtml {
+    static logger = new UsBetaSeries.setDebug('Media');
+    static debug = MediaBase.logger.debug.bind(MediaBase.logger);
+    /*
+                    PROPERTIES
+    */
+    /** @type {string} */
+    description;
+    /** @type {number} */
+    nbComments;
+    /** @type {number} */
+    id;
+    /** @type {Note} */
+    objNote;
+    /** @type {string} */
+    resource_url;
+    /** @type {string} */
+    title;
+    /** @type {User} */
+    user;
+    /** @type {Array<Character>} */
+    characters;
+    /** @type {CommentsBS} */
+    comments;
+    /** @type {MediaTypes} */
+    mediaType;
+    constructor(data, elt) {
+        super(data, elt);
+        this.characters = [];
+        this.__props = ['characters', 'comments', 'mediaType'];
+        return this;
+    }
+    /**
+     * Initialisation du rendu HTML
+     * @returns {MediaBase}
+     */
+    _initRender() {
+        if (!this.elt)
+            return this;
+        // MediaBase.debug('Base._initRender', this);
+        this.objNote
+            .updateAttrTitle()
+            .updateStars();
+        this.decodeTitle();
+        return this;
+    }
+    /**
+     * Met à jour les informations de la note du média sur la page Web
+     */
+    updatePropRenderObjNote() {
+        if (!this.elt)
+            return;
+        MediaBase.debug('updatePropRenderObjNote');
+        this.objNote
+            .updateStars()
+            .updateAttrTitle();
+        this._callListeners(EventTypes.NOTE);
+        delete this.__changes.objNote;
+    }
+    /**
+     * Met à jour le titre du média sur la page Web
+     */
+    updatePropRenderTitle() {
+        if (!this.elt)
+            return;
+        const $title = jQuery(this.constructor.selectorsCSS.title);
+        if (/&#/.test(this.title)) {
+            $title.text($('<textarea />').html(this.title).text());
+        }
+        else {
+            $title.text(this.title);
+        }
+        delete this.__changes.title;
+    }
+    /**
+     * Méthode d'initialisation de l'objet
+     * @returns {Promise<MediaBase>}
+     */
+    init() {
+        if (this.elt) {
+            this.comments = new CommentsBS(this.nbComments, this);
+        }
+        this.save();
+        return new Promise(resolve => resolve(this));
+    }
+    /**
+     * Sauvegarde l'objet en cache
+     * @return {MediaBase} L'instance du média
+     */
+    save() {
+        if (UsBetaSeries.cache instanceof CacheUS) {
+            UsBetaSeries.cache.set(this.mediaType.plural, this.id, this);
+            this._callListeners(EventTypes.SAVE);
+        }
+        return this;
+    }
+    /**
+     * Retourne le nombre d'acteurs référencés dans ce média
+     * @returns {number}
+     */
+    get nbCharacters() {
+        return this.characters.length;
+    }
+    /**
+     * Décode le titre de la page
+     * @return {Base} L'instance du média
+     */
+    decodeTitle() {
+        if (!this.elt)
+            return this;
+        let $elt = jQuery('.blockInformations__title', this.elt);
+        if (this.constructor.selectorsCSS.title) {
+            $elt = jQuery(this.constructor.selectorsCSS.title);
+        }
+        const title = $elt.text();
+        if (/&#/.test(title)) {
+            $elt.text($('<textarea />').html(title).text());
+        }
+        return this;
+    }
+    /**
+     * Ajoute le nombre de votes, à la note du média, dans l'attribut title de la balise
+     * contenant la représentation de la note du média
+     *
+     * @return {void}
+     */
+    changeTitleNote() {
+        if (!this.elt)
+            return;
+        const $elt = jQuery('.js-render-stars', this.elt);
+        if (this.objNote.mean <= 0 || this.objNote.total <= 0) {
+            $elt.attr('title', 'Aucun vote');
+            return;
+        }
+        $elt.attr('title', this.objNote.toString());
+    }
+    /**
+     * Ajoute le vote du membre connecté pour le média
+     * @param   {number} note - Note du membre connecté pour le média
+     * @returns {Promise<boolean>}
+     */
+    addVote(note) {
+        const self = this;
+        // return new Promise((resolve, reject) => {
+        return UsBetaSeries.callApi(HTTP_VERBS.POST, this.mediaType.plural, 'note', { id: this.id, note: note })
+            .then((data) => {
+            self.fill(data[this.mediaType.singular]);
+            return this.objNote.user == note;
+        })
+            .catch(err => {
+            UsBetaSeries.notification('Erreur de vote', 'Une erreur s\'est produite lors de l\'envoi de la note: ' + err);
+            return false;
+        });
+        // });
+    }
+    /**
+     * *fetchCharacters* - Récupère les acteurs du média
+     * @abstract
+     * @returns {Promise<MediaBase>}
+     */
+    fetchCharacters() {
+        throw new Error('Method abstract');
+    }
+    /**
+     * *getCharacter* - Retourne un personnage à partir de son identifiant
+     * @param   {number} id - Identifiant de l'actor
+     * @returns {Character | null}
+     */
+    getCharacter(id) {
+        for (const actor of this.characters) {
+            if (actor.person_id === id)
+                return actor;
+        }
+        return null;
+    }
+}
+class Media extends MediaBase {
     /***************************************************/
     /*                      STATIC                     */
     /***************************************************/
@@ -4538,43 +5684,53 @@ class Media extends Base {
     /*                  PROPERTIES                     */
     /***************************************************/
     /**
-     * @type {number} Nombre de membres ayant ce média sur leur compte
+     * Nombre de membres ayant ce média sur leur compte
+     * @type {number}
      */
     followers;
     /**
-     * @type {Array<string>} Les genres attribués à ce média
+     * Les genres attribués à ce média
+     * @type {string[]}
      */
     genres;
     /**
-     * @type {string} Identifiant IMDB
+     * Identifiant IMDB
+     * @type {string}
      */
     imdb_id;
     /**
-     * @type {string} Langue originale du média
+     * Langue originale du média
+     * @type {string}
      */
     language;
     /**
-     * @type {number} Durée du média en minutes
+     * Durée du média en minutes
+     * @type {number}
      */
     duration;
     /**
-     * @type {string} Titre original du média
+     * Titre original du média
+     * @type {string}
      */
     original_title;
     /**
-     * @type {Array<Similar>} Tableau des médias similaires
+     * Tableau des médias similaires
+     * @type {Similar[]}
      */
     similars;
     /**
-     * @type {number} Nombre de médias similaires
+     * Nombre de médias similaires
+     * @type {number}
      */
     nbSimilars;
     /**
-     * @type {boolean} Indique si le média se trouve sur le compte du membre connecté
+     * Indique si le média se trouve sur le compte du membre connecté
+     * @type {boolean}
      */
     in_account;
     /**
-     * @type {string} slug - Identifiant du média servant pour l'URL
+     * Identifiant du média servant pour l'URL
+     * @type {string}
      */
     slug;
     __fetches;
@@ -4649,18 +5805,18 @@ class Media extends Base {
     async override(prop, value, params) {
         const type = this.constructor;
         if (type.propsAllowedOverride[prop]) {
-            const override = await Base.gm_funcs.getValue('override', { shows: {}, movies: {} });
+            const override = await UsBetaSeries.gm_funcs.getValue('override', { shows: {}, movies: {} });
             if (override[type.overrideType][this.id] === undefined)
                 override[type.overrideType][this.id] = {};
             override[type.overrideType][this.id][prop] = value;
             let path = type.propsAllowedOverride[prop].path;
             if (type.propsAllowedOverride[prop].params) {
                 override[type.overrideType][this.id][prop] = { value, params };
-                path = Base.replaceParams(path, type.propsAllowedOverride[prop].params, params);
-                console.log('override', { prop, value, params, path });
+                path = UsBetaSeries.replaceParams(path, type.propsAllowedOverride[prop].params, params);
+                MediaBase.debug('override', { prop, value, params, path });
             }
-            Base.setPropValue(this, path, value);
-            await Base.gm_funcs.setValue('override', override);
+            UsBetaSeries.setPropValue(this, path, value);
+            await UsBetaSeries.gm_funcs.setValue('override', override);
             return true;
         }
         return false;
@@ -4674,20 +5830,20 @@ class Media extends Base {
     async _overrideProps() {
         const type = this.constructor;
         const overrideType = type.overrideType;
-        const override = await Base.gm_funcs.getValue('override', { shows: {}, movies: {} });
-        console.log('_overrideProps override', override);
-        if (override[overrideType][this.id]) {
-            console.log('_overrideProps override found', override[overrideType][this.id]);
+        const override = await UsBetaSeries.gm_funcs.getValue('override', { shows: {}, movies: {} });
+        MediaBase.debug('_overrideProps override', override);
+        if (Reflect.has(override[overrideType], this.id)) {
+            MediaBase.debug('_overrideProps override found', override[overrideType][this.id]);
             for (const prop in override[overrideType][this.id]) {
                 let path = type.propsAllowedOverride[prop].path;
                 let value = override[overrideType][this.id][prop];
                 if (type.propsAllowedOverride[prop].params && typeof override[overrideType][this.id][prop] === 'object') {
                     value = override[overrideType][this.id][prop].value;
                     const params = override[overrideType][this.id][prop].params;
-                    path = Base.replaceParams(path, type.propsAllowedOverride[prop].params, params);
+                    path = UsBetaSeries.replaceParams(path, type.propsAllowedOverride[prop].params, params);
                 }
-                console.log('_overrideProps prop[%s]', prop, { path, value });
-                Base.setPropValue(this, path, value);
+                MediaBase.debug('_overrideProps prop[%s]', prop, { path, value });
+                UsBetaSeries.setPropValue(this, path, value);
             }
         }
         return this;
@@ -4698,7 +5854,7 @@ class Media extends Base {
      * @returns {Promise<string>}
      */
     _getTvdbUrl(tvdb_id) {
-        const proxy = Base.serverBaseUrl + '/proxy/';
+        const proxy = UsBetaSeries.serverBaseUrl + '/proxy/';
         const initFetch = {
             method: 'GET',
             headers: {
@@ -4712,13 +5868,13 @@ class Media extends Base {
         return new Promise((res, rej) => {
             fetch(`${proxy}?tab=series&id=${tvdb_id}`, initFetch)
                 .then(res => {
-                // console.log('_getTvdbUrl response', res);
+                MediaBase.debug('_getTvdbUrl response', res);
                 if (res.ok) {
                     return res.json();
                 }
                 return rej();
             }).then(data => {
-                // console.log('_getTvdbUrl data', data);
+                MediaBase.debug('_getTvdbUrl data', data);
                 if (data) {
                     res(data.url);
                 }
@@ -4733,6 +5889,7 @@ class Media extends Base {
 /**
  * Classe représentant les différentes images d'une série
  * @class
+ * @memberof Show
  */
 class Images {
     /**
@@ -4771,7 +5928,12 @@ class Images {
     /** @type {object} */
     _local;
 }
-/** @enum {number} */
+/**
+ * Picked
+ * @memberof Show
+ * @enum {number}
+ * @alias Picked
+ */
 var Picked;
 (function (Picked) {
     Picked[Picked["none"] = 0] = "none";
@@ -4781,6 +5943,7 @@ var Picked;
 /**
  * Classe représentant une image
  * @class
+ * @memberof Show
  */
 class Picture {
     /**
@@ -4817,6 +5980,7 @@ class Picture {
 /**
  * Classe représentant une plateforme de diffusion
  * @class
+ * @memberof Show
  */
 class Platform {
     /**
@@ -4866,6 +6030,7 @@ class Platform {
  * Classe représentant les différentes plateformes de diffusion
  * sous deux types de plateformes
  * @class
+ * @memberof Show
  */
 class PlatformList {
     /** @type {Array<Platform>} */
@@ -4891,7 +6056,7 @@ class PlatformList {
      */
     static fetchPlatforms(country = 'us') {
         return new Promise((resolve, reject) => {
-            Base.callApi(HTTP_VERBS.GET, 'platforms', 'list', { country })
+            UsBetaSeries.callApi(HTTP_VERBS.GET, 'platforms', 'list', { country })
                 .then((data) => {
                 resolve(new PlatformList(data.platforms, country));
             })
@@ -4964,6 +6129,7 @@ class PlatformList {
 /**
  * Classe représentant les différentes plateformes de diffusion d'un média
  * @class
+ * @memberof Show
  */
 class Platforms {
     /**
@@ -4997,6 +6163,7 @@ class Platforms {
 /**
  * Class représentant un ShowRunner
  * @class
+ * @memberof Show
  */
 class Showrunner {
     /**
@@ -5019,12 +6186,15 @@ class Showrunner {
  * Class representing a Show
  * @class
  * @extends Media
- * @implements {implShow, implAddNote}
+ * @implements {implShow}
+ * @implements {implAddNote}
  */
 class Show extends Media {
     /***************************************************/
     /*                      STATIC                     */
     /***************************************************/
+    static logger = new UsBetaSeries.setDebug('Media:Show');
+    static debug = Show.logger.debug.bind(Show.logger);
     /**
      * Types d'évenements gérés par cette classe
      * @type {Array}
@@ -5132,12 +6302,14 @@ class Show extends Media {
      * @returns {Array<Season>}
      */
     static seasonsDetailsToSeasons(obj, data) {
+        if (!obj.elt)
+            return [];
         if (Array.isArray(obj.seasons) && obj.seasons.length === data.length) {
             return obj.seasons;
         }
-        const seasons = [];
+        const seasons = new Array(data.length);
         for (let s = 0; s < data.length; s++) {
-            seasons.push(new Season(data[s], obj));
+            seasons[data[s].number - 1] = new Season(data[s], obj);
         }
         return seasons;
     }
@@ -5150,10 +6322,17 @@ class Show extends Media {
      * @return {Promise<Show>}
      */
     static _fetch(params, force = false) {
-        return new Promise((resolve, reject) => {
-            Base.callApi('GET', 'shows', 'display', params, force)
-                .then(data => resolve(new Show(data.show, jQuery('.blockInformations'))))
-                .catch(err => reject(err));
+        return UsBetaSeries.callApi('GET', 'shows', 'display', params, force)
+            .then(data => {
+            try {
+                const show = new Show(data.show, jQuery('.blockInformations'));
+                // Show.debug('Show::_fetch', show);
+                return show;
+            }
+            catch (err) {
+                console.error('Show::_fetch', err);
+                throw err;
+            }
         });
     }
     /**
@@ -5163,16 +6342,13 @@ class Show extends Media {
      * @return {Promise<Show>}         Une promesse avec les séries
      */
     static fetchLastSeen(limit = 10) {
-        return new Promise((resolve, reject) => {
-            Base.callApi(HTTP_VERBS.GET, 'shows', 'member', { order: 'last_seen', limit })
-                .then((data) => {
-                const shows = [];
-                for (let s = 0; s < data.shows.length; s++) {
-                    shows.push(new Show(data.shows[s]));
-                }
-                resolve(shows);
-            })
-                .catch(err => reject(err));
+        return UsBetaSeries.callApi(HTTP_VERBS.GET, 'shows', 'member', { order: 'last_seen', limit })
+            .then((data) => {
+            const shows = [];
+            for (let s = 0; s < data.shows.length; s++) {
+                shows.push(new Show(data.shows[s]));
+            }
+            return shows;
         });
     }
     /**
@@ -5182,21 +6358,18 @@ class Show extends Media {
      * @return {Promise<Array<Show>>}
      */
     static fetchMulti(ids) {
-        return new Promise((resolve, reject) => {
-            Base.callApi(HTTP_VERBS.GET, 'shows', 'display', { id: ids.join(',') })
-                .then((data) => {
-                const shows = [];
-                if (ids.length > 1) {
-                    for (let s = 0; s < data.shows.length; s++) {
-                        shows.push(new Show(data.shows[s]));
-                    }
+        return UsBetaSeries.callApi(HTTP_VERBS.GET, 'shows', 'display', { id: ids.join(',') })
+            .then((data) => {
+            const shows = [];
+            if (ids.length > 1) {
+                for (let s = 0; s < data.shows.length; s++) {
+                    shows.push(new Show(data.shows[s]));
                 }
-                else {
-                    shows.push(new Show(data.show));
-                }
-                resolve(shows);
-            })
-                .catch(err => reject(err));
+            }
+            else {
+                shows.push(new Show(data.show));
+            }
+            return shows;
         });
     }
     /**
@@ -5233,39 +6406,48 @@ class Show extends Media {
     /*                  PROPERTIES                     */
     /***************************************************/
     /**
-     * @type {object} Contient les alias de la série
+     * Contient les alias de la série
+     * @type {object}
      */
     aliases;
     /**
-     * @type {string} Année de création de la série
+     * Année de création de la série
+     * @type {string}
      */
     creation;
     /**
-     * @type {string} Pays d'origine de la série
+     * Pays d'origine de la série
+     * @type {string}
      */
     country;
     /**
-     * @type {number} Pointeur vers la saison courante
+     * Pointeur vers la saison courante
+     * @type {number}
      */
     _currentSeason;
     /**
-     * @type {Images} Contient les URLs d'accès aux images de la série
+     * Contient les URLs d'accès aux images de la série
+     * @type {Images}
      */
     images;
     /**
-     * @type {boolean} Indique si la série se trouve dans les séries à voir
+     * Indique si la série se trouve dans les séries à voir
+     * @type {boolean}
      */
     markToSee;
     /**
-     * @type {number} Nombre total d'épisodes dans la série
+     * Nombre total d'épisodes dans la série
+     * @type {number}
      */
     nbEpisodes;
     /**
-     * @type {number} Nombre de saisons dans la série
+     * Nombre de saisons dans la série
+     * @type {number}
      */
     nbSeasons;
     /**
-     * @type {string} Chaîne TV ayant produit la série
+     * Chaîne TV ayant produit la série
+     * @type {string}
      */
     network;
     /**
@@ -5277,23 +6459,28 @@ class Show extends Media {
      */
     next_trailer_host;
     /**
-     * @type {string} Code de classification TV parental
+     * Code de classification TV parental
+     * @type {string}
      */
     rating;
     /**
-     * @type {Array<Person>} Tableau des acteurs de la série
+     * Tableau des acteurs de la série
+     * @type {Person[]}
      */
     persons;
     /**
-     * @type {Array<Picture>} Tableau des images uploadées par les membres
+     * Tableau des images uploadées par les membres
+     * @type {Picture[]}
      */
     pictures;
     /**
-     * @type {Platforms} Plateformes de diffusion
+     * Plateformes de diffusion
+     * @type {Platforms}
      */
     platforms;
     /**
-     * @type {Array<Season>} Tableau des saisons de la série
+     * Tableau des saisons de la série
+     * @type {Season[]}
      */
     seasons;
     /**
@@ -5301,19 +6488,23 @@ class Show extends Media {
      */
     showrunner;
     /**
-     * @type {Array<string>} Tableau des liens sociaux de la série
+     * Tableau des liens sociaux de la série
+     * @type {string[]}
      */
     social_links;
     /**
-     * @type {string} Status de la série sur le compte du membre
+     * Statut de la série (en cours ou terminée)
+     * @type {string}
      */
     status;
     /**
-     * @type {number} Identifiant TheTVDB de la série
+     * Identifiant TheTVDB de la série
+     * @type {number}
      */
     thetvdb_id;
     /**
-     * @type {object} Contient les URLs des posters disponibles pour la série
+     * Contient les URLs des posters disponibles pour la série
+     * @type {object}
      */
     _posters;
     /***************************************************/
@@ -5322,8 +6513,8 @@ class Show extends Media {
     /**
      * Constructeur de la classe Show
      * @param   {Obj} data - Les données du média
-     * @param   {JQuery<HTMLElement>} element - Le DOMElement associé au média
-     * @returns {Media}
+     * @param   {JQuery<HTMLElement>} [element] - Le DOMElement associé au média
+     * @returns {Show}
      */
     constructor(data, element) {
         super(data, element);
@@ -5333,6 +6524,29 @@ class Show extends Media {
         this.seasons = [];
         this.mediaType = { singular: MediaType.show, plural: 'shows', className: Show };
         return this.fill(data)._initRender();
+    }
+    /**
+     * Initialise l'objet après sa construction et son remplissage
+     * @returns {Promise<Show>}
+     */
+    init() {
+        if (this.elt) {
+            const promises = [];
+            promises.push(this.fetchSeasons().then(() => {
+                // On gère l'ajout et la suppression de la série dans le compte utilisateur
+                if (this.in_account) {
+                    this.deleteShowClick();
+                }
+                else {
+                    this.addShowClick();
+                }
+                return this;
+            }));
+            promises.push(this.fetchCharacters());
+            promises.push(super.init());
+            return Promise.all(promises).then(() => this);
+        }
+        return super.init();
     }
     /**
      * Initialisation du rendu HTML
@@ -5452,37 +6666,15 @@ class Show extends Media {
         }
     }
     /**
-     * Initialise l'objet après sa construction et son remplissage
-     * @returns {Promise<Show>}
-     */
-    init() {
-        if (this.elt) {
-            const promises = [];
-            promises.push(this.fetchSeasons().then(() => {
-                // On gère l'ajout et la suppression de la série dans le compte utilisateur
-                if (this.in_account) {
-                    this.deleteShowClick();
-                }
-                else {
-                    this.addShowClick();
-                }
-                return this;
-            }));
-            promises.push(super.init());
-            return Promise.all(promises).then(() => this);
-        }
-        return super.init();
-    }
-    /**
      * Récupère les données de la série sur l'API
      * @param  {boolean} [force=true]   Indique si on utilise les données en cache
-     * @return {Promise<*>}             Les données de la série
+     * @return {Promise<Obj>}             Les données de la série
      */
     fetch(force = true) {
         const self = this;
         if (this.__fetches.show)
             return this.__fetches.show;
-        this.__fetches.show = Base.callApi('GET', 'shows', 'display', { id: this.id }, force)
+        this.__fetches.show = UsBetaSeries.callApi('GET', 'shows', 'display', { id: this.id }, force)
             .then((data) => {
             return data;
         }).finally(() => delete self.__fetches.show);
@@ -5503,19 +6695,34 @@ class Show extends Media {
             params.id = this.id;
             force = true;
         }
-        this.__fetches.seasons = Base.callApi(HTTP_VERBS.GET, 'shows', 'seasons', params, force)
+        this.__fetches.seasons = UsBetaSeries.callApi(HTTP_VERBS.GET, 'shows', 'seasons', params, force)
             .then((data) => {
-            self.seasons = [];
             if (data?.seasons?.length <= 0) {
+                delete self.__fetches.seasons;
                 return self;
             }
-            let seasonNumber;
-            for (let s = 0; s < data.seasons.length; s++) {
-                seasonNumber = parseInt(data.seasons[s].number, 10);
-                self.seasons[seasonNumber - 1] = new Season(data.seasons[s], this);
+            if (Array.isArray(self.seasons)) {
+                for (let s = 0; s < data.seasons.length; s++) {
+                    const seasonNumber = parseInt(data.seasons[s].number, 10);
+                    const season = self.seasons[seasonNumber - 1];
+                    season.fill(data.seasons[s]);
+                }
             }
+            else {
+                self.seasons = new Array(data.seasons.length);
+                for (let s = 0; s < data.seasons.length; s++) {
+                    const seasonNumber = parseInt(data.seasons[s].number, 10);
+                    self.seasons[seasonNumber - 1] = new Season(data.seasons[s], this);
+                }
+            }
+            delete self.__fetches.seasons;
             return self;
-        }).finally(() => delete self.__fetches.seasons);
+        })
+            .catch(err => {
+            delete self.__fetches.seasons;
+            console.warn('Show.fetchSeasons catch', err);
+        })
+            .finally(() => delete self.__fetches.seasons);
         return this.__fetches.seasons;
     }
     /**
@@ -5527,7 +6734,7 @@ class Show extends Media {
         const self = this;
         if (this.__fetches.characters)
             return this.__fetches.characters;
-        this.__fetches.characters = Base.callApi(HTTP_VERBS.GET, 'shows', 'characters', { thetvdb_id: this.thetvdb_id })
+        this.__fetches.characters = UsBetaSeries.callApi(HTTP_VERBS.GET, 'shows', 'characters', { thetvdb_id: this.thetvdb_id })
             .then((data) => {
             self.characters = [];
             if (data?.characters?.length <= 0) {
@@ -5537,7 +6744,11 @@ class Show extends Media {
                 self.characters.push(new Character(data.characters[c]));
             }
             return self;
-        }).finally(() => delete self.__fetches.characters);
+        })
+            .catch(err => {
+            console.warn('Show.fetchCharacters catch', err);
+        })
+            .finally(() => delete self.__fetches.characters);
         return this.__fetches.characters;
     }
     /**
@@ -5561,7 +6772,7 @@ class Show extends Media {
         const self = this;
         if (this.__fetches.persons)
             return this.__fetches.persons;
-        this.__fetches.persons = Base.callApi(HTTP_VERBS.GET, 'persons', 'show', { id: this.id })
+        this.__fetches.persons = UsBetaSeries.callApi(HTTP_VERBS.GET, 'persons', 'show', { id: this.id })
             .then(data => {
             this.persons = [];
             if (data.persons) {
@@ -5569,8 +6780,14 @@ class Show extends Media {
                     self.persons.push(new Person(data.persons[p]));
                 }
             }
+            delete self.__fetches.persons;
             return self;
-        }).finally(() => delete self.__fetches.persons);
+        })
+            .catch(err => {
+            delete self.__fetches.persons;
+            console.warn('Show.fetchPersons catch', err);
+        })
+            .finally(() => delete self.__fetches.persons);
         return this.__fetches.persons;
     }
     /**
@@ -5651,8 +6868,21 @@ class Show extends Media {
      * @returns {boolean}
      */
     async isMarkedToSee() {
-        const toSee = await Base.gm_funcs.getValue('toSee', {});
-        return toSee[this.id] !== undefined;
+        const toSee = await UsBetaSeries.gm_funcs.getValue('toSee', []);
+        return !(0, isNull)(toSee[this.id]);
+    }
+    /**
+     * Supprime l'identifant de la liste des séries à voir,
+     * si elle y est présente
+     * @returns {void}
+     */
+    async removeFromToSee() {
+        const toSee = await UsBetaSeries.gm_funcs.getValue('toSee', []);
+        const index = toSee.indexOf(this.id);
+        if (index >= 0) {
+            toSee.splice(index, 1);
+            UsBetaSeries.gm_funcs.setValue('toSee', toSee);
+        }
     }
     /**
      * addToAccount - Ajout la série sur le compte du membre connecté
@@ -5663,9 +6893,10 @@ class Show extends Media {
         if (this.in_account)
             return new Promise(resolve => resolve(self));
         return new Promise((resolve, reject) => {
-            Base.callApi('POST', 'shows', 'show', { id: self.id })
+            UsBetaSeries.callApi('POST', 'shows', 'show', { id: self.id })
                 .then(data => {
                 self.fill(data.show);
+                self.removeFromToSee();
                 self._callListeners(EventTypes.ADD);
                 self.save();
                 resolve(self);
@@ -5689,7 +6920,7 @@ class Show extends Media {
         if (!this.in_account)
             return new Promise(resolve => resolve(self));
         return new Promise((resolve, reject) => {
-            Base.callApi('DELETE', 'shows', 'show', { id: self.id })
+            UsBetaSeries.callApi('DELETE', 'shows', 'show', { id: self.id })
                 .then(data => {
                 self.fill(data.show);
                 self._callListeners(EventTypes.REMOVE);
@@ -5713,7 +6944,7 @@ class Show extends Media {
     archive() {
         const self = this;
         return new Promise((resolve, reject) => {
-            Media.callApi('POST', 'shows', 'archive', { id: self.id })
+            UsBetaSeries.callApi('POST', 'shows', 'archive', { id: self.id })
                 .then(data => {
                 self.fill(data.show);
                 self.save();
@@ -5731,7 +6962,7 @@ class Show extends Media {
     unarchive() {
         const self = this;
         return new Promise((resolve, reject) => {
-            Media.callApi('DELETE', 'shows', 'archive', { id: self.id })
+            UsBetaSeries.callApi('DELETE', 'shows', 'archive', { id: self.id })
                 .then(data => {
                 self.fill(data.show);
                 self.save();
@@ -5749,7 +6980,7 @@ class Show extends Media {
     favorite() {
         const self = this;
         return new Promise((resolve, reject) => {
-            Media.callApi('POST', 'shows', 'favorite', { id: self.id })
+            UsBetaSeries.callApi('POST', 'shows', 'favorite', { id: self.id })
                 .then(data => {
                 self.fill(data.show);
                 self.save();
@@ -5766,7 +6997,7 @@ class Show extends Media {
     unfavorite() {
         const self = this;
         return new Promise((resolve, reject) => {
-            Media.callApi('DELETE', 'shows', 'favorite', { id: self.id })
+            UsBetaSeries.callApi('DELETE', 'shows', 'favorite', { id: self.id })
                 .then(data => {
                 self.fill(data.show);
                 self.save();
@@ -5778,12 +7009,12 @@ class Show extends Media {
     }
     /**
      * Met à jour les données de la série
-     * @param  {Callback} [cb = Base.noop]  Fonction de callback
+     * @param  {Callback} [cb = BetaSeries.noop]  Fonction de callback
      * @return {Promise<Show>}              Promesse (Show)
      */
-    update(cb = Base.noop) {
+    update(cb = UsBetaSeries.noop) {
         const self = this;
-        return Base.callApi('GET', 'shows', 'display', { id: self.id }, true)
+        return UsBetaSeries.callApi('GET', 'shows', 'display', { id: self.id }, true)
             .then(data => {
             if (data.show) {
                 self.fill(data.show).save();
@@ -5796,7 +7027,7 @@ class Show extends Media {
             return self;
         })
             .catch(err => {
-            Base.notification('Erreur de récupération de la ressource Show', 'Show update: ' + err);
+            UsBetaSeries.notification('Erreur de récupération de la ressource Show', 'Show update: ' + err);
             if (typeof cb === 'function')
                 cb();
         });
@@ -5804,10 +7035,10 @@ class Show extends Media {
     /**
      * Met à jour le rendu de la barre de progression
      * et du prochain épisode
-     * @param  {Callback} [cb=Base.noop] Fonction de callback
+     * @param  {Callback} [cb=BetaSeries.noop] Fonction de callback
      * @return {void}
      */
-    updateRender(cb = Base.noop) {
+    updateRender(cb = UsBetaSeries.noop) {
         if (!this.elt)
             return;
         const self = this;
@@ -5816,8 +7047,8 @@ class Show extends Media {
         this.updateArchived();
         // this.updateNote();
         const note = this.objNote;
-        if (Base.debug) {
-            console.log('Next ID et status', {
+        if (Show.logger.enabled) {
+            Show.debug('Next ID et status', {
                 next: this.user.next.id,
                 status: this.status,
                 archived: this.user.archived,
@@ -5829,8 +7060,7 @@ class Show extends Media {
             let promise = new Promise(resolve => { return resolve(void 0); });
             // On propose d'archiver si la série n'est plus en production
             if (this.isEnded() && !this.isArchived()) {
-                if (Base.debug)
-                    console.log('Série terminée, popup proposition archivage');
+                Show.debug('Série terminée, popup proposition archivage');
                 promise = new Promise(resolve => {
                     // eslint-disable-next-line no-undef
                     new PopupAlert({
@@ -5849,13 +7079,12 @@ class Show extends Media {
             }
             // On propose de noter la série
             if (note.user === 0) {
-                if (Base.debug)
-                    console.log('Proposition de voter pour la série');
+                Show.debug('Proposition de voter pour la série');
                 promise.then(() => {
                     let retourCallback = false;
                     // eslint-disable-next-line no-undef
                     new PopupAlert({
-                        title: Base.trans("popin.note.title.show"),
+                        title: UsBetaSeries.trans("popin.note.title.show"),
                         text: "Voulez-vous noter la série ?",
                         callback_yes: function () {
                             // jQuery('.blockInformations__metadatas > button').trigger('click');
@@ -5887,8 +7116,7 @@ class Show extends Media {
      * @return {void}
      */
     updateProgressBar() {
-        if (Base.debug)
-            console.log('updateProgressBar');
+        Show.debug('updateProgressBar');
         // On met à jour la barre de progression
         jQuery('.progressBarShow').css('width', this.user.status.toFixed(1) + '%');
     }
@@ -5898,8 +7126,7 @@ class Show extends Media {
     updateArchived() {
         if (!this.elt)
             return;
-        if (Base.debug)
-            console.log('Show updateArchived');
+        Show.debug('Show updateArchived');
         const $btnArchive = jQuery('#reactjs-show-actions button.btn-archive', this.elt);
         if (this.isArchived() && $btnArchive.length > 0) {
             $btnArchive.trigger('click');
@@ -5910,11 +7137,10 @@ class Show extends Media {
      * @param   {Callback} [cb=noop] Fonction de callback
      * @returns {void}
      */
-    updateNextEpisode(cb = Base.noop) {
+    updateNextEpisode(cb = UsBetaSeries.noop) {
         if (!this.elt)
             return;
-        if (Base.debug)
-            console.log('updateNextEpisode');
+        Show.debug('updateNextEpisode');
         const self = this;
         const $nextEpisode = jQuery('a.blockNextEpisode', this.elt);
         /**
@@ -5941,10 +7167,9 @@ class Show extends Media {
                     image: ''
                 });
             }
-            if (Base.debug)
-                console.log('nextEpisode et show.user.next OK', this.user, next);
+            Show.debug('nextEpisode et show.user.next OK', this.user, next);
             // Modifier l'image
-            const $img = $nextEpisode.find('img'), $remaining = $nextEpisode.find('.remaining div'), $parent = $img.parent('div'), height = $img.attr('height'), width = $img.attr('width'), src = `${Base.api.url}/pictures/episodes?key=${Base.userKey}&id=${next.id}&width=${width}&height=${height}`;
+            const $img = $nextEpisode.find('img'), $remaining = $nextEpisode.find('.remaining div'), $parent = $img.parent('div'), height = $img.attr('height'), width = $img.attr('width'), src = `${UsBetaSeries.api.url}/pictures/episodes?key=${UsBetaSeries.userKey}&id=${next.id}&width=${width}&height=${height}`;
             $img.remove();
             $parent.append(`<img data-src="${src}" class="js-lazy-image" height="${height}" width="${width}" />`);
             // Modifier le titre
@@ -5955,8 +7180,7 @@ class Show extends Media {
             $remaining.text($remaining.text().trim().replace(/^\d+/, getNbEpisodesUnwatchedTotal()));
         }
         else if ($nextEpisode.length <= 0 && this.user.next && !isNaN(this.user.next.id)) {
-            if (Base.debug)
-                console.log('No nextEpisode et show.user.next OK', this.user);
+            Show.debug('No nextEpisode et show.user.next OK', this.user);
             buildNextEpisode(this);
         }
         else if (!this.user.next || isNaN(this.user.next.id)) {
@@ -5969,7 +7193,7 @@ class Show extends Media {
          * @return {void}
          */
         function buildNextEpisode(res) {
-            const height = 70, width = 124, src = `${Base.api.url}/pictures/episodes?key=${Base.userKey}&id=${res.user.next.id}&width=${width}&height=${height}`, serieTitle = res.resource_url.split('/').pop();
+            const height = 70, width = 124, src = `${UsBetaSeries.api.url}/pictures/episodes?key=${UsBetaSeries.userKey}&id=${res.user.next.id}&width=${width}&height=${height}`, serieTitle = res.resource_url.split('/').pop();
             jQuery('.blockInformations__actions').last().after(`<a href="/episode/${serieTitle}/${res.user.next.code.toLowerCase()}" class="blockNextEpisode media">
                     <div class="media-left">
                     <div class="u-insideBorderOpacity u-insideBorderOpacity--01">
@@ -6011,7 +7235,7 @@ class Show extends Media {
                             </svg>
                         </span>
                     </button>
-                    <div class="label">${Base.trans('show.button.add.label')}</div>
+                    <div class="label">${UsBetaSeries.trans('show.button.add.label')}</div>
                 </div>`);
             this.addBtnToSee();
             const title = this.title.replace(/"/g, '\\"').replace(/'/g, "\\'");
@@ -6022,7 +7246,7 @@ class Show extends Media {
             jQuery('#reactjs-show-actions > div > button').off('click').one('click', (e) => {
                 e.stopPropagation();
                 e.preventDefault();
-                if (Base.debug)
+                if (Show.logger.enabled)
                     console.groupCollapsed('AddShow');
                 const done = function () {
                     // On met à jour les boutons Archiver et Favori
@@ -6030,7 +7254,7 @@ class Show extends Media {
                     // On met à jour le bloc du prochain épisode à voir
                     self.updateNextEpisode(function () {
                         self._callListeners(EventTypes.ADDED);
-                        if (Base.debug)
+                        if (Show.logger.enabled)
                             console.groupEnd();
                     });
                 };
@@ -6040,8 +7264,8 @@ class Show extends Media {
                         done();
                         return;
                     }
-                    Base.notification('Erreur d\'ajout de la série', err);
-                    if (Base.debug)
+                    UsBetaSeries.notification('Erreur d\'ajout de la série', err);
+                    if (Show.logger.enabled)
                         console.groupEnd();
                 });
             });
@@ -6104,7 +7328,7 @@ class Show extends Media {
                                 data-show-id="${show.id}"
                                 data-user-hasarchived="${show.user.archived ? '1' : ''}"
                                 data-show-inaccount="1"
-                                data-user-id="${Base.userId}"
+                                data-user-id="${UsBetaSeries.userId}"
                                 data-show-favorised="${show.user.favorited ? '1' : ''}">
                             <div class="blockInformations__action">
                                 <button class="btn-reset btn-transparent btn-archive" type="button">
@@ -6114,7 +7338,7 @@ class Show extends Media {
                                     </svg>
                                     </span>
                                 </button>
-                                <div class="label">${Base.trans('show.button.archive.label')}</div>
+                                <div class="label">${UsBetaSeries.trans('show.button.archive.label')}</div>
                             </div>
                             <div class="blockInformations__action">
                                 <button class="btn-reset btn-transparent btn-favoris" type="button">
@@ -6124,7 +7348,7 @@ class Show extends Media {
                                     </svg>
                                     </span>
                                 </button>
-                                <div class="label">${Base.trans('show.button.favorite.label')}</div>
+                                <div class="label">${UsBetaSeries.trans('show.button.favorite.label')}</div>
                             </div>
                         </div>`);
                 // On ofusque l'image des épisodes non-vu
@@ -6148,16 +7372,16 @@ class Show extends Media {
                     type="button"
                     class="btn-reset blockTitle-subtitle u-colorWhiteOpacity05"
                 >
-                    ${Base.trans("popup.suggest_show.title", { '%title%': "une série" })}</button>`;
+                    ${UsBetaSeries.trans("popup.suggest_show.title", { '%title%': "une série" })}</button>`;
                 jQuery('#similars h2.blockTitle').after(btnAddSimilars);
                 // self.addNumberVoters();
                 // On supprime le btn ToSeeLater
                 self.elt.find('.blockInformations__action .btnMarkToSee').parent().remove();
-                self.elt.find('.blockInformations__title .fa-clock-o').remove();
-                const toSee = await Base.gm_funcs.getValue('toSee', {});
+                self.elt.find('.blockInformations__title .fa-clock').remove();
+                const toSee = await UsBetaSeries.gm_funcs.getValue('toSee', {});
                 if (toSee[self.id] !== undefined) {
                     delete toSee[self.id];
-                    Base.gm_funcs.setValue('toSee', toSee);
+                    UsBetaSeries.gm_funcs.setValue('toSee', toSee);
                 }
             }
             self.addEventBtnsArchiveAndFavoris();
@@ -6203,7 +7427,7 @@ class Show extends Media {
                                     </svg>
                                 </span>
                                 </button>
-                                <div class="label">${Base.trans('show.button.add.label')}</div>
+                                <div class="label">${UsBetaSeries.trans('show.button.add.label')}</div>
                             </div>`);
                         // On supprime les items du menu Options
                         $optionsLinks.first().siblings().each((i, e) => { $(e).remove(); });
@@ -6223,8 +7447,7 @@ class Show extends Media {
                                 }
                                 if (e === season.episodes.length - 1)
                                     update = true;
-                                if (Base.debug)
-                                    console.log('clean episode %d', e, update);
+                                Show.debug('clean episode %d', e, update);
                                 season.episodes[e].updateRender('notSeen', update);
                             }
                         });
@@ -6243,34 +7466,34 @@ class Show extends Media {
                     };
                     // eslint-disable-next-line no-undef
                     new PopupAlert({
-                        title: Base.trans("popup.delete_show_success.title"),
-                        text: Base.trans("popup.delete_show_success.text", { "%title%": self.title }),
-                        yes: Base.trans("popup.delete_show_success.yes"),
+                        title: UsBetaSeries.trans("popup.delete_show_success.title"),
+                        text: UsBetaSeries.trans("popup.delete_show_success.text", { "%title%": self.title }),
+                        yes: UsBetaSeries.trans("popup.delete_show_success.yes"),
                         callback_yes: afterNotif
                     });
                 };
                 // Supprimer la série du compte utilisateur
                 // eslint-disable-next-line no-undef
                 new PopupAlert({
-                    title: Base.trans("popup.delete_show.title", { "%title%": self.title }),
-                    text: Base.trans("popup.delete_show.text", { "%title%": self.title }),
+                    title: UsBetaSeries.trans("popup.delete_show.title", { "%title%": self.title }),
+                    text: UsBetaSeries.trans("popup.delete_show.text", { "%title%": self.title }),
                     callback_yes: function () {
-                        if (Base.debug)
+                        if (Show.logger.enabled)
                             console.groupCollapsed('delete show');
                         self.removeFromAccount()
                             .then(done, err => {
                             if (err && err.code !== undefined && err.code === 2004) {
                                 done();
-                                if (Base.debug)
+                                if (Show.logger.enabled)
                                     console.groupEnd();
                                 return;
                             }
-                            Media.notification('Erreur de suppression de la série', err);
-                            if (Base.debug)
+                            UsBetaSeries.notification('Erreur de suppression de la série', err);
+                            if (Show.logger.enabled)
                                 console.groupEnd();
                         });
                     },
-                    callback_no: Base.noop
+                    callback_no: UsBetaSeries.noop
                 });
             });
         }
@@ -6280,18 +7503,39 @@ class Show extends Media {
      * @sync
      */
     async addBtnToSee() {
-        if (this.elt.find('.btnMarkToSee').length > 0)
-            return;
+        Show.debug('Show.addBtnToSee');
         const self = this;
-        const btnHTML = `
-            <div class="blockInformations__action">
-                <button class="btn-reset btn-transparent btnMarkToSee" type="button" title="Ajouter la série aux séries à voir">
-                    <i class="fa fa-clock-o" aria-hidden="true"></i>
-                </button>
-                <div class="label">A voir</div>
-            </div>`;
+        let $btn = this.elt.find('.blockInformations__action .btnMarkToSee');
+        if ($btn.length <= 0) {
+            const btnHTML = `
+                <div class="blockInformations__action">
+                    <button class="btn-reset btn-transparent btnMarkToSee" type="button" title="Ajouter la série aux séries à voir">
+                        <i class="fa-solid fa-clock" aria-hidden="true"></i>
+                    </button>
+                    <div class="label">A voir</div>
+                </div>`;
+            this.elt.find('.blockInformations__actions').last().append(btnHTML);
+            $btn = this.elt.find('.blockInformations__action .btnMarkToSee');
+            $btn.on('click', async (e) => {
+                e.stopPropagation();
+                e.preventDefault();
+                const $btn = jQuery(e.currentTarget);
+                const toSee = await toggleToSeeShow(self.id);
+                if (toSee) {
+                    $btn.find('i.fa-solid').css('color', 'var(--body_background)');
+                    $btn.attr('title', 'Retirer la série des séries à voir');
+                    self.elt.find('.blockInformations__title').append('<i class="fa-solid fa-clock" aria-hidden="true" style="font-size:0.6em;margin-left:5px;vertical-align:middle;" title="Série à voir plus tard"></i>');
+                }
+                else {
+                    $btn.find('i.fa-solid').css('color', 'var(--default-color)');
+                    $btn.attr('title', 'Ajouter la série aux séries à voir');
+                    self.elt.find('.blockInformations__title .fa-solid').remove();
+                }
+                $btn.blur();
+            });
+        }
         const toggleToSeeShow = async (showId) => {
-            const storeToSee = await Base.gm_funcs.getValue('toSee', []);
+            const storeToSee = await UsBetaSeries.gm_funcs.getValue('toSee', []);
             const toSee = storeToSee.includes(showId);
             if (!toSee) {
                 storeToSee.push(showId);
@@ -6299,33 +7543,14 @@ class Show extends Media {
             else {
                 storeToSee.splice(storeToSee.indexOf(showId), 1);
             }
-            Base.gm_funcs.setValue('toSee', storeToSee);
+            UsBetaSeries.gm_funcs.setValue('toSee', storeToSee);
             return toSee;
         };
-        this.elt.find('.blockInformations__actions').last().append(btnHTML);
-        const $btn = this.elt.find('.blockInformations__action .btnMarkToSee');
-        $btn.on('click', async (e) => {
-            e.stopPropagation();
-            e.preventDefault();
-            const $btn = jQuery(e.currentTarget);
-            const toSee = await toggleToSeeShow(self.id);
-            if (toSee) {
-                $btn.find('i.fa').css('color', 'var(--body_background)');
-                $btn.attr('title', 'Retirer la série des séries à voir');
-                self.elt.find('.blockInformations__title').append('<i class="fa fa-clock-o" aria-hidden="true" style="font-size:0.6em;margin-left:5px;vertical-align:middle;" title="Série à voir plus tard"></i>');
-            }
-            else {
-                $btn.find('i.fa').css('color', 'var(--default-color)');
-                $btn.attr('title', 'Ajouter la série aux séries à voir');
-                self.elt.find('.blockInformations__title .fa').remove();
-            }
-            $btn.blur();
-        });
-        const toSee = await Base.gm_funcs.getValue('toSee', {});
-        if (toSee[this.id] !== undefined) {
-            $btn.find('i.fa').css('color', 'var(--body_background)');
+        const toSee = await UsBetaSeries.gm_funcs.getValue('toSee', []);
+        if (toSee.includes(this.id)) {
+            $btn.find('i.fa-solid').css('color', 'var(--body_background)');
             $btn.attr('title', 'Retirer la série des séries à voir');
-            self.elt.find('.blockInformations__title').append('<i class="fa fa-clock-o" aria-hidden="true" style="font-size:0.6em;" title="Série à voir plus tard"></i>');
+            self.elt.find('.blockInformations__title').append('<i class="fa-solid fa-clock" aria-hidden="true" style="font-size:0.6em;" title="Série à voir plus tard"></i>');
         }
     }
     /**
@@ -6345,19 +7570,19 @@ class Show extends Media {
         $btnArchive.off('click').click((e) => {
             e.stopPropagation();
             e.preventDefault();
-            if (Base.debug)
+            if (Show.logger.enabled)
                 console.groupCollapsed('show-archive');
             // Met à jour le bouton d'archivage de la série
             function updateBtnArchive(promise, transform, label, notif) {
                 promise.then(() => {
                     const $parent = $(e.currentTarget).parent();
                     $('span', e.currentTarget).css('transform', transform);
-                    $('.label', $parent).text(Base.trans(label));
-                    if (Base.debug)
+                    $('.label', $parent).text(UsBetaSeries.trans(label));
+                    if (Show.logger.enabled)
                         console.groupEnd();
                 }, err => {
-                    Base.notification(notif, err);
-                    if (Base.debug)
+                    UsBetaSeries.notification(notif, err);
+                    if (Show.logger.enabled)
                         console.groupEnd();
                 });
             }
@@ -6372,7 +7597,7 @@ class Show extends Media {
         $btnFavoris.off('click').click((e) => {
             e.stopPropagation();
             e.preventDefault();
-            if (Base.debug)
+            if (Show.logger.enabled)
                 console.groupCollapsed('show-favoris');
             if (!self.isFavorite()) {
                 self.favorite()
@@ -6383,11 +7608,11 @@ class Show extends Media {
                                 <path d="M15.156.91a5.887 5.887 0 0 0-4.406 2.026A5.887 5.887 0 0 0 6.344.909C3.328.91.958 3.256.958 6.242c0 3.666 3.33 6.653 8.372 11.19l1.42 1.271 1.42-1.28c5.042-4.528 8.372-7.515 8.372-11.18 0-2.987-2.37-5.334-5.386-5.334z"></path>
                             </svg>
                             </span>`);
-                    if (Base.debug)
+                    if (Show.logger.enabled)
                         console.groupEnd();
                 }, err => {
-                    Base.notification('Erreur de favoris de la série', err);
-                    if (Base.debug)
+                    UsBetaSeries.notification('Erreur de favoris de la série', err);
+                    if (Show.logger.enabled)
                         console.groupEnd();
                 });
             }
@@ -6400,11 +7625,11 @@ class Show extends Media {
                                 <path d="M14.5 0c-1.74 0-3.41.81-4.5 2.09C8.91.81 7.24 0 5.5 0 2.42 0 0 2.42 0 5.5c0 3.78 3.4 6.86 8.55 11.54L10 18.35l1.45-1.32C16.6 12.36 20 9.28 20 5.5 20 2.42 17.58 0 14.5 0zm-4.4 15.55l-.1.1-.1-.1C5.14 11.24 2 8.39 2 5.5 2 3.5 3.5 2 5.5 2c1.54 0 3.04.99 3.57 2.36h1.87C11.46 2.99 12.96 2 14.5 2c2 0 3.5 1.5 3.5 3.5 0 2.89-3.14 5.74-7.9 10.05z"></path>
                             </svg>
                             </span>`);
-                    if (Base.debug)
+                    if (Show.logger.enabled)
                         console.groupEnd();
                 }, err => {
-                    Base.notification('Erreur de favoris de la série', err);
-                    if (Base.debug)
+                    UsBetaSeries.notification('Erreur de favoris de la série', err);
+                    if (Show.logger.enabled)
                         console.groupEnd();
                 });
             }
@@ -6414,10 +7639,9 @@ class Show extends Media {
      * Ajoute la classification dans les détails de la ressource
      */
     addRating() {
-        if (Base.debug)
-            console.log('addRating');
+        Show.debug('addRating');
         if (this.rating) {
-            const rating = Base.ratings[this.rating] !== undefined ? Base.ratings[this.rating] : null;
+            const rating = UsBetaSeries.ratings[this.rating] !== undefined ? UsBetaSeries.ratings[this.rating] : null;
             if (rating !== null) {
                 // On ajoute la classification
                 jQuery('.blockInformations__details')
@@ -6429,13 +7653,13 @@ class Show extends Media {
     }
     /**
      * Définit la saison courante
-     * @param   {number} seasonNumber Le numéro de la saison courante (commence à 1)
+     * @param   {number} seasonNumber - Le numéro de la saison courante (commence à 1)
      * @returns {Show}  L'instance de la série
      * @throws  {Error} if seasonNumber is out of range of seasons
      */
     setCurrentSeason(seasonNumber) {
         if (seasonNumber <= 0 || seasonNumber > this.seasons.length) {
-            throw new Error("seasonNumber is out of range of seasons");
+            throw new RangeError(`seasonNumber[${seasonNumber}] is out of range of seasons(length: ${this.seasons.length})`);
         }
         this._currentSeason = seasonNumber - 1;
         return this;
@@ -6445,6 +7669,8 @@ class Show extends Media {
      * @return {Season}
      */
     get currentSeason() {
+        if (!this._currentSeason)
+            this._currentSeason = 0;
         return this.seasons[this._currentSeason];
     }
     /**
@@ -6453,22 +7679,19 @@ class Show extends Media {
      * @returns {Season}
      */
     getSeason(seasonNumber) {
-        if (Base.debug)
-            console.log('getSeason: ', seasonNumber);
-        for (let s = 0; s < this.seasons.length; s++) {
-            if (this.seasons[s].number == seasonNumber) {
-                return this.seasons[s];
-            }
+        Show.debug('Show.getSeason: seasonNumber(%d)', seasonNumber);
+        if (seasonNumber <= 0 || seasonNumber > this.seasons.length) {
+            throw new RangeError(`seasonNumber[${seasonNumber}] is out of range of seasons(length: ${this.seasons.length})`);
         }
-        return null;
+        return this.seasons[seasonNumber - 1];
     }
     /**
      * Retourne une image, si disponible, en fonction du format désiré
-     * @param  {string = Images.formats.poster} format   Le format de l'image désiré
+     * @param  {string} [format = Images.formats.poster] -  Le format de l'image désiré
      * @return {Promise<string>}                         L'URL de l'image
      */
     getDefaultImage(format = Images.formats.poster) {
-        const proxy = Base.serverBaseUrl + '/posters';
+        const proxy = UsBetaSeries.serverBaseUrl + '/posters';
         const initFetch = {
             method: 'GET',
             headers: {
@@ -6480,8 +7703,7 @@ class Show extends Media {
         };
         return new Promise((res, rej) => {
             if (format === Images.formats.poster) {
-                if (Base.debug)
-                    console.log('getDefaultImage poster', this.images.poster);
+                Show.debug('Show.getDefaultImage poster', this.images.poster);
                 if (this.images.poster)
                     res(this.images.poster);
                 else {
@@ -6549,7 +7771,7 @@ class Show extends Media {
         if (this._posters) {
             return new Promise(res => res(this._posters));
         }
-        const proxy = Base.serverBaseUrl + '/posters';
+        const proxy = UsBetaSeries.serverBaseUrl + '/posters';
         const initFetch = {
             method: 'GET',
             headers: {
@@ -6564,7 +7786,7 @@ class Show extends Media {
             if (this.images?._local.poster)
                 posters['local'] = [this.images._local.poster];
             this._getTvdbUrl(this.thetvdb_id).then(url => {
-                // console.log('getAllPosters url', url);
+                // Show.debug('getAllPosters url', url);
                 if (!url)
                     return res(posters);
                 const urlTvdb = new URL(url);
@@ -6605,6 +7827,8 @@ class Movie extends Media {
     /***************************************************/
     /*                      STATIC                     */
     /***************************************************/
+    static logger = new UsBetaSeries.setDebug('Media:Movie');
+    static debug = Movie.logger.debug.bind(Movie.logger);
     static propsAllowedOverride = {
         poster: { path: 'poster' }
     };
@@ -6644,7 +7868,7 @@ class Movie extends Media {
         production_year: { key: "production_year", type: 'number', default: 0 },
         release_date: { key: "release_date", type: 'date' },
         resource_url: { key: "resource_url", type: 'string', default: '' },
-        sale_date: { key: "sale_date", type: 'date' },
+        sale_date: { key: "sale_date", type: 'date', default: null },
         similars: { key: "nbSimilars", type: 'number', default: 0 },
         synopsis: { key: "description", type: 'string', default: '' },
         tagline: { key: "tagline", type: 'string', default: '' },
@@ -6663,7 +7887,7 @@ class Movie extends Media {
      */
     static _fetch(params, force = false) {
         return new Promise((resolve, reject) => {
-            Base.callApi('GET', 'movies', 'movie', params, force)
+            UsBetaSeries.callApi('GET', 'movies', 'movie', params, force)
                 .then(data => resolve(new Movie(data.movie, jQuery('.blockInformations'))))
                 .catch(err => reject(err));
         });
@@ -6690,7 +7914,7 @@ class Movie extends Media {
     }
     static search(title, force = false) {
         return new Promise((resolve, reject) => {
-            Base.callApi(HTTP_VERBS.GET, 'movies', 'search', { title }, force)
+            UsBetaSeries.callApi(HTTP_VERBS.GET, 'movies', 'search', { title }, force)
                 .then(data => { resolve(new Movie(data.movies[0])); })
                 .catch(err => reject(err));
         });
@@ -6841,26 +8065,25 @@ class Movie extends Media {
      */
     changeStatus(state) {
         const self = this;
-        if (!Base.userIdentified() || this.user.status === state) {
-            if (Base.debug)
-                console.info('User not identified or state is equal with user status');
+        if (!UsBetaSeries.userIdentified() || this.user.status === state) {
+            console.info('User not identified or state is equal with user status');
             return Promise.resolve(this);
         }
-        return Base.callApi(HTTP_VERBS.POST, this.mediaType.plural, 'movie', { id: this.id, state: state })
+        return UsBetaSeries.callApi(HTTP_VERBS.POST, this.mediaType.plural, 'movie', { id: this.id, state: state })
             .then((data) => {
             self.fill(data.movie);
             return this;
         })
             .catch(err => {
             console.warn("Erreur ajout film sur compte", err);
-            Base.notification('Ajout du film', "Erreur lors de l'ajout du film sur votre compte");
+            UsBetaSeries.notification('Ajout du film', "Erreur lors de l'ajout du film sur votre compte");
             return this;
         });
     }
     /**
      * Retourne une image, si disponible, en fonction du format désiré
-     * @param  {string = Images.formats.poster} format   Le format de l'image désiré
-     * @return {Promise<string>}                         L'URL de l'image
+     * @param  {string} [format = Images.formats.poster] - Le format de l'image désiré
+     * @return {Promise<string>} L'URL de l'image
      */
     getDefaultImage(format = 'poster') {
         const initFetch = {
@@ -6874,7 +8097,7 @@ class Movie extends Media {
                     res(this.poster);
                 else {
                     const baseImgTmdb = 'https://image.tmdb.org/t/p/w500';
-                    const api_key = Base.themoviedb_api_user_key;
+                    const api_key = UsBetaSeries.themoviedb_api_user_key;
                     const uri = `https://api.themoviedb.org/3/movie/${this.tmdb_id}?api_key=${api_key}&language=fr`;
                     // https://api.themoviedb.org/3/movie/961330?api_key=e506df46268747316e82bbd38c1a1439&language=fr
                     fetch(uri, initFetch)
@@ -6904,7 +8127,7 @@ class Movie extends Media {
         const self = this;
         if (this.__fetches.characters)
             return this.__fetches.characters;
-        this.__fetches.characters = Base.callApi(HTTP_VERBS.GET, 'movies', 'characters', { id: this.id }, true)
+        this.__fetches.characters = UsBetaSeries.callApi(HTTP_VERBS.GET, 'movies', 'characters', { id: this.id }, true)
             .then((data) => {
             self.characters = [];
             if (data?.characters?.length <= 0) {
@@ -6917,6 +8140,10 @@ class Movie extends Media {
         }).finally(() => delete this.__fetches.characters);
         return this.__fetches.characters;
     }
+    /**
+     * Retourne une collection d'affiche, si trouvées sur l'API theMovieDb
+     * @returns {Promise<Object>}
+     */
     getAllPosters() {
         if (this._posters) {
             return new Promise(res => res(this._posters));
@@ -6931,7 +8158,7 @@ class Movie extends Media {
             if (this.poster)
                 posters['local'] = [this._local.poster];
             const baseImgTmdb = 'https://image.tmdb.org/t/p/w500';
-            const api_key = Base.themoviedb_api_user_key;
+            const api_key = UsBetaSeries.themoviedb_api_user_key;
             const uri = `https://api.themoviedb.org/3/movie/${this.tmdb_id}/images?api_key=${api_key}`;
             // https://api.themoviedb.org/3/movie/961330?api_key=e506df46268747316e82bbd38c1a1439&language=fr
             fetch(uri, initFetch)
@@ -6959,35 +8186,54 @@ class Movie extends Media {
 
 class Subtitle {
     /**
-     * @type {number} - L'identifiant du subtitle
+     * L'identifiant du subtitle
+     * @type {number}
      */
     id;
     /**
-     * @type {string} - La langue du subtitle
+     * La langue du subtitle
+     * @type {string}
      */
     language;
     /**
-     * @type {string} - La source du subtitle
+     * La source du subtitle
+     * @type {string}
      */
     source;
     /**
-     * @type {number} - La qualité du subtitle
+     * La qualité du subtitle
+     * @type {number}
      */
     quality;
     /**
-     * @type {string} - Le nom du fichier du subtitle
+     * Le nom du fichier du subtitle
+     * @type {string}
      */
     file;
     /**
-     * @type {string} - L'URL d'accès au subtitle
+     * L'URL d'accès au subtitle
+     * @type {string}
      */
     url;
     /**
-     * @type {Date} - Date de mise en ligne
+     * Date de mise en ligne
+     * @type {Date}
      */
     date;
+    /**
+     * Identifiant ou numéro de l'épisode
+     * @type {number}
+     */
     episode;
+    /**
+     * Identifiant de la série
+     * @type {number}
+     */
     show;
+    /**
+     * Numéro de saison
+     * @type {number}
+     */
     season;
     constructor(data) {
         this.id = parseInt(data.id, 10);
@@ -7002,6 +8248,12 @@ class Subtitle {
         this.season = parseInt(data.season, 10);
     }
 }
+/**
+ * SortTypeSubtitles
+ * @enum
+ * @memberof Subtitles
+ * @alias SortTypeSubtitles
+ */
 var SortTypeSubtitles;
 (function (SortTypeSubtitles) {
     SortTypeSubtitles["LANGUAGE"] = "language";
@@ -7009,12 +8261,24 @@ var SortTypeSubtitles;
     SortTypeSubtitles["QUALITY"] = "quality";
     SortTypeSubtitles["DATE"] = "date";
 })(SortTypeSubtitles = SortTypeSubtitles || (SortTypeSubtitles = {}));
+/**
+ * SubtitleTypes
+ * @enum
+ * @memberof Subtitles
+ * @alias SubtitleTypes
+ */
 var SubtitleTypes;
 (function (SubtitleTypes) {
     SubtitleTypes["EPISODE"] = "episode";
     SubtitleTypes["SEASON"] = "season";
     SubtitleTypes["SHOW"] = "show";
 })(SubtitleTypes = SubtitleTypes || (SubtitleTypes = {}));
+/**
+ * SubtitleLanguages
+ * @enum
+ * @memberof Subtitles
+ * @alias SubtitleLanguages
+ */
 var SubtitleLanguages;
 (function (SubtitleLanguages) {
     SubtitleLanguages["ALL"] = "all";
@@ -7022,13 +8286,21 @@ var SubtitleLanguages;
     SubtitleLanguages["VO"] = "vo";
     SubtitleLanguages["VF"] = "vf";
 })(SubtitleLanguages = SubtitleLanguages || (SubtitleLanguages = {}));
+/**
+ * Subtitles - Classe collection de sous-titres
+ * @class
+ */
 class Subtitles {
+    static logger = new UsBetaSeries.setDebug('Subtitles');
+    static debug = Subtitles.logger.debug.bind(Subtitles.logger);
     /**
-     * @type {Array<Subtitle>} - Collection de subtitles
+     * Collection de subtitles
+     * @type {Subtitle[]}
      */
     subtitles;
     /**
      * Récupère et retourne une collection de subtitles
+     * @static
      * @param   {SubtitleTypes} type - Type de média
      * @param   {ParamsFetchSubtitles} ids - Les identifiants de recherche
      * @param   {SubtitleLanguages} language - La langue des subtitles recherchés
@@ -7039,11 +8311,16 @@ class Subtitles {
         if (type === SubtitleTypes.SEASON) {
             params.season = ids.season;
         }
-        return Base.callApi(HTTP_VERBS.GET, 'subtitles', type, params)
+        return UsBetaSeries.callApi(HTTP_VERBS.GET, 'subtitles', type, params)
             .then((data) => {
             return new Subtitles(data.subtitles);
         });
     }
+    /**
+     * Constructor
+     * @param  {Obj} data - Les données
+     * @return {Subtitles}
+     */
     constructor(data) {
         this.subtitles = [];
         if (data && data.length > 0) {
@@ -7070,13 +8347,45 @@ class Subtitles {
     }
 }
 
-class Season {
+class Season extends RenderHtml {
+    static logger = new UsBetaSeries.setDebug('Show:Season');
+    static debug = Season.logger.debug.bind(Season.logger);
     /**
-     * @type {number} Numéro de la saison dans la série
+     * Les différents sélecteurs CSS des propriétés de l'objet
+     * @static
+     * @type {Record<string, string>}
+     */
+    static selectorsCSS = {
+        title: 'div.slide__title',
+        nbEpisodes: 'div.slide__infos',
+        image: 'div.slide__image img',
+        seen: '.checkSeen',
+        hidden: '.hideIcon'
+    };
+    /**
+     * Objet contenant les informations de relations entre les propriétés des objets de l'API
+     * et les proriétés de cette classe.
+     * Sert à la construction de l'objet
+     * @static
+     * @type {Record<string, RelatedProp>}
+     */
+    static relatedProps = {
+        // data: Obj => object: Season
+        number: { key: "number", type: 'number', default: 0 },
+        episodes: { key: "nbEpisodes", type: 'number', default: 0 },
+        seen: { key: 'seen', type: 'boolean', default: false },
+        hidden: { key: 'hidden', type: 'boolean', default: false },
+        image: { key: 'image', type: 'string' },
+        has_subtitles: { key: "has_subtitles", type: 'boolean', default: false }
+    };
+    /**
+     * Numéro de la saison dans la série
+     * @type {number}
      */
     number;
     /**
-     * @type {Array<Episode>} Tableau des épisodes de la saison
+     * Tableau des épisodes de la saison
+     * @type {Array<Episode>}
      */
     episodes;
     /**
@@ -7085,34 +8394,35 @@ class Season {
      */
     nbEpisodes;
     /**
-     * @type {boolean} Possède des sous-titres
+     * Possède des sous-titres
+     * @type {boolean}
      */
     has_subtitles;
     /**
-     * @type {boolean} Saison pas vu
+     * Indique si la saison est indiquée comme ignorée par le membre
+     * @type {boolean}
      */
     hidden;
     /**
-     * @type {string} URL de l'image
+     * URL de l'image
+     * @type {string}
      */
-    _image;
+    image;
     /**
-     * @type {boolean} Saison vu
+     * Indique si le membre a vu la saison complète
+     * @type {boolean}
      */
     seen;
     /**
-     * @type {Show} L'objet Show auquel est rattaché la saison
+     * L'objet Show auquel est rattaché la saison
+     * @type {Show}
      */
     _show;
     /**
-     * @type {JQuery<HTMLElement>} Le DOMElement jQuery correspondant à la saison
-     */
-    __elt;
-    /**
      * Objet contenant les promesses en attente des méthodes fetchXXX
-     * @type {Record<string, Promise<Season>>}
+     * @type {Object.<string, Promise<Season>>}
      */
-    __fetches;
+    __fetches = {};
     /**
      * Constructeur de la classe Season
      * @param   {Obj}   data    Les données provenant de l'API
@@ -7120,38 +8430,76 @@ class Season {
      * @returns {Season}
      */
     constructor(data, show) {
-        this.__fetches = {};
-        this.number = parseInt(data.number, 10);
+        const number = (data.number) ? parseInt(data.number, 10) : null;
+        // Si le parent Show à son HTMLElement de déclaré, alors on déclare celui de la saison
+        const elt = (number && show.elt) ? jQuery(`#seasons .slides_flex .slide_flex:nth-child(${number.toString()})`) : null;
+        super(data, elt);
         this._show = show;
         this.episodes = [];
-        this.has_subtitles = !!data.has_subtitles || false;
-        this.hidden = !!data.hidden || false;
-        this.seen = !!data.seen || false;
-        this.image = data.image || null;
-        // document.querySelector("#seasons > div > div.positionRelative > div > div:nth-child(2)")
-        this.__elt = jQuery(`#seasons .slides_flex .slide_flex:nth-child(${this.number.toString()})`);
-        if (data.episodes && data.episodes instanceof Array && data.episodes[0] instanceof Episode) {
-            this.episodes = data.episodes;
-        }
-        else if (data.episodes && typeof data.episodes === 'number') {
-            this.nbEpisodes = data.episodes;
-        }
-        return this._initRender();
+        return this.fill(data)._initRender();
     }
     /**
      * Initialise le rendu HTML de la saison
      * @returns {Seasons}
      */
     _initRender() {
-        if (!this.__elt) {
+        if (!this.elt)
             return this;
+        this.elt
+            .attr('data-number', this.number)
+            .attr('data-seen', this.seen ? '1' : '0')
+            .attr('data-hidden', this.hidden ? '1' : '0')
+            .attr('data-episodes', this.nbEpisodes);
+        const $nbEpisode = jQuery(Season.selectorsCSS.nbEpisodes, this.elt);
+        const $spanNbEpisodes = jQuery(Season.selectorsCSS.nbEpisodes + ' span.nbEpisodes', this.elt);
+        Season.debug('Season._initRender', $nbEpisode, $spanNbEpisodes);
+        if ($nbEpisode.length > 0 && $spanNbEpisodes.length <= 0) {
+            $nbEpisode.empty().append(`<span class="nbEpisodes">${this.nbEpisodes}</span> épisodes`);
         }
-        if (this.seen && jQuery('.checkSeen', this.__elt).length <= 0) {
-            jQuery('.slide__image img', this.__elt).before('<div class="checkSeen"></div>');
+        const $img = jQuery(Season.selectorsCSS.image, this.elt);
+        const $checkSeen = jQuery(Season.selectorsCSS.seen, this.elt);
+        const $hidden = jQuery(Season.selectorsCSS.hidden, this.elt);
+        if (this.seen && $checkSeen.length <= 0) {
+            $img.before('<div class="checkSeen"></div>');
         }
-        else if (this.hidden && jQuery('.hideIcon', this.__elt).length <= 0) {
-            jQuery('.slide__image img', this.__elt).before('<div class="hideIcon"></div>');
+        else if (this.hidden && $hidden.length <= 0) {
+            $img.before('<div class="hideIcon"></div>');
         }
+        return this;
+    }
+    /**
+     * Mise à jour du nombre d'épisodes de la saison sur la page Web
+     * @returns {void}
+     */
+    updatePropRenderNbepisodes() {
+        if (!this.elt)
+            return;
+        const $nbEpisode = jQuery(Season.selectorsCSS.nbEpisodes + ' span.nbEpisodes', this.elt);
+        if ($nbEpisode.length > 0) {
+            $nbEpisode.text(this.nbEpisodes);
+        }
+    }
+    /**
+     * Mise à jour de l'image de la saison sur la page Web
+     * @returns {void}
+     */
+    updatePropRenderImage() {
+        if (!this.elt)
+            return;
+        // Si image est null, on récupère celle de la série
+        if ((0, isNull)(this.image) && !(0, isNull)(this._show.images.poster)) {
+            this.image = this._show.images.poster;
+            return;
+        }
+        // Si celle de la série est null, on ne fait rien
+        else if ((0, isNull)(this.image)) {
+            return;
+        }
+        const $img = jQuery(Season.selectorsCSS.image, this.elt);
+        if ($img.length > 0 && $img.attr('src') != this.image) {
+            $img.attr('src', this.image);
+        }
+        return;
     }
     /**
      * Retourne le nombre d'épisodes dans la saison
@@ -7161,26 +8509,6 @@ class Season {
         return this.episodes.length;
     }
     /**
-     * Setter pour l'attribut image
-     * @param {string} src - L'URL d'accès à l'image
-     */
-    set image(src) {
-        this._image = src;
-        if (src) {
-            const $imgs = jQuery('#seasons .slide_flex .slide__image img');
-            if ($imgs.length >= this.number) {
-                $($imgs.get(this.number - 1)).attr('src', src);
-            }
-        }
-    }
-    /**
-     * Getter pour l'attribut image
-     * @returns {string}
-     */
-    get image() {
-        return this._image;
-    }
-    /**
      * Récupère les épisodes de la saison sur l'API
      * @returns {Promise<Season>}
      */
@@ -7188,52 +8516,92 @@ class Season {
         if (!this.number || this.number <= 0) {
             throw new Error('season number incorrect');
         }
-        if (this.__fetches.episodes)
-            return this.__fetches.episodes;
+        if (this.__fetches.fepisodes)
+            return this.__fetches.fepisodes;
         const self = this;
         const params = {
             id: self._show.id,
             season: self.number
         };
-        this.__fetches.episodes = Base.callApi('GET', 'shows', 'episodes', params, true)
+        this.__fetches.fepisodes = UsBetaSeries.callApi('GET', 'shows', 'episodes', params, true)
             .then((data) => {
-            self.episodes = [];
-            for (let e = 0; e < data.episodes.length; e++) {
-                const selector = `#episodes .slides_flex .slide_flex:nth-child(${e + 1})`;
-                self.episodes.push(new Episode(data.episodes[e], self, jQuery(selector)));
+            if ((0, isNull)(self.episodes) || self.episodes.length <= 0) {
+                self.episodes = new Array(data.episodes.length);
+                for (let e = 0; e < data.episodes.length; e++) {
+                    const selector = `#episodes .slides_flex .slide_flex:nth-child(${e + 1})`;
+                    self.episodes[e] = new Episode(data.episodes[e], self, jQuery(selector));
+                }
             }
+            else {
+                for (let e = 0; e < data.episodes.length; e++) {
+                    // const selector = `#episodes .slides_flex .slide_flex:nth-child(${e+1})`;
+                    const episode = self.getEpisode(data.episodes[e].id);
+                    if (episode) {
+                        episode.fill(data.episodes[e]);
+                    }
+                    else {
+                        Season.debug('Season.checkEpisodes: episode(pos: %d) unknown', e, data.episodes[e]);
+                        const selector = `#episodes .slides_flex .slide_flex:nth-child(${e + 1})`;
+                        self.episodes.push(new Episode(data.episodes[e], self, jQuery(selector)));
+                    }
+                }
+            }
+            delete self.__fetches.fepisodes;
             return self;
         })
-            .finally(() => delete self.__fetches.episodes);
-        return this.__fetches.episodes;
+            .catch(err => {
+            delete self.__fetches.fepisodes;
+            console.warn('Season.fetchEpisodes error', err);
+            return self;
+        });
+        return this.__fetches.fepisodes;
     }
-    checkEpisodes() {
+    /**
+     * Vérifie et met à jour les épisodes de la saison
+     * @returns {Promise<Season>}
+     */
+    /* checkEpisodes(): Promise<Season> {
         if (!this.number || this.number <= 0) {
             throw new Error('season number incorrect');
         }
-        if (this.__fetches.episodes)
-            return this.__fetches.episodes;
+        if (this.__fetches.cepisodes) return this.__fetches.cepisodes;
         const self = this;
         const params = {
             id: self._show.id,
             season: self.number
         };
-        this.__fetches.episodes = Base.callApi('GET', 'shows', 'episodes', params, true)
-            .then((data) => {
-            for (let e = 0; e < data.episodes.length; e++) {
-                if (self.episodes.length <= e) {
-                    const selector = `#episodes .slides_flex .slide_flex:nth-child(${e + 1})`;
-                    self.episodes.push(new Episode(data.episodes[e], self, jQuery(selector)));
+        this.__fetches.cepisodes = UsBetaSeries.callApi('GET', 'shows', 'episodes', params, true)
+            .then((data: Obj) => {
+                if (isNull(self.episodes) || self.episodes.length <= 0) {
+                    self.episodes = [data.episodes.length];
+                    for (let e = 0; e < data.episodes.length; e++) {
+                        const selector = `#episodes .slides_flex .slide_flex:nth-child(${e+1})`;
+                        self.episodes.push(new Episode(data.episodes[e], self, jQuery(selector)));
+                    }
+                } else {
+                    for (let e = 0; e < data.episodes.length; e++) {
+                        // const selector = `#episodes .slides_flex .slide_flex:nth-child(${e+1})`;
+                        const episode = self.getEpisode(data.episodes[e].id);
+                        if (episode) {
+                            episode.fill(data.episodes[e]);
+                        } else {
+                            Season.debug('Season.checkEpisodes: episode(pos: %d) unknown', e, data.episodes[e]);
+                            const selector = `#episodes .slides_flex .slide_flex:nth-child(${e+1})`;
+                            self.episodes.push(new Episode(data.episodes[e], self, jQuery(selector)));
+                        }
+                    }
                 }
-                else {
-                    self.episodes[e].fill(data.episodes[e]);
-                }
-            }
-            return self;
-        })
-            .finally(() => delete self.__fetches.episodes);
-        return this.__fetches.episodes;
-    }
+                delete self.__fetches.cepisodes;
+                return self;
+            })
+            .catch(err => {
+                console.warn('Season.checkEpisodes error', err);
+                delete self.__fetches.cepisodes;
+                return self;
+            });
+
+        return this.__fetches.cepisodes as Promise<Season>;
+    } */
     /**
      * Cette méthode permet de passer tous les épisodes de la saison en statut **seen**
      * @returns {Promise<Season>}
@@ -7241,7 +8609,7 @@ class Season {
     watched() {
         const self = this;
         const params = { id: this.episodes[this.length - 1].id, bulk: true };
-        return Base.callApi(HTTP_VERBS.POST, 'episodes', 'watched', params)
+        return UsBetaSeries.callApi(HTTP_VERBS.POST, 'episodes', 'watched', params)
             .then(() => {
             let update = false;
             for (let e = 0; e < self.episodes.length; e++) {
@@ -7260,7 +8628,7 @@ class Season {
     hide() {
         const self = this;
         const params = { id: this._show.id, season: this.number };
-        return Base.callApi(HTTP_VERBS.POST, 'seasons', 'hide', params)
+        return UsBetaSeries.callApi(HTTP_VERBS.POST, 'seasons', 'hide', params)
             .then(() => {
             self.hidden = true;
             jQuery(`#seasons .slide_flex:nth-child(${self.number}) .slide__image`).prepend('<div class="checkSeen"></div><div class="hideIcon"></div>');
@@ -7277,7 +8645,7 @@ class Season {
     /**
      * Retourne l'épisode correspondant à l'identifiant fournit
      * @param  {number} id
-     * @returns {Episode}
+     * @returns {Episode | null}
      */
     getEpisode(id) {
         for (let e = 0; e < this.episodes.length; e++) {
@@ -7340,20 +8708,21 @@ class Season {
      */
     update() {
         const self = this;
-        return this.checkEpisodes().then(() => {
+        return this.fetchEpisodes().then(() => {
+            Season.debug('Season.update: episodes', self.episodes);
             for (const episode of self.episodes) {
+                Season.debug('Season.update: check episode changes', episode);
                 if (episode.isModified()) {
-                    if (Base.debug)
-                        console.log('updateEpisodes changed true', self);
+                    Season.debug('Season.update changed true', self);
                     return self.updateRender()
                         .updateShow().then(() => self);
                 }
             }
-            if (Base.debug)
-                console.log('updateEpisodes no changes');
+            Season.debug('Season.update no changes');
             return self;
         }).catch(err => {
-            Base.notification('Erreur de mise à jour des épisodes', 'Seasons update: ' + err);
+            console.error(err);
+            UsBetaSeries.notification('Erreur de mise à jour des épisodes', 'Season update: ' + err);
         });
     }
     /**
@@ -7366,25 +8735,22 @@ class Season {
         const lenSpecials = this.getNbEpisodesSpecial();
         const lenNotSpecials = lenEpisodes - lenSpecials;
         const lenSeen = self.getNbEpisodesSeen();
-        if (Base.debug)
-            console.log('Season updateRender', { lenEpisodes, lenSpecials, lenNotSpecials, lenSeen });
+        Season.debug('Season.updateRender', { lenEpisodes, lenSpecials, lenNotSpecials, lenSeen });
         /**
          * Met à jour la vignette de la saison courante
          * et change de saison, si il y en a une suivante
          */
         const seasonViewed = function () {
             // On check la saison
-            self.__elt.find('.slide__image').prepend('<div class="checkSeen"></div>');
-            if (Base.debug)
-                console.log('Tous les épisodes de la saison ont été vus', self.__elt, self.__elt.next());
+            self.elt.find('.slide__image').prepend('<div class="checkSeen"></div>');
+            Season.debug('Season.updateRender: Tous les épisodes de la saison ont été vus', self.elt, self.elt.next());
             // Si il y a une saison suivante, on la sélectionne
-            if (self.__elt.next('.slide_flex').length > 0) {
-                if (Base.debug)
-                    console.log('Il y a une autre saison');
-                self.__elt.removeClass('slide--current');
-                self.__elt.next('.slide_flex').find('.slide__image').trigger('click');
+            if (self.elt.next('.slide_flex').length > 0) {
+                Season.debug('Season.updateRender: Il y a une autre saison');
+                self.elt.removeClass('slide--current');
+                self.elt.next('.slide_flex').find('.slide__image').trigger('click');
             }
-            self.__elt
+            self.elt
                 .removeClass('slide--notSeen')
                 .addClass('slide--seen');
             self.seen = true;
@@ -7408,11 +8774,11 @@ class Season {
             });
         }
         else {
-            const $checkSeen = this.__elt.find('.checkSeen');
+            const $checkSeen = this.elt.find('.checkSeen');
             if ($checkSeen.length > 0) {
                 $checkSeen.remove();
-                if (!self.__elt.hasClass('slide--notSeen')) {
-                    self.__elt
+                if (!self.elt.hasClass('slide--notSeen')) {
+                    self.elt
                         .addClass('slide--notSeen')
                         .removeClass('slide--seen');
                 }
@@ -7462,7 +8828,9 @@ class Season {
     }
 }
 
-class Episode extends Base {
+class Episode extends MediaBase {
+    static logger = new UsBetaSeries.setDebug('Episode');
+    static debug = Episode.logger.debug.bind(Episode.logger);
     static selectorsCSS = {};
     static relatedProps = {
         // data: Obj => object: Show
@@ -7471,7 +8839,7 @@ class Episode extends Base {
         comments: { key: "nbComments", type: 'number', default: 0 },
         date: { key: "date", type: 'date', default: null },
         description: { key: "description", type: 'string', default: '' },
-        episode: { key: "episode", type: 'number', default: 0 },
+        episode: { key: "number", type: 'number', default: 0 },
         global: { key: "global", type: 'number', default: 0 },
         id: { key: "id", type: 'number' },
         note: { key: "objNote", type: Note },
@@ -7487,21 +8855,24 @@ class Episode extends Base {
         youtube_id: { key: "youtube_id", type: 'string', default: '' }
     };
     static fetch(epId) {
-        return Base.callApi(HTTP_VERBS.GET, 'episodes', 'display', { id: epId })
+        return UsBetaSeries.callApi(HTTP_VERBS.GET, 'episodes', 'display', { id: epId })
             .then((data) => {
             return new Episode(data.episode, null, jQuery('.blockInformations'));
         });
     }
     /**
-     * @type {Season} L'objet Season contenant l'épisode
+     * L'objet Season contenant l'épisode
+     * @type {Season}
      */
     _season;
     /**
-     * @type {string} Le code de l'épisode SXXEXX
+     * Le code de l'épisode SXXEXX
+     * @type {string}
      */
     code;
     /**
-     * @type {Date} La date de sortie de l'épisode
+     * La date de sortie de l'épisode
+     * @type {Date}
      */
     date;
     /**
@@ -7509,19 +8880,23 @@ class Episode extends Base {
      */
     director;
     /**
-     * @type {number} Le numéro de l'épisode dans la saison
+     * Le numéro de l'épisode dans la saison
+     * @type {number}
      */
-    episode;
+    number;
     /**
-     * @type {number} Le numéro de l'épisode dans la série
+     * Le numéro de l'épisode dans la série
+     * @type {number}
      */
     global;
     /**
-     * @type {number} Le numéro de la saison
+     * Le numéro de la saison
+     * @type {number}
      */
     numSeason;
     /**
-     * @type {Array<Platform_link>} Les plateformes de diffusion
+     * Les plateformes de diffusion
+     * @type {Platform_link[]}
      */
     platform_links;
     /**
@@ -7529,33 +8904,44 @@ class Episode extends Base {
      */
     releasesSvod;
     /**
-     * @type {number} Nombre de membres de BS à avoir vu l'épisode
+     * Nombre de membres de BS à avoir vu l'épisode
+     * @type {number}
      */
     seen_total;
     /**
-     * @type {boolean} Indique si il s'agit d'un épisode spécial
+     * Indique si il s'agit d'un épisode spécial
+     * @type {boolean}
      */
     special;
     /**
-     * @type {Array<Subtitle>} Tableau des sous-titres dispo sur BS
+     * Tableau des sous-titres dispo sur BS
+     * @type {Subtitle[]}
      */
     subtitles;
     /**
-     * @type {number} Identifiant de l'épisode sur thetvdb.com
+     * Identifiant de l'épisode sur thetvdb.com
+     * @type {number}
      */
     thetvdb_id;
     /**
-     * @type {Array<WatchedBy>} Tableau des amis ayant vu l'épisode
+     * Tableau des amis ayant vu l'épisode
+     * @type {WatchedBy[]}
      */
     watched_by;
     /**
-     * @type {Array<string>} Tableau des scénaristes de l'épisode
+     * Tableau des scénaristes de l'épisode
+     * @type {string[]}
      */
     writers;
     /**
-     * @type {string} Identifiant de la vidéo sur Youtube
+     * Identifiant de la vidéo sur Youtube
+     * @type {string}
      */
     youtube_id;
+    /**
+     * Les requêtes en cours
+     * @type {Object.<string, Promise<Episode>>}
+     */
     __fetches;
     /**
      * Constructeur de la classe Episode
@@ -7564,13 +8950,10 @@ class Episode extends Base {
      * @returns {Episode}
      */
     constructor(data, season, elt) {
-        super(data);
+        super(data, elt);
         this.__fetches = {};
         this._season = season;
         this.mediaType = { singular: MediaType.episode, plural: 'episodes', className: Episode };
-        if (elt) {
-            this.elt = elt;
-        }
         return this.fill(data)._initRender();
     }
     _initRender() {
@@ -7578,8 +8961,15 @@ class Episode extends Base {
             return this;
         }
         if (this._season) {
-            this.initCheckSeen(this.episode - 1);
+            this.initCheckSeen(this.number - 1);
             this.addAttrTitle().addPopup();
+            this.elt
+                .attr('data-id', this.id)
+                .attr('data-code', this.code)
+                .attr('data-note-user', this.objNote.user)
+                .attr('data-number', this.number)
+                .attr('data-season', this.numSeason)
+                .attr('data-special', this.special ? '1' : '0');
         }
         else {
             super._initRender();
@@ -7592,17 +8982,46 @@ class Episode extends Base {
     updatePropRenderUser() {
         if (!this.elt)
             return;
-        const $elt = this.elt.find('.checkSeen');
-        if (this.user.seen && !$elt.hasClass('seen')) {
-            this.updateRender('seen');
+        // TODO: comportement différent entre un épisode d'une saison et la page Episode
+        if (this.season) {
+            const $elt = this.elt.find('.checkSeen');
+            if (this.user.seen && !$elt.hasClass('seen')) {
+                this.updateRender('seen');
+            }
+            else if (!this.user.seen && $elt.hasClass('seen')) {
+                this.updateRender('notSeen');
+            }
+            else if (this.user.hidden && jQuery('.hideIcon', this.elt).length <= 0) {
+                this.updateRender('hidden');
+            }
         }
-        else if (!this.user.seen && $elt.hasClass('seen')) {
-            this.updateRender('notSeen');
-        }
-        else if (this.user.hidden && jQuery('.hideIcon', this.elt).length <= 0) {
-            this.updateRender('hidden');
+        else {
+            // Cocher/Décocher la case 'Vu'
+            const $elt = jQuery('#reactjs-episode-actions', this.elt);
+            const dataSeen = $elt.data('episodeUserHasSeen');
+            if ((this.user.seen && dataSeen.length <= 0) ||
+                (!this.user.seen && dataSeen === '1')) {
+                this.updateBtnSeen();
+            }
         }
         delete this.__changes.user;
+    }
+    updateBtnSeen() {
+        if (!this.elt || this.season)
+            return;
+        const templatesBtnSvg = {
+            seen: `<svg fill="#54709D" width="17.6" height="13.4" viewBox="2 3 12 10" xmlns="http://www.w3.org/2000/svg"><path fill="inherit" d="M6 10.78l-2.78-2.78-.947.94 3.727 3.727 8-8-.94-.94z"></path></svg>`,
+            notSeen: `<svg fill="#FFF" width="18" height="18" xmlns="http://www.w3.org/2000/svg"><path d="M16 2v14H2V2h14zm0-2H2C.9 0 0 .9 0 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2V2c0-1.1-.9-2-2-2z" fill-rule="nonzero"></path></svg>`
+        };
+        const $elt = jQuery('#reactjs-episode-actions');
+        const $svg = jQuery('button svg', $elt);
+        const dataSeen = $elt.data('episodeUserHasSeen');
+        if (this.user.seen && dataSeen.length <= 0) {
+            $svg.replaceWith(templatesBtnSvg.seen);
+        }
+        else if (!this.user.seen && dataSeen === '1') {
+            $svg.replaceWith(templatesBtnSvg.notSeen);
+        }
     }
     /**
      * Retourne l'objet Season associé à l'épisode
@@ -7676,7 +9095,7 @@ class Episode extends Base {
             $checkbox.attr('data-id', this.id);
             $checkbox.attr('data-pos', pos);
             $checkbox.attr('data-special', this.special ? '1' : '0');
-            $checkbox.attr('title', Base.trans("member_shows.remove"));
+            $checkbox.attr('title', UsBetaSeries.trans("member_shows.remove"));
             $checkbox.addClass('seen');
         }
         else if ($checkbox.length <= 0 && !this.user.seen && !this.user.hidden) {
@@ -7688,7 +9107,7 @@ class Episode extends Base {
                                 data-pos="${pos}"
                                 data-special="${this.special ? '1' : '0'}"
                                 style="background: rgba(13,21,28,.2);"
-                                title="${Base.trans("member_shows.markas")}"></div>`);
+                                title="${UsBetaSeries.trans("member_shows.markas")}"></div>`);
             this.elt.find('.slide__image img.js-lazy-image').attr('style', 'filter: blur(5px);');
         }
         else if ($checkbox.length > 0 && this.user.hidden) {
@@ -7705,26 +9124,23 @@ class Episode extends Base {
         const $checkSeen = this.elt.find('.checkSeen');
         let changed = false;
         if ($checkSeen.length > 0 && $checkSeen.attr('id') === undefined) {
-            if (Base.debug)
-                console.log('ajout de l\'attribut ID à l\'élément "checkSeen"');
+            Episode.debug('ajout de l\'attribut ID à l\'élément "checkSeen"');
             // On ajoute l'attribut ID
             $checkSeen.attr('id', 'episode-' + this.id);
             $checkSeen.data('id', this.id);
             $checkSeen.data('pos', pos);
             $checkSeen.data('special', this.special ? '1' : '0');
         }
-        // if (Base.debug) console.log('updateCheckSeen', {seen: this.user.seen, elt: this.elt, checkSeen: $checkSeen.length, classSeen: $checkSeen.hasClass('seen'), pos: pos, Episode: this});
+        // if (BetaSeries.debug) Episode.debug('updateCheckSeen', {seen: this.user.seen, elt: this.elt, checkSeen: $checkSeen.length, classSeen: $checkSeen.hasClass('seen'), pos: pos, Episode: this});
         // Si le membre a vu l'épisode et qu'il n'est pas indiqué, on change le statut
         if (this.user.seen && $checkSeen.length > 0 && !$checkSeen.hasClass('seen')) {
-            if (Base.debug)
-                console.log('Changement du statut (seen) de l\'épisode %s', this.code);
+            Episode.debug('Changement du statut (seen) de l\'épisode %s', this.code);
             this.updateRender('seen', false);
             changed = true;
         }
         // Si le membre n'a pas vu l'épisode et qu'il n'est pas indiqué, on change le statut
         else if (!this.user.seen && $checkSeen.length > 0 && $checkSeen.hasClass('seen')) {
-            if (Base.debug)
-                console.log('Changement du statut (notSeen) de l\'épisode %s', this.code);
+            Episode.debug('Changement du statut (notSeen) de l\'épisode %s', this.code);
             this.updateRender('notSeen', false);
             changed = true;
         }
@@ -7779,8 +9195,8 @@ class Episode extends Base {
                     new PopupAlert({
                         title: 'Episodes vus',
                         contentHtml: '<p>Doit-on cocher les épisodes précédents comme vu ?</p>',
-                        yes: Base.trans('popup.yes'),
-                        no: Base.trans('popup.no'),
+                        yes: UsBetaSeries.trans('popup.yes'),
+                        no: UsBetaSeries.trans('popup.no'),
                         callback_yes: () => {
                             resolve(true);
                         },
@@ -7806,10 +9222,9 @@ class Episode extends Base {
             if (method === HTTP_VERBS.POST && !response) {
                 args.bulk = false; // Flag pour ne pas mettre les épisodes précédents comme vus automatiquement
             }
-            Base.callApi(method, 'episodes', 'watched', args)
+            UsBetaSeries.callApi(method, 'episodes', 'watched', args)
                 .then((data) => {
-                if (Base.debug)
-                    console.log('updateStatus %s episodes/watched', method, data);
+                Episode.debug('updateStatus %s episodes/watched', method, data);
                 // Si un épisode est vu et que la série n'a pas été ajoutée
                 // au compte du membre connecté
                 if (self._season && !self._season.showInAccount() && data.episode.show.in_account) {
@@ -7855,11 +9270,9 @@ class Episode extends Base {
                 }
             })
                 .catch(err => {
-                if (Base.debug)
-                    console.error('updateStatus error %s', err);
+                console.error('updateStatus error %s', err);
                 if (err && err == 'changeStatus') {
-                    if (Base.debug)
-                        console.log('updateStatus error %s changeStatus', method);
+                    Episode.debug('updateStatus error %s changeStatus', method);
                     self.user.seen = (status === 'seen') ? true : false;
                     self.updateRender(status);
                     if (self.season) {
@@ -7872,7 +9285,7 @@ class Episode extends Base {
                 }
                 else {
                     self.toggleSpinner(false);
-                    Base.notification('Erreur de modification d\'un épisode', 'updateStatus: ' + err);
+                    UsBetaSeries.notification('Erreur de modification d\'un épisode', 'updateStatus: ' + err);
                 }
             });
         });
@@ -7885,12 +9298,11 @@ class Episode extends Base {
      */
     updateRender(newStatus, update = true) {
         const $elt = this.elt.find('.checkSeen');
-        if (Base.debug)
-            console.log('changeStatus', { elt: $elt, status: newStatus, update: update });
+        Episode.debug('Episode.changeStatus (season: %d, episode: %d, statut: %s)', this.season.number, this.number, newStatus, { elt: $elt, update: update });
         if (newStatus === 'seen') {
             $elt.css('background', ''); // On ajoute le check dans la case à cocher
             $elt.addClass('seen'); // On ajoute la classe 'seen'
-            $elt.attr('title', Base.trans("member_shows.remove"));
+            $elt.attr('title', UsBetaSeries.trans("member_shows.remove"));
             // On supprime le voile masquant sur la vignette pour voir l'image de l'épisode
             $elt.parents('div.slide__image').first().find('img').removeAttr('style');
             $elt.parents('div.slide_flex').first().removeClass('slide--notSeen');
@@ -7898,7 +9310,7 @@ class Episode extends Base {
         else if (newStatus === 'notSeen') {
             $elt.css('background', 'rgba(13,21,28,.2)'); // On enlève le check dans la case à cocher
             $elt.removeClass('seen'); // On supprime la classe 'seen'
-            $elt.attr('title', Base.trans("member_shows.markas"));
+            $elt.attr('title', UsBetaSeries.trans("member_shows.markas"));
             // On remet le voile masquant sur la vignette de l'épisode
             $elt.parents('div.slide__image').first()
                 .find('img')
@@ -7925,14 +9337,14 @@ class Episode extends Base {
     toggleSpinner(display) {
         if (!display) {
             jQuery('.spinner').remove();
-            // if (Base.debug) console.log('toggleSpinner');
-            if (Base.debug)
+            // if (BetaSeries.debug) Episode.debug('toggleSpinner');
+            if (Episode.logger.enabled)
                 console.groupEnd();
         }
         else {
-            if (Base.debug)
+            if (Episode.logger.enabled)
                 console.groupCollapsed('episode checkSeen');
-            // if (Base.debug) console.log('toggleSpinner');
+            // if (BetaSeries.debug) Episode.debug('toggleSpinner');
             this.elt.find('.slide__image').first().prepend(`
                 <div class="spinner">
                     <div class="spinner-item"></div>
@@ -7958,7 +9370,7 @@ class Episode extends Base {
             cache: 'no-cache'
         };*/
         return new Promise((res) => {
-            return res(`${Base.api.url}/pictures/episodes?id=${this.id}`);
+            return res(`${UsBetaSeries.api.url}/pictures/episodes?id=${this.id}`);
             /*else {
                 fetch(`${proxy}https://thetvdb.com/?tab=series&id=${this.thetvdb_id}`, initFetch)
                 .then((resp: Response) => {
@@ -7986,7 +9398,7 @@ class Episode extends Base {
         const self = this;
         if (this.__fetches.characters)
             return this.__fetches.characters;
-        this.__fetches.characters = Base.callApi(HTTP_VERBS.GET, 'episodes', 'characters', { id: this.id }, true)
+        this.__fetches.characters = UsBetaSeries.callApi(HTTP_VERBS.GET, 'episodes', 'characters', { id: this.id }, true)
             .then((data) => {
             self.characters = [];
             if (data?.characters?.length <= 0) {
@@ -8001,7 +9413,16 @@ class Episode extends Base {
     }
 }
 
+/**
+ * Similar
+ * @class
+ * @extends Media
+ * @implements {implShow}
+ * @implements {implMovie}
+ */
 class Similar extends Media {
+    static logger = new UsBetaSeries.setDebug('Similar');
+    static debug = Similar.logger.debug.bind(Similar.logger);
     static relatedProps = {};
     /* Interface implMovie */
     backdrop;
@@ -8076,7 +9497,7 @@ class Similar extends Media {
         if (this.mediaType.singular === MediaType.movie) {
             action = 'movie';
         }
-        return Base.callApi('GET', this.mediaType.plural, action, { id: this.id }, force);
+        return UsBetaSeries.callApi('GET', this.mediaType.plural, action, { id: this.id }, force);
     }
     /**
      * Ajoute le bandeau Viewed sur le poster du similar
@@ -8089,7 +9510,7 @@ class Similar extends Media {
             ((this.mediaType.singular === MediaType.movie && this.user.status === 1) ||
                 (this.mediaType.singular === MediaType.show && this.user.status > 0))) {
             // On ajoute le bandeau "Viewed"
-            $slideImg.prepend(`<img src="${Base.serverBaseUrl}/img/viewed.png" class="bandViewed"/>`);
+            $slideImg.prepend(`<img src="${UsBetaSeries.serverBaseUrl}/img/viewed.png" class="bandViewed"/>`);
         }
         // On ajoute des infos pour la recherche du similar pour les popups
         $slideImg
@@ -8106,7 +9527,7 @@ class Similar extends Media {
     wrench(dialog) {
         const $title = this.elt.find('.slide__title'), self = this;
         $title.html($title.html() +
-            `<i class="fa fa-wrench popover-wrench"
+            `<i class="fa-solid fa-wrench popover-wrench"
                 aria-hidden="true"
                 style="margin-left:5px;cursor:pointer;"
                 data-id="${self.id}"
@@ -8115,11 +9536,11 @@ class Similar extends Media {
         $title.find('.popover-wrench').click((e) => {
             e.stopPropagation();
             e.preventDefault();
-            //if (debug) console.log('Popover Wrench', eltId, self);
+            //if (debug) Similar.debug('Popover Wrench', eltId, self);
             this.fetch().then(function (data) {
                 // eslint-disable-next-line no-undef
                 dialog.setContent(renderjson.set_show_to_level(2)(data[self.mediaType.singular]));
-                dialog.setCounter(Base.counter.toString());
+                dialog.setCounter(UsBetaSeries.counter.toString());
                 dialog.setTitle('Données du similar');
                 dialog.show();
             });
@@ -8131,9 +9552,9 @@ class Similar extends Media {
      * de présentation du similar
      * @return {string}
      */
-    getContentPopup() {
+    async getContentPopup() {
         const self = this;
-        //if (debug) console.log('similars tempContentPopup', objRes);
+        //if (debug) Similar.debug('similars tempContentPopup', objRes);
         let description = this.description;
         if (description.length > 200) {
             description = description.substring(0, 200) + '…';
@@ -8164,11 +9585,11 @@ class Similar extends Media {
         }
         template = '<div>';
         if (this.mediaType.singular === MediaType.show) {
-            const status = `<i class="fa fa-${this.status.toLowerCase() == 'ended' ? 'ban' : 'spinner'}" title="Statut ${this.status.toLowerCase() == 'ended' ? 'terminé' : 'en cours'}" aria-hidden="true"></i>`;
+            const status = `<i class="fa-solid fa-${this.status.toLowerCase() == 'ended' ? 'octagon-exclamation' : 'spinner'}" title="Statut ${this.status.toLowerCase() == 'ended' ? 'terminé' : 'en cours'}" aria-hidden="true"></i>`;
             const seen = (this.user.status > 0) ? 'Vu à <strong>' + this.user.status + '%</strong>' : 'Pas vu';
             template += `<p>
                 <strong>${this.nbSeasons}</strong> saison${(this.nbSeasons > 1 ? 's' : '')},
-                <strong>${this.nbEpisodes}</strong> <i class="fa fa-film" title="épisodes" aria-hidden="true"></i>, `;
+                <strong>${this.nbEpisodes}</strong> <i class="fa-solid fa-films" title="épisodes" aria-hidden="true"></i>, `;
             if (this.objNote.total > 0) {
                 template += `<strong>${this.objNote.total}</strong> votes`;
                 if (this.objNote.user > 0) {
@@ -8178,22 +9599,32 @@ class Similar extends Media {
             else {
                 template += 'Aucun vote';
             }
-            template += `<span style="margin-left:5px;"><strong>${self.nbComments}</strong> <i class="fa fa-comment" title="commentaires" aria-hidden="true"></i></span>`;
+            template += `<span style="margin-left:5px;"><strong>${self.nbComments}</strong> <i class="fa-solid fa-comments" title="commentaires" aria-hidden="true"></i></span>`;
             if (!this.in_account) {
                 template += `<span style="margin-left:5px;">
-                    <a href="javascript:;" class="addShow"><i class="fa fa-plus" title="Ajouter" aria-hidden="true"></i></a> -
-                    <a href="javascript:;" class="toSeeShow" data-show-id="${self.id}"><i class="fa fa-clock-o" title="A voir" aria-hidden="true"></i></a>
-                </span>`;
+                    <a href="javascript:;" class="addShow"><i class="fa-solid fa-plus" title="Ajouter" aria-hidden="true"></i></a> -`;
+                const storeToSee = await UsBetaSeries.gm_funcs.getValue('toSee', []);
+                const toSee = storeToSee.includes(this.id);
+                if (toSee) {
+                    template += `<a href="javascript:;" class="toSeeShow" data-show-id="${self.id}">
+                        <i class="fa-solid fa-clock-rotate-left" title="Ne plus voir" aria-hidden="true"></i>
+                    </a></span>`;
+                }
+                else {
+                    template += `<a href="javascript:;" class="toSeeShow" data-show-id="${self.id}">
+                        <i class="fa-solid fa-user-clock" title="A voir" aria-hidden="true"></i>
+                    </a></span>`;
+                }
             }
             template += '</p>';
             template += _renderGenres();
             template += _renderCreation();
             let archived = '';
             if (this.user.status > 0 && this.user.archived === true) {
-                archived = ', Archivée: <i class="fa fa-check-circle-o" aria-hidden="true"></i>';
+                archived = ', Archivée: <i class="fa-solid fa-circle-check" aria-hidden="true"></i>';
             }
             else if (this.user.status > 0) {
-                archived = ', Archivée: <i class="fa fa-circle-o" aria-hidden="true"></i>';
+                archived = ', Archivée: <i class="fa-solid fa-circle" aria-hidden="true"></i>';
             }
             if (this.showrunner && this.showrunner.name.length > 0) {
                 template += `<p><u>Show Runner:</u> <strong>${this.showrunner.name}</strong></p>`;
@@ -8212,7 +9643,7 @@ class Similar extends Media {
             else {
                 template += 'Aucun vote';
             }
-            template += `<span style="margin-left:5px;"><strong>${self.nbComments}</strong> <i class="fa fa-comment" title="commentaires" aria-hidden="true"></i></span>`;
+            template += `<span style="margin-left:5px;"><strong>${self.nbComments}</strong> <i class="fa-solid fa-comments" title="commentaires" aria-hidden="true"></i></span>`;
             template += '</p>';
             // Ajouter une case à cocher pour l'état "Vu"
             template += `<p><label for="seen">Vu</label>
@@ -8237,7 +9668,7 @@ class Similar extends Media {
      * @return {string}
      */
     getTitlePopup() {
-        // if (Base.debug) console.log('getTitlePopup', this);
+        // if (BetaSeries.debug) Similar.debug('getTitlePopup', this);
         let title = this.title;
         if (this.objNote.total > 0) {
             title += ' <span style="font-size: 0.8em;color:var(--link_color);">' +
@@ -8249,7 +9680,7 @@ class Similar extends Media {
                     <img src="https://thetvdb.com/images/logo.svg" width="40px" />
                 </a>
                 <a href="javascript:;" onclick="showUpdate('${this.title}', ${this.id}, '0')" style="margin-left:5px; color:var(--default_color);" title="Mettre à jour les données venant de TheTVDB">
-                    <i class="fa fa-refresh" aria-hidden="true"></i>
+                    <i class="fa-solid fa-arrows-rotate" aria-hidden="true"></i>
                 </a>
             </span>`;
         return title;
@@ -8304,7 +9735,7 @@ class Similar extends Media {
                             src="${this.images.poster}"/>`);
             }
             else {
-                const proxy = Base.serverBaseUrl + '/posters/';
+                const proxy = UsBetaSeries.serverBaseUrl + '/posters/';
                 const initFetch = {
                     method: 'GET',
                     headers: {
@@ -8343,9 +9774,9 @@ class Similar extends Media {
             }
         }
         else if (this.mediaType.singular === MediaType.movie && this.tmdb_id && this.tmdb_id > 0) {
-            if (Base.themoviedb_api_user_key.length <= 0)
+            if (UsBetaSeries.themoviedb_api_user_key.length <= 0)
                 return;
-            const uriApiTmdb = `https://api.themoviedb.org/3/movie/${this.tmdb_id}?api_key=${Base.themoviedb_api_user_key}&language=fr-FR`;
+            const uriApiTmdb = `https://api.themoviedb.org/3/movie/${this.tmdb_id}?api_key=${UsBetaSeries.themoviedb_api_user_key}&language=fr-FR`;
             fetch(uriApiTmdb).then(response => {
                 if (!response.ok)
                     return null;
@@ -8390,7 +9821,7 @@ class Similar extends Media {
         else if (this.mediaType.singular === MediaType.movie) {
             params.state = state;
         }
-        return Base.callApi(verb, this.mediaType.plural, this.mediaType.singular, params)
+        return UsBetaSeries.callApi(verb, this.mediaType.plural, this.mediaType.singular, params)
             .then((data) => {
             self.fill(data[self.mediaType.singular]);
             // En attente de la résolution du bug https://www.betaseries.com/bugs/api/462
@@ -8403,7 +9834,7 @@ class Similar extends Media {
         })
             .catch(err => {
             console.warn('Erreur changeState similar', err);
-            Base.notification('Change State Similar', 'Erreur lors du changement de statut: ' + err.toString());
+            UsBetaSeries.notification('Change State Similar', 'Erreur lors du changement de statut: ' + err.toString());
             return self;
         });
     }
@@ -8418,8 +9849,9 @@ class Similar extends Media {
     }
 }
 
-// eslint-disable-next-line no-unused-vars
 class UpdateAuto {
+    static logger = new UsBetaSeries.setDebug('UpdateAuto');
+    static debug = UpdateAuto.logger.debug.bind(UpdateAuto.logger);
     static instance;
     static intervals = [
         { val: 0, label: 'Jamais' },
@@ -8487,7 +9919,7 @@ class UpdateAuto {
         return this;
     }
     async _init() {
-        const objUpAuto = await Base.gm_funcs.getValue('objUpAuto', {});
+        const objUpAuto = await UsBetaSeries.gm_funcs.getValue('objUpAuto', {});
         this._exist = false;
         this._lastUpdate = null;
         if (objUpAuto[this._showId] !== undefined) {
@@ -8528,17 +9960,29 @@ class UpdateAuto {
      * @return {UpdateAuto} L'instance unique UpdateAuto
      */
     async _save() {
-        const objUpAuto = await Base.gm_funcs.getValue('objUpAuto', {});
+        const objUpAuto = await UsBetaSeries.gm_funcs.getValue('objUpAuto', {});
         const obj = {
             status: this._status,
             auto: this._auto,
             interval: this._interval
         };
         objUpAuto[this._showId] = obj;
-        Base.gm_funcs.setValue('objUpAuto', objUpAuto);
+        UsBetaSeries.gm_funcs.setValue('objUpAuto', objUpAuto);
         this._exist = true;
         this.changeColorBtn();
         return this;
+    }
+    /**
+     * Retourne l'objet sous forme d'objet simple, sans référence circulaire,
+     * pour la méthode JSON.stringify
+     * @returns {object}
+     */
+    toJSON() {
+        return {
+            status: this.status,
+            auto: this.auto,
+            interval: this.interval
+        };
     }
     /**
      * Retourne l'objet Show associé
@@ -8563,6 +10007,9 @@ class UpdateAuto {
      * @param  {boolean} status Le statut de la tâche
      */
     set status(status) {
+        if (typeof status !== 'boolean') {
+            throw new TypeError(`UpdateAuto.set status: Parameter type error. Required type: boolean`);
+        }
         this._status = status;
         this._save();
     }
@@ -8582,6 +10029,9 @@ class UpdateAuto {
      * @param  {boolean} auto Le flag
      */
     set auto(auto) {
+        if (typeof auto !== 'boolean') {
+            throw new TypeError(`UpdateAuto.set auto: Parameter type error. Required type: boolean`);
+        }
         this._auto = auto;
     }
     /**
@@ -8600,6 +10050,9 @@ class UpdateAuto {
      * @param  {number} val L'intervalle de temps en minutes
      */
     set interval(val) {
+        if (typeof val !== 'number') {
+            throw new TypeError(`UpdateAuto.set interval: Parameter type error. Required type: number`);
+        }
         this._interval = val;
     }
     /**
@@ -8616,18 +10069,22 @@ class UpdateAuto {
      * @return {UpdateAuto} L'instance unique UpdateAuto
      */
     changeColorBtn() {
-        let color = '#fff';
+        let color = '#fff'; // Status unknown
         if (!this._exist) {
+            // The task doesn't exists
             color = '#6c757d'; // grey
         }
         else if (this._status && this._auto) {
-            color = 'green';
+            // The task running
+            color = '#28a745'; // green
         }
         else if (this._auto && !this._status) {
-            color = 'orange';
+            // The task configured but not launched
+            color = '#fd7e14'; // orange
         }
         else if (!this._auto && !this._status) {
-            color = 'red';
+            // The task not configured and not launched
+            color = '#dc3545'; // red
         }
         $('.updateEpisodes').css('color', color);
         return this;
@@ -8640,6 +10097,11 @@ class UpdateAuto {
      * @return {UpdateAuto} L'instance unique UpdateAuto
      */
     stop() {
+        if (!this.status) {
+            UpdateAuto.debug('%cUpdateAuto%c: task stop (%cnot started%c)', 'color:#fd7e14', 'color:inherit', 'color:#dc3545', 'color:inherit');
+            return this;
+        }
+        UpdateAuto.debug('%cUpdateAuto%c: task stop', 'color:#fd7e14', 'color:inherit');
         if (this._show.user.remaining <= 0 && this._show.isEnded()) {
             this._auto = false;
             this._interval = 0;
@@ -8661,11 +10123,16 @@ class UpdateAuto {
      * @return {UpdateAuto} L'instance unique UpdateAuto
      */
     async delete() {
+        if (!this._exist) {
+            UpdateAuto.debug('%cUpdateAuto%c: task delete (%cnot exists%c)', 'color:#dc3545', 'color:inherit', 'color:#fd7e14', 'color:inherit');
+            return Promise.resolve(this);
+        }
+        UpdateAuto.debug('%cUpdateAuto%c: task delete', 'color:#dc3545', 'color:inherit');
         this.stop();
-        const objUpAuto = await Base.gm_funcs.getValue('objUpAuto', {});
+        const objUpAuto = await UsBetaSeries.gm_funcs.getValue('objUpAuto', {});
         if (objUpAuto[this._showId] !== undefined) {
             delete objUpAuto[this._showId];
-            Base.gm_funcs.setValue('objUpAuto', objUpAuto);
+            UsBetaSeries.gm_funcs.setValue('objUpAuto', objUpAuto);
             this._auto = false;
             this._interval = 0;
             this._exist = false;
@@ -8683,8 +10150,7 @@ class UpdateAuto {
         // Si les options sont modifiées pour arrêter la tâche
         // et que le statut est en cours
         if (this.status && (!this.auto || this.interval <= 0)) {
-            if (Base.debug)
-                console.log('close interval updateEpisodeListAuto');
+            UpdateAuto.debug('close interval updateEpisodeListAuto');
             return this.stop();
         }
         // Si les options modifiées pour lancer
@@ -8700,10 +10166,10 @@ class UpdateAuto {
                 return this;
             }
             if (this._timer) {
-                if (Base.debug)
-                    console.log('close old interval timer');
+                UpdateAuto.debug('close old interval timer');
                 clearInterval(this._timer);
             }
+            UpdateAuto.debug('%cUpdateAuto%c: task launch', 'color:#28a745', 'color:inherit');
             if (!this.status)
                 this.status = true;
             this._tick();
@@ -8718,19 +10184,15 @@ class UpdateAuto {
      * @returns {void}
      */
     _tick() {
-        const now = new Date();
         this._lastUpdate = Date.now();
-        if (Base.debug) {
-            console.log('%s update episode list', `[${now.format('datetime')}]`);
-        }
+        UpdateAuto.debug('[%s] UpdateAuto tick', (new Date).format('datetime'));
         jQuery('#episodes .updateEpisodes').trigger('click');
         if (!this.status) {
             this.status = true;
         }
-        // if (Base.debug) console.log('UpdateAuto setInterval objShow', Object.assign({}, this));
+        // if (BetaSeries.debug) UpdateAuto.debug('UpdateAuto setInterval objShow', Object.assign({}, this));
         if (!this.auto || this.show.user.remaining <= 0) {
-            if (Base.debug)
-                console.log('Arrêt de la mise à jour auto des épisodes');
+            UpdateAuto.debug('Arrêt de la mise à jour auto des épisodes');
             this.stop();
         }
     }
@@ -8750,6 +10212,12 @@ class UpdateAuto {
     }
 }
 
+/**
+ * DaysOfWeek
+ * @enum
+ * @memberof Stats
+ * @alias DaysOfWeek
+ */
 var DaysOfWeek;
 (function (DaysOfWeek) {
     DaysOfWeek["monday"] = "lundi";
@@ -8759,7 +10227,12 @@ var DaysOfWeek;
     DaysOfWeek["friday"] = "vendredi";
     DaysOfWeek["saturday"] = "samedi";
     DaysOfWeek["sunday"] = "dimanche";
-})(DaysOfWeek || (DaysOfWeek = {}));
+})(DaysOfWeek = DaysOfWeek || (DaysOfWeek = {}));
+/**
+ * Stats
+ * @class
+ * @memberof Member
+ */
 class Stats {
     friends;
     shows;
@@ -8795,7 +10268,12 @@ class Stats {
         }
     }
 }
-class Options {
+/**
+ * OptionsMember
+ * @class
+ * @memberof Member
+ */
+class OptionsMember {
     downloaded;
     notation;
     timelag;
@@ -8820,16 +10298,36 @@ class Member {
     /*
                     STATIC
      */
+    static logger = new UsBetaSeries.setDebug('Member');
+    static debug = Member.logger.debug.bind(Member.logger);
+    static relatedProps = {
+        "id": { key: "id", type: 'number' },
+        "fb_id": { key: "fb_id", type: 'number' },
+        "login": { key: "login", type: 'string' },
+        "xp": { key: "xp", type: 'number' },
+        "locale": { key: "locale", type: 'string' },
+        "cached": { key: "cached", type: 'number' },
+        "avatar": { key: "avatar", type: 'string' },
+        "profile_banner": { key: "profile_banner", type: 'string' },
+        "in_account": { key: "in_account", type: 'boolean' },
+        "is_admin": { key: "is_admin", type: 'boolean', default: false },
+        "subscription": { key: "subscription", type: 'number' },
+        "valid_email": { key: "valid_email", type: 'boolean', default: false },
+        "screeners": { key: "screeners", type: 'array<string>', default: [] },
+        "twitterLogin": { key: "twitterLogin", type: 'string' },
+        "stats": { key: "stats", type: Stats },
+        "options": { key: "options", type: OptionsMember }
+    };
     /**
      * Retourne les infos du membre connecté
      * @returns {Promise<Member>} Une instance du membre connecté
      */
     static fetch() {
         const params = {};
-        if (Base.userId !== null) {
-            params.id = Base.userId;
+        if (UsBetaSeries.userId !== null) {
+            params.id = UsBetaSeries.userId;
         }
-        return Base.callApi(HTTP_VERBS.GET, 'members', 'infos', params)
+        return UsBetaSeries.callApi(HTTP_VERBS.GET, 'members', 'infos', params)
             .then((data) => {
             return new Member(data.member);
         })
@@ -8842,73 +10340,97 @@ class Member {
                     PROPERTIES
      */
     /**
-     * @type {number} Identifiant du membre
+     * Identifiant du membre
+     * @type {number}
      */
     id;
     /**
-     * @type {number} Identifiant Facebook ?
+     * Identifiant Facebook ?
+     * @type {number}
      */
     fb_id;
     /**
-     * @type {string} Login du membre
+     * Login du membre
+     * @type {string}
      */
     login;
     /**
-     * @type {number} Points d'expérience
+     * Points d'expérience
+     * @type {number}
      */
     xp;
     /**
-     * @type {string} Locale utiliser par le membre
+     * Locale utiliser par le membre
+     * @type {string}
      */
     locale;
     /**
-     * @type {number} ?
+     * ???
+     * @type {number}
      */
     cached;
     /**
-     * @type {string} URL de l'avatar du membre
+     * URL de l'avatar du membre
+     * @type {string}
      */
     avatar;
     /**
-     * @type {string} URL de la bannière du membre
+     * URL de la bannière du membre
+     * @type {string}
      */
     profile_banner;
     /**
-     * @type {boolean} ?
+     * ???
+     * @type {boolean}
      */
     in_account;
     /**
-     * @type {boolean} Membre Administrateur ?
+     * Membre Administrateur ?
+     * @type {boolean}
      */
     is_admin;
     /**
-     * @type {number} Année d'inscription
+     * Année d'inscription
+     * @type {number}
      */
     subscription;
     /**
-     * @type {boolean} Indique si l'adresse mail a été validée
+     * Indique si l'adresse mail a été validée
+     * @type {boolean}
      */
     valid_email;
     /**
-     * @type {Array<string>} ?
+     * ???
+     * @type {string[]}
      */
     screeners;
     /**
-     * @type {string} Login Twitter
+     * Login Twitter
+     * @type {string}
      */
     twitterLogin;
     /**
-     * @type {Stats} Les statistiques du membre
+     * Les statistiques du membre
+     * @type {Stats}
      */
     stats;
     /**
-     * @type {Options} Les options de paramétrage du membre
+     * Les options de paramétrage du membre
+     * @type {OptionsMember}
      */
     options;
     /**
-     * @type {NotificationList} Tableau des notifications du membre
+     * Tableau des notifications du membre
+     * @type {NotificationList}
      */
-    notifications;
+    _notifications;
+    __decorators = {
+        fill: new FillDecorator(this)
+    };
+    __initial = true;
+    __changes = {};
+    __props = [];
+    elt;
     /*
                     METHODS
      */
@@ -8918,23 +10440,98 @@ class Member {
      * @returns {Member}
      */
     constructor(data) {
-        this.id = parseInt(data.id, 10);
-        this.fb_id = parseInt(data.fb_id, 10);
-        this.login = data.login;
-        this.xp = parseInt(data.xp, 10);
-        this.locale = data.locale;
-        this.cached = parseInt(data.cached, 10);
-        this.avatar = data.avatar;
-        this.profile_banner = data.profile_banner;
-        this.in_account = !!data.in_account;
-        this.is_admin = !!data.is_admin;
-        this.subscription = parseInt(data.subscription, 10);
-        this.valid_email = !!data.valid_email;
-        this.screeners = data.screeners;
-        this.twitterLogin = data.twitterLogin;
-        this.stats = new Stats(data.stats);
-        this.options = new Options(data.options);
-        this.checkNotifs();
+        this.notifications = new NotificationList();
+        return this.fill(data);
+    }
+    get notifications() {
+        return this._notifications;
+    }
+    /**
+     * Définit la propriété `notifications` et lui ajoute un listener sur l'event SEEN
+     * @param  {NotificationList} list - La liste des notifications
+     * @throws {TypeError}
+     */
+    set notifications(list) {
+        if (!(list instanceof NotificationList)) {
+            throw new TypeError("Property notifications must be an instance of NotificationList");
+        }
+        this._notifications = list;
+        /**
+         *
+         * @param {CustomEvent} event
+         * @this NotificationList
+         */
+        const addBadgeNotifs = function (event) {
+            Member.debug('NotificationList.setter notifications - function addBadgeNotifs', event, this);
+            if (jQuery('.menu-icon--bell').length > 0) {
+                jQuery('.menu-icon--bell').replaceWith(`<span class="menu-icon menu-icon-bell fa-solid fa-bell"></span>`);
+            }
+            const $bell = jQuery('.menu-item.js-growl-container .menu-icon-bell');
+            const $badge = jQuery('#menuUnseenNotifications');
+            if (this.hasNew()) {
+                if ($badge.length <= 0) {
+                    // Alerter le membre de nouvelles notifications
+                    jQuery('.menu-wrapper .js-iconNotifications').append(`<i class="unread-count unread-notifications" id="menuUnseenNotifications">${this.new.length}</i>`);
+                }
+                else {
+                    $badge.text(this.new.length);
+                }
+            }
+            else if ($badge.length > 0) {
+                $badge.remove();
+            }
+            $bell.toggleClass('fa-shake', this.hasNew());
+        };
+        const removeBadgeNotifs = function (event) {
+            Member.debug('NotificationList.setter notifications - function removeBadgeNotifs', event, this);
+            jQuery('#menuUnseenNotifications').remove();
+            jQuery('.menu-item.js-growl-container .menu-icon-bell').removeClass('fa-shake');
+            localStorage.setItem('notifications', JSON.stringify(this));
+        };
+        this._notifications
+            .on(EventTypes.NEW, addBadgeNotifs)
+            .on(EventTypes.SEEN, removeBadgeNotifs);
+    }
+    /**
+     * Remplit l'objet avec les données fournit en paramètre
+     * @param   {Obj} data - Les données provenant de l'API
+     * @returns {Member}
+     */
+    fill(data) {
+        try {
+            return this.__decorators.fill.fill.call(this, data);
+        }
+        catch (err) {
+            console.error(err);
+        }
+    }
+    /**
+     * Met à jour le rendu HTML des propriétés de l'objet,
+     * si un sélecteur CSS exite pour la propriété fournit en paramètre\
+     * **Méthode appelée automatiquement par le setter de la propriété**
+     * @see Show.selectorsCSS
+     * @param   {string} propKey - La propriété de l'objet à mettre à jour
+     * @returns {void}
+     */
+    updatePropRender(propKey) {
+        try {
+            this.__decorators.fill.updatePropRender.call(this, propKey);
+        }
+        catch (err) {
+            console.error(err);
+        }
+    }
+    /**
+     * Retourne l'objet sous forme d'objet simple, sans référence circulaire,
+     * pour la méthode JSON.stringify
+     * @returns {object}
+     */
+    toJSON() {
+        const obj = {};
+        for (const key of this.__props) {
+            obj[key] = this[key];
+        }
+        return obj;
     }
     checkNotifs() {
         /**
@@ -8944,28 +10541,24 @@ class Member {
         const fetchNotifs = () => {
             NotificationList.fetch(50).then(notifs => {
                 this.notifications = notifs;
-                const $badge = jQuery('#menuUnseenNotifications');
-                if (notifs.new.length > 0) {
-                    if ($badge.length <= 0) {
-                        // Alerter le membre de nouvelles notifications
-                        jQuery('.menu-wrapper .js-iconNotifications').append(`<i class="unread-count unread-notifications" id="menuUnseenNotifications">${notifs.new.length}</i>`);
-                    }
-                    else {
-                        $badge.text(notifs.new.length);
-                    }
-                    jQuery('.menu-icon--bell').removeClass('has-notifications');
-                }
-                else if ($badge.length > 0) {
-                    $badge.remove();
-                }
             });
         };
         // On met à jour les notifications toutes les 5 minutes
         setInterval(fetchNotifs, 300000);
         fetchNotifs();
     }
+    addNotifications(notifs) {
+        if ((0, isNull)(this.notifications)) {
+            this.notifications = new NotificationList();
+        }
+        for (let n = 0, _len = notifs.length; n < _len; n++) {
+            this.notifications.add(new NotificationBS(notifs[n]));
+        }
+        this.notifications.sort();
+    }
     /**
-     * renderNotifications - Affiche les notifications du membre
+     * renderNotifications - Affiche les notifications du membre sur la page Web
+     * @returns {void}
      */
     renderNotifications() {
         const $growl = jQuery('#growl'), $loader = jQuery('#growl .notifications__loader'), $deleteAll = jQuery('#growl .notification.notification--delete-all'), $notifNew = jQuery('#growl .js-notificationsNew-list'), $notifOld = jQuery('#growl .js-notificationsOld-list'), $lists = jQuery('#growl .notificationsList'), $notifs = {
@@ -9060,19 +10653,19 @@ class NotifPayload {
      * avec leur type, leur valeur par défaut et leur fonction de traitement
      */
     static props = [
-        { key: 'url', type: 'string', fn: null, default: '' },
-        { key: 'title', type: 'string', fn: null, default: '' },
-        { key: 'code', type: 'string', fn: null, default: '' },
-        { key: 'show_title', type: 'string', fn: null, default: '' },
-        { key: 'picture', type: 'string', fn: null, default: '' },
-        { key: 'season', type: 'number', fn: parseInt, default: 0 },
-        { key: 'name', type: 'string', fn: null, default: '' },
-        { key: 'xp', type: 'number', fn: parseInt, default: 0 },
-        { key: 'user', type: 'string', fn: null, default: '' },
-        { key: 'user_id', type: 'number', fn: parseInt, default: 0 },
-        { key: 'user_picture', type: 'string', fn: null, default: 'https://img.betaseries.com/5gtv-uQY0aSPqDtcyu7rhHLcu6Q=/40x40/smart/https%3A%2F%2Fwww.betaseries.com%2Fimages%2Fsite%2Flogo-64x64.png' },
-        { key: 'type', type: 'string', fn: null, default: '' },
-        { key: 'type_id', type: 'number', fn: parseInt, default: 0 }
+        { key: 'url', type: 'string', default: '' },
+        { key: 'title', type: 'string', default: '' },
+        { key: 'code', type: 'string', default: '' },
+        { key: 'show_title', type: 'string', default: '' },
+        { key: 'picture', type: 'string', default: '' },
+        { key: 'season', type: 'number', default: 0 },
+        { key: 'name', type: 'string', default: '' },
+        { key: 'xp', type: 'number', default: 0 },
+        { key: 'user', type: 'string', default: '' },
+        { key: 'user_id', type: 'number', default: 0 },
+        { key: 'user_picture', type: 'string', default: 'https://img.betaseries.com/5gtv-uQY0aSPqDtcyu7rhHLcu6Q=/40x40/smart/https%3A%2F%2Fwww.betaseries.com%2Fimages%2Fsite%2Flogo-64x64.png' },
+        { key: 'type', type: 'string', default: '' },
+        { key: 'type_id', type: 'number', default: 0 }
     ];
     url; // all
     title; // season, episode, comment
@@ -9088,15 +10681,19 @@ class NotifPayload {
     type; // comment
     type_id; // comment
     constructor(data) {
+        if (!data)
+            return this;
         let prop, val;
-        for (let p = 0; p < NotifPayload.props.length; p++) {
+        for (let p = 0, _len = NotifPayload.props.length; p < _len; p++) {
             prop = NotifPayload.props[p];
             val = NotifPayload.props[p].default;
             // eslint-disable-next-line no-prototype-builtins
-            if (data && data.hasOwnProperty(prop.key)) {
-                val = data[prop.key];
-                if (prop.fn !== null) {
-                    val = prop.fn(val, 10);
+            if (Reflect.has(data, prop.key) && !(0, isNull)(data[prop.key])) {
+                if (prop.type === 'string') {
+                    val = String(data[prop.key]).trim();
+                }
+                else {
+                    val = parseInt(data[prop.key], 10);
                 }
             }
             this[prop.key] = val;
@@ -9109,6 +10706,12 @@ class NotifPayload {
  * @class NotificationList
  */
 class NotificationList {
+    static logger = new UsBetaSeries.setDebug('Notification');
+    static debug = NotificationList.logger.debug.bind(NotificationList.logger);
+    static EventTypes = [
+        EventTypes.SEEN,
+        EventTypes.NEW
+    ];
     /**
      * Retourne les notifications du membre
      * @param   {number} [nb = 10] Nombre de notifications à récupérer
@@ -9120,7 +10723,7 @@ class NotificationList {
             sort: 'DESC',
             number: nb
         };
-        return Base.callApi(HTTP_VERBS.GET, 'members', 'notifications', params)
+        return UsBetaSeries.callApi(HTTP_VERBS.GET, 'members', 'notifications', params)
             .then((data) => {
             const notifications = new NotificationList();
             for (let n = 0; n < data.notifications.length; n++) {
@@ -9133,13 +10736,43 @@ class NotificationList {
             return new NotificationList();
         }) */;
     }
+    static fromJSON(notifs) {
+        const list = new NotificationList();
+        for (const type of ['new', 'old']) {
+            for (let n = 0, _len = notifs[type].length; n < _len; n++) {
+                list.add(notifs[type][n]);
+            }
+        }
+        if (!(0, isNull)(notifs.seen)) {
+            list.seen = notifs.seen;
+        }
+        return list;
+    }
     old;
     new;
     seen;
+    __decorators = {
+        emitter: new EmitterDecorator(this)
+    };
     constructor() {
         this.old = [];
         this.new = [];
         this.seen = false;
+    }
+    hasListeners(event) {
+        return this.__decorators.emitter.hasListeners(event);
+    }
+    on(event, fn) {
+        return this.__decorators.emitter.on(event, fn);
+    }
+    off(event, fn) {
+        return this.__decorators.emitter.off(event, fn);
+    }
+    once(event, fn) {
+        return this.__decorators.emitter.once(event, fn);
+    }
+    emit(event) {
+        return this.__decorators.emitter.emit(event);
     }
     /**
      * Symbol Iterator pour pouvoir itérer sur l'objet dans les boucles for
@@ -9160,8 +10793,31 @@ class NotificationList {
      * @param {NotificationBS} notif La notification à ajouter
      */
     add(notif) {
+        if (!(notif instanceof NotificationBS)) {
+            notif = new NotificationBS(notif);
+        }
         const category = (notif.seen === null) ? 'new' : 'old';
         this[category].push(notif);
+        if (category === 'new')
+            this.emit(EventTypes.NEW);
+    }
+    /**
+     * Tri les tableaux des notifications en ordre DESC
+     * @returns {NotificationList}
+     */
+    sort() {
+        const sortNotifs = (a, b) => {
+            if ((0, isNull)(a) || (0, isNull)(b))
+                return 0;
+            if (a.date.getTime() > b.date.getTime())
+                return -1;
+            else if (a.date.getTime() < b.date.getTime())
+                return 1;
+            return 0;
+        };
+        this.new.sort(sortNotifs);
+        this.old.sort(sortNotifs);
+        return this;
     }
     /**
      * markAllAsSeen - Met à jour les nouvelles notifications en ajoutant
@@ -9176,7 +10832,27 @@ class NotificationList {
             }
             this.new = [];
             this.seen = false;
+            this.emit(EventTypes.SEEN);
         }
+    }
+    getLastId() {
+        if (this.new.length > 0) {
+            return this.new[0].id;
+        }
+        else if (this.old.length > 0) {
+            return this.old[0].id;
+        }
+        return null;
+    }
+    hasNew() {
+        return this.new.length > 0;
+    }
+    toJSON() {
+        return {
+            'new': this.new,
+            'old': this.old,
+            'seen': this.seen
+        };
     }
 }
 /**
@@ -9284,7 +10960,7 @@ class ParamsSearchAbstract {
     static separator = ',';
     text;
     _limit;
-    _offset;
+    _offset; // numero de page
     genres;
     _diffusions;
     svods;
@@ -9305,7 +10981,7 @@ class ParamsSearchAbstract {
     }
     set limit(limit) {
         if (limit <= 0 || limit > 100) {
-            throw new Error("Value of parameter 'limit' is out of range (1-100)");
+            throw new RangeError("Value of parameter 'limit' is out of range (1-100)");
         }
         this._limit = limit;
     }
@@ -9314,7 +10990,7 @@ class ParamsSearchAbstract {
     }
     set offset(offset) {
         if (offset <= 0 || offset > 100) {
-            throw new Error("Value of parameter 'offset' is out of range (1-100)");
+            throw new RangeError("Value of parameter 'offset' is out of range (1-100)");
         }
         this._offset = offset;
     }
@@ -9388,6 +11064,9 @@ class ParamsSearchShows extends ParamsSearchAbstract {
         super();
         this._creations = [];
         this._pays = [];
+    }
+    getDurationAllowed() {
+        return ParamsSearchShows.valuesAllowed.duration;
     }
     get duration() {
         return this._duration;
@@ -9522,6 +11201,8 @@ class ParamsSearchMovies extends ParamsSearchAbstract {
     }
 }
 class Search {
+    static logger = new UsBetaSeries.setDebug('Search');
+    static debug = Search.logger.debug.bind(Search.logger);
     static searchShows(params) {
         const result = {
             shows: [],
@@ -9530,7 +11211,7 @@ class Search {
             limit: params.limit,
             page: params.offset
         };
-        return Base.callApi(HTTP_VERBS.GET, 'search', 'shows', params.toRequest())
+        return UsBetaSeries.callApi(HTTP_VERBS.GET, 'search', 'shows', params.toRequest())
             .then((data) => {
             const keys = Object.keys(result);
             for (const key in data) {
@@ -9558,7 +11239,7 @@ class Search {
             limit: params.limit,
             page: params.offset
         };
-        return Base.callApi(HTTP_VERBS.GET, 'search', 'movies', params.toRequest())
+        return UsBetaSeries.callApi(HTTP_VERBS.GET, 'search', 'movies', params.toRequest())
             .then((data) => {
             const keys = Object.keys(result);
             for (const key in data) {
@@ -9567,6 +11248,492 @@ class Search {
             }
             return result;
         });
+    }
+}
+
+/*
+ *              Class Decorators
+ *
+ * type ClassDecorator = <TFunction extends Function>(target: TFunction) => TFunction | void;
+ */
+/*
+ *              Property Decorators
+ *
+ * type PropertyDecorator = (target: Object, propertyKey: string | symbol) => void;
+ */
+/*
+ *              Method Decorators
+ *
+ * Descriptor keys:
+ *  - value
+ *  - writable
+ *  - enumerable
+ *  - configurable
+ *
+ * type MethodDecorator = <T>(
+ *   target: Object,
+ *   propertyKey: string | symbol,
+ *   descriptor: TypedPropertyDescriptor<T>
+ * ) => TypedPropertyDescriptor<T> | void;
+ */
+/*
+ *              Accessor Decorators
+ *
+ * Descriptor keys:
+ *  - get
+ *  - set
+ *  - enumerable
+ *  - configurable
+ *
+ * type MethodDecorator = <T>(
+ *   target: Object,
+ *   propertyKey: string | symbol,
+ *   descriptor: TypedPropertyDescriptor<T>
+ * ) => TypedPropertyDescriptor<T> | void;
+ */
+function validateType(target, propertyKey, descriptor) {
+    const original = descriptor.set;
+    const type = Reflect.getMetadata('design:type', target, propertyKey);
+    descriptor.set = function (value) {
+        if (!(value instanceof type)) {
+            throw new TypeError(`Parameter type error. Required type: ${type.name}`);
+        }
+        return original.call(this, { ...value });
+    };
+}
+/********************************************************************************/
+/*                          Custom Decorators                                   */
+/********************************************************************************/
+/*
+ *              Abstract Decorator
+ */
+/**
+ * AbstractDecorator - Classe abstraite des decorators
+ * @class
+ * @abstract
+ */
+class AbstractDecorator {
+    static logger = new UsBetaSeries.setDebug('Decorators');
+    static debug = AbstractDecorator.logger.debug.bind(AbstractDecorator.logger);
+    __target;
+    constructor(target) {
+        this.__target = target;
+        return this;
+    }
+    get target() {
+        return this.__target;
+    }
+    set target(target) {
+        this.__target = target;
+    }
+}
+/**
+ * Classe FillDecorator permet d'ajouter des méthodes à d'autres classes
+ * Ces méthodes servent à peupler un objet de classe
+ * @class
+ * @extends AbstractDecorator
+ */
+class FillDecorator extends AbstractDecorator {
+    /**
+     * Constructor
+     * @param   {implFillDecorator} target - La classe utilisant le décorateur
+     * @returns {FillDecorator}
+     */
+    constructor(target) {
+        super(target);
+        return this;
+    }
+    /**
+     * Remplit l'objet avec les données fournit en paramètre
+     * @param   {Obj} data - Les données provenant de l'API
+     * @returns {implFillDecorator}
+     */
+    fill(data) {
+        const self = this;
+        const classStatic = self.constructor;
+        if (typeof data !== 'object') {
+            const err = new TypeError(classStatic.name + '.fill data is not an object: ' + typeof data);
+            console.error(err);
+            throw err;
+        }
+        // Check property static "relatedProps"
+        if (!classStatic.relatedProps) {
+            const err = new Error(classStatic.name + ".fill, property static 'relatedProp' are required");
+            console.error(err);
+            throw err;
+        }
+        const checkTypeValue = (target, key, type, value, relatedProp) => {
+            // console.warn('FillDecorator.fill checkTypeValue', {key, type, value});
+            const typeNV = typeof value;
+            const oldValue = target['_' + key];
+            const hasDefault = Reflect.has(relatedProp, 'default');
+            const hasTransform = Reflect.has(relatedProp, 'transform');
+            if (!(0, isNull)(value) && hasTransform && typeof relatedProp.transform === 'function') {
+                value = relatedProp.transform(target, value);
+            }
+            else if ((0, isNull)(value) && hasDefault) {
+                value = relatedProp.default;
+            }
+            if ((0, isNull)(oldValue) && (0, isNull)(value))
+                return undefined;
+            let subType = null;
+            if (typeof type === 'string' && /^array<\w+>$/.test(type)) {
+                subType = type.match(/<(\w+)>$/)[1];
+                AbstractDecorator.debug('FillDecorator.fill for (%s.%s) type: array - subType: %s', self.constructor.name, key, subType, value);
+            }
+            switch (type) {
+                case 'string':
+                    value = (!(0, isNull)(value)) ? String(value).trim() : hasDefault ? relatedProp.default : null;
+                    if (oldValue === value)
+                        return undefined;
+                    break;
+                case 'number':
+                    if (!(0, isNull)(value) && !hasTransform && typeNV === 'string') {
+                        value = parseInt(value, 10);
+                    }
+                    else if ((0, isNull)(value) && hasDefault) {
+                        value = relatedProp.default;
+                    }
+                    if (oldValue === value)
+                        return undefined;
+                    break;
+                case 'boolean':
+                    switch (typeof value) {
+                        case 'string':
+                            if (value.toLowerCase() === 'true' || value === '1') {
+                                value = true;
+                            }
+                            else if (value.toLowerCase() === 'false' || value === '1') {
+                                value = false;
+                            }
+                            break;
+                        case 'number':
+                        default:
+                            value = !!value;
+                            break;
+                    }
+                    value = (typeof value === 'boolean') ? value : hasDefault ? relatedProp.default : null;
+                    if (oldValue === value)
+                        return undefined;
+                    break;
+                case 'array': {
+                    if (!(0, isNull)(subType) && Array.isArray(value)) {
+                        const data = [];
+                        let isClass = false;
+                        if (UsBetaSeries.checkClassname(subType)) {
+                            isClass = true;
+                        }
+                        for (let d = 0, _len = value.length; d < _len; d++) {
+                            let subVal = value[d];
+                            if (isClass)
+                                subVal = UsBetaSeries.getInstance(subType, [value[d]]);
+                            data.push(subVal);
+                        }
+                        value = data;
+                    }
+                    else {
+                        if (self.__initial || !Array.isArray(oldValue))
+                            return value;
+                    }
+                    let diff = false;
+                    for (let i = 0, _len = oldValue.length; i < _len; i++) {
+                        if (oldValue[i] !== value[i]) {
+                            diff = true;
+                            break;
+                        }
+                    }
+                    if (!diff)
+                        return undefined;
+                    break;
+                }
+                case 'date': {
+                    if (typeof value === 'string' && value === '0000-00-00') {
+                        return null;
+                    }
+                    if (typeNV !== 'number' && !(value instanceof Date) &&
+                        (typeNV === 'string' && Number.isNaN(Date.parse(value)))) {
+                        throw new TypeError(`Invalid value for key "${key}". Expected type (Date | Number | string) but got ${JSON.stringify(value)}`);
+                    }
+                    if (typeNV === 'number' || typeNV === 'string')
+                        value = new Date(value);
+                    if (oldValue instanceof Date && value.getTime() === oldValue.getTime()) {
+                        return undefined;
+                    }
+                    break;
+                }
+                case 'object':
+                default: {
+                    if (typeNV === 'object' && type === 'object') {
+                        value = (!(0, isNull)(value)) ? Object.assign({}, value) : hasDefault ? relatedProp.default : null;
+                    }
+                    else if (typeof type === 'function' && !(0, isNull)(value) && !(value instanceof type)) {
+                        // if (BetaSeries.debug) AbstractDecorator.debug('FillDecorator.fill: type Function for [%s.%s]', classStatic.name, key, {type, value});
+                        // value = Reflect.construct(type, [value]);
+                        value = new (type)(value);
+                        if (typeof value === 'object' && Reflect.has(value, 'parent')) {
+                            value.parent = target;
+                        }
+                    }
+                    if (self.__initial || (0, isNull)(oldValue))
+                        return value;
+                    let changed = false;
+                    try {
+                        // if (BetaSeries.debug) AbstractDecorator.debug('comparaison d\'objets', {typeOld: typeof oldValue, oldValue, typeNew: typeof value, value});
+                        if (((0, isNull)(oldValue) && !(0, isNull)(value)) ||
+                            (!(0, isNull)(oldValue) && (0, isNull)(value))) {
+                            changed = true;
+                        }
+                        else if (typeof value === 'object' && !(0, isNull)(value)) {
+                            if (JSON.stringify(oldValue) !== JSON.stringify(value)) {
+                                AbstractDecorator.debug('compare objects with JSON.stringify and are differents', { oldValue, value });
+                                changed = true;
+                            }
+                        }
+                        if (!changed)
+                            return undefined;
+                    }
+                    catch (err) {
+                        console.warn('FillDecorator.fill => checkTypeValue: error setter[%s.%s]', target.constructor.name, key, { oldValue, value });
+                        throw err;
+                    }
+                }
+            }
+            if (type === 'date') {
+                type = Date;
+            }
+            else if (type === 'other' && hasTransform) {
+                return value;
+            }
+            if ((typeof type === 'string' && typeof value !== type) ||
+                (typeof type === 'function' && !(value instanceof type))) {
+                throw new TypeError(`Invalid value for key "${target.constructor.name}.${key}". Expected type "${(typeof type === 'string') ? type : JSON.stringify(type)}" but got "${typeof value}"`);
+            }
+            return value;
+        };
+        // AbstractDecorator.debug('FillDecorator.fill target: %s', self.constructor.name, data, (self.constructor as typeof RenderHtml).relatedProps);
+        // On reinitialise les changements de l'objet
+        self.__changes = {};
+        for (const propKey in self.constructor.relatedProps) {
+            if (!Reflect.has(data, propKey))
+                continue;
+            /** relatedProp contient les infos de la propriété @see RelatedProp */
+            const relatedProp = self.constructor.relatedProps[propKey];
+            // dataProp contient les données provenant de l'API
+            const dataProp = data[propKey];
+            // Le descripteur de la propriété, utilisé lors de l'initialisation de l'objet
+            let descriptor;
+            if (self.__initial) {
+                descriptor = {
+                    configurable: true,
+                    enumerable: true,
+                    get: () => {
+                        return self['_' + relatedProp.key];
+                    },
+                    set: (newValue) => {
+                        // On vérifie le type et on modifie, si nécessaire, la valeur
+                        // pour la rendre conforme au type définit (ex: number => Date or object => Note)
+                        const value = checkTypeValue(self, relatedProp.key, relatedProp.type, newValue, relatedProp);
+                        // Lors de l'initialisation, on set directement la valeur
+                        if (self.__initial) {
+                            self['_' + relatedProp.key] = value;
+                            return;
+                        }
+                        // On récupère l'ancienne valeur pour identifier le changement
+                        const oldValue = self['_' + relatedProp.key];
+                        // Si value est undefined, alors pas de modification de valeur
+                        if (value === undefined) {
+                            // AbstractDecorator.debug('FillDecorator.fill setter[%s.%s] not changed', self.constructor.name, relatedProp.key, relatedProp.type, {newValue, oldValue, relatedProp});
+                            return;
+                        }
+                        AbstractDecorator.debug('FillDecorator.fill setter[%s.%s] value changed', self.constructor.name, relatedProp.key, { type: relatedProp.type, newValue, oldValue, value, relatedProp });
+                        // On set la nouvelle valeur
+                        self['_' + relatedProp.key] = value;
+                        // On stocke le changement de valeurs
+                        self.__changes[relatedProp.key] = { oldValue, newValue };
+                        // On appelle la methode de mise à jour du rendu HTML pour la propriété
+                        this.updatePropRender(relatedProp.key);
+                    }
+                };
+            }
+            // if (BetaSeries.debug) AbstractDecorator.debug('FillDecorator.fill descriptor[%s.%s]', this.constructor.name, relatedProp.key, {relatedProp, dataProp, descriptor});
+            // Lors de l'initialisation, on définit la propriété de l'objet
+            // et on ajoute le nom de la propriété dans le tableau __props
+            if (self.__initial) {
+                Object.defineProperty(self, relatedProp.key, descriptor);
+                self.__props.push(relatedProp.key);
+            }
+            // On set la valeur
+            self[relatedProp.key] = dataProp;
+        }
+        // Fin de l'initialisation
+        if (self.__initial) {
+            self.__props.sort();
+            self.__initial = false;
+        }
+        return self;
+    }
+    /**
+     * Met à jour le rendu HTML des propriétés de l'objet,
+     * si un sélecteur CSS exite pour la propriété fournit en paramètre\
+     * **Méthode appelée automatiquement par le setter de la propriété**
+     * @see Show.selectorsCSS
+     * @param   {string} propKey - La propriété de l'objet à mettre à jour
+     * @returns {void}
+     */
+    updatePropRender(propKey) {
+        const self = this;
+        if (!self.elt || !self.__props.includes(propKey))
+            return;
+        const fnPropKey = 'updatePropRender' + propKey.camelCase().upperFirst();
+        const classStatic = self.constructor;
+        AbstractDecorator.debug('FillDecorator.updatePropRender(%s.%s)', classStatic.name, propKey, fnPropKey);
+        if (Reflect.has(self, fnPropKey)) {
+            AbstractDecorator.debug('FillDecorator.updatePropRender call method: %s.%s', classStatic.name, fnPropKey);
+            self[fnPropKey]();
+        }
+        else if (classStatic.selectorsCSS && classStatic.selectorsCSS[propKey]) {
+            AbstractDecorator.debug('FillDecorator.updatePropRender default method: class: %s - selector: %s', classStatic.name, classStatic.selectorsCSS[propKey]);
+            const selectorCSS = classStatic.selectorsCSS[propKey];
+            jQuery(selectorCSS, self.elt).text(self[propKey].toString());
+            delete self.__changes[propKey];
+        }
+    }
+}
+class EmitterDecorator extends AbstractDecorator {
+    /**
+     * Les fonctions callback
+     * @type {Object.<string, fnEmitter[]>}
+     */
+    __callbacks;
+    /**
+     * EmiiterDecorator
+     * @param target - La classe implémentant l'interface implEmitterDecorator
+     * @returns {EmitterDecorator}
+     * @throws {Error}
+     */
+    constructor(target) {
+        super(target);
+        if (!Reflect.has(target.constructor, 'EventTypes')) {
+            throw new Error(`Class: ${target.constructor.name} must have a static property "EventTypes"`);
+        }
+        this.__callbacks = {};
+        return this;
+    }
+    /**
+     * Check if this emitter has `event` handlers.
+     *
+     * @param {EventTypes} event
+     * @return {Boolean}
+     */
+    hasListeners(event) {
+        return !!this.__callbacks[event].length;
+    }
+    /**
+     * Listen on the given `event` with `fn`.
+     * @param   {EventTypes} event - Le nom de l'évènement sur lequel déclenché le callback
+     * @param   {fnEmitter} fn - La fonction callback
+     * @returns {implEmitterDecorator}
+     */
+    on(event, fn) {
+        //AbstractDecorator.debug('EmitterDecorator[%s] method(on) event %s', this.constructor.name, event);
+        // On vérifie que le type d'event est pris en charge
+        if ((this.target.constructor).EventTypes.indexOf(event) < 0) {
+            throw new Error(`EmitterDecorator.on: ${event} ne fait pas partit des events gérés par la classe ${this.target.constructor.name}`);
+        }
+        this.__callbacks = this.__callbacks || {};
+        this.__callbacks[event] = this.__callbacks[event] || [];
+        for (const func of this.__callbacks[event]) {
+            if (typeof func === 'function' && func.toString() == fn.toString())
+                return this.target;
+        }
+        this.__callbacks[event].push(fn);
+        if (UsBetaSeries.debug)
+            AbstractDecorator.debug('EmitterDecorator.on[%s] addEventListener on event %s', this.target.constructor.name, event, this.__callbacks[event]);
+        return this.target;
+    }
+    /**
+     * Remove the given callback for `event` or all
+     * registered callbacks.
+     *
+     * @param {EventTypes} event
+     * @param {fnEmitter} [fn]
+     * @return {implEmitterDecorator}
+     */
+    off(event, fn) {
+        this.__callbacks = this.__callbacks || {};
+        // all
+        if ((0, isNull)(event) && (0, isNull)(fn)) {
+            this.__callbacks = {};
+            return this.target;
+        }
+        // specific event
+        const callbacks = this.__callbacks[event];
+        if (!callbacks)
+            return this.target;
+        // remove all handlers
+        if ((0, isNull)(fn)) {
+            delete this.__callbacks[event];
+            return this.target;
+        }
+        // remove specific handler
+        let cb;
+        for (let i = 0; i < callbacks.length; i++) {
+            cb = callbacks[i];
+            if (cb === fn || cb.fn === fn) {
+                callbacks.splice(i, 1);
+                break;
+            }
+        }
+        // Remove event specific arrays for event types that no
+        // one is subscribed for to avoid memory leak.
+        if (callbacks.length === 0) {
+            delete this.__callbacks[event];
+        }
+        return this.target;
+    }
+    /**
+     * Adds an `event` listener that will be invoked a single
+     * time then automatically removed.
+     *
+     * @param {EventTypes} event
+     * @param {fnEmitter} fn
+     * @return {implEmitterDecorator}
+     */
+    once(event, fn) {
+        /**
+         * function that runs a single time
+         * @param {...*} args
+         */
+        const on = (...args) => {
+            AbstractDecorator.debug('EmiiterDecorator.once => on called');
+            this.off(event, on); // delete callback when called (emit play with a copy of callbacks)
+            // args.unshift(new CustomEvent('betaseries', { detail: { event }}));
+            fn.apply(this.target, args);
+        };
+        on.fn = fn;
+        this.on(event, on);
+        return this.target;
+    }
+    /**
+     * Emit `event` with the given args.
+     *
+     * @param {EventTypes} event
+     * @param {...*} args
+     * @return {implEmitterDecorator}
+     */
+    emit(event, ...args) {
+        if (UsBetaSeries.debug)
+            AbstractDecorator.debug('EmiiterDecorator.emit[%s] call Listeners of event %s', this.target.constructor.name, event, this.__callbacks);
+        this.__callbacks = this.__callbacks || {};
+        let callbacks = this.__callbacks[event];
+        if (callbacks) {
+            args.unshift(new CustomEvent('betaseries', { detail: { event } }));
+            callbacks = callbacks.slice(0); // copy of callbacks (see: EmitterDecorator.once)
+            for (let i = 0, len = callbacks.length; i < len; ++i) {
+                callbacks[i].apply(this.target, args);
+            }
+        }
+        return this.target;
     }
 }
 
@@ -9580,7 +11747,7 @@ Media.prototype.fetchSimilars = function () {
         return this.__fetches.similars;
     this.similars = [];
     this.__fetches.similars = new Promise((resolve, reject) => {
-        Base.callApi('GET', this.mediaType.plural, 'similars', { id: this.id, details: true }, true)
+        UsBetaSeries.callApi('GET', this.mediaType.plural, 'similars', { id: this.id, details: true }, true)
             .then(data => {
             if (data.similars) {
                 for (let s = 0; s < data.similars.length; s++) {
@@ -9596,4 +11763,76 @@ Media.prototype.fetchSimilars = function () {
         });
     });
     return this.__fetches.similars;
+};
+/**
+ * bsModule contient la correspondance entre les noms de classe et l'objet Function\
+ * Cela sert aux méthodes getInstance et checkClassname
+ * @static
+ * @type {Record<string, any>}
+ */
+UsBetaSeries.bsModule = {
+    "Base": Base,
+    "CacheUS": CacheUS,
+    "Character": Character,
+    "CommentBS": CommentBS,
+    "CommentsBS": CommentsBS,
+    "Episode": Episode,
+    "Images": Images,
+    "Media": Media,
+    "MediaBase": MediaBase,
+    "Member": Member,
+    "Movie": Movie,
+    "Next": Next,
+    "Note": Note,
+    "NotificationBS": NotificationBS,
+    "NotificationList": NotificationList,
+    "NotifPayload": NotifPayload,
+    "Options": OptionsMember,
+    "Person": Person,
+    "PersonMedia": PersonMedia,
+    "PersonMedias": PersonMedias,
+    "Picture": Picture,
+    "Platform": Platform,
+    "PlatformList": PlatformList,
+    "ParamsSearchMovies": ParamsSearchMovies,
+    "ParamsSearchShows": ParamsSearchShows,
+    "Platforms": Platforms,
+    "RenderHtml": RenderHtml,
+    "Search": Search,
+    "Season": Season,
+    "Show": Show,
+    "Showrunner": Showrunner,
+    "Similar": Similar,
+    "Stats": Stats,
+    "Subtitle": Subtitle,
+    "UpdateAuto": UpdateAuto,
+    "User": User
+};
+/**
+ * getInstance - fonction servant à instancier un objet à partir de son nom de classe
+ * et de paramètres
+ * @static
+ * @param   {string} className - Le nom de la classe à instancier
+ * @param   {Array} [args = []] - Les paramètres à fournir au constructeur
+ * @returns {any} L'objet instancié
+ * @throws Error
+ */
+UsBetaSeries.getInstance = (className, ...args) => {
+    // TODO: Handle Null and invalid className arguments
+    if (typeof UsBetaSeries.bsModule[className] !== undefined) {
+        return new UsBetaSeries.bsModule[className](args);
+    }
+    else {
+        throw new Error("Class not found: " + className);
+    }
+};
+/**
+ * checkClassname - Fonction servant à vérifier si la classe est connue
+ * et peut être instanciée
+ * @static
+ * @param   {string} className - Le nom de classe à vérifier
+ * @returns {boolean}
+ */
+UsBetaSeries.checkClassname = (className) => {
+    return typeof UsBetaSeries.bsModule[className] !== undefined;
 };
